@@ -201,9 +201,9 @@ export default function AuthPage() {
           {isLogin && (
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-700">
-                <strong>Compte de démonstration :</strong><br />
+                <strong>Accès administrateur :</strong><br />
                 Email: contact.azquality@gmail.com<br />
-                (Créez votre compte pour accéder à l'interface admin)
+                (Compte administrateur principal)
               </p>
             </div>
           )}
