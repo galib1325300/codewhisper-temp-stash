@@ -1,27 +1,54 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
+import LandingPage from './pages/LandingPage';
+import AdminDashboard from './pages/AdminDashboard';
+import ScrapingPage from './pages/ScrapingPage';
+import FilesPage from './pages/FilesPage';
+import AccountPage from './pages/AccountPage';
+import SubscriptionPage from './pages/SubscriptionPage';
+import HistoryPage from './pages/HistoryPage';
+import NewShopPage from './pages/NewShopPage';
+import ShopDashboardPage from './pages/ShopDashboardPage';
+import ShopProductsPage from './pages/ShopProductsPage';
+import ShopProductDetailsPage from './pages/ShopProductDetailsPage';
+import ShopCollectionsPage from './pages/ShopCollectionsPage';
+import ShopBlogPage from './pages/ShopBlogPage';
+import ShopDiagnosticsPage from './pages/ShopDiagnosticsPage';
+import ShopSettingsPage from './pages/ShopSettingsPage';
+import ShopScrapingPage from './pages/ShopScrapingPage';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <Router>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
+          <Route path="/" element={<LandingPage />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+          <Route path="/admin/scraping" element={<AdminProtectedRoute><ScrapingPage /></AdminProtectedRoute>} />
+          <Route path="/admin/files" element={<AdminProtectedRoute><FilesPage /></AdminProtectedRoute>} />
+          <Route path="/admin/account" element={<AdminProtectedRoute><AccountPage /></AdminProtectedRoute>} />
+          <Route path="/admin/subscribe" element={<AdminProtectedRoute><SubscriptionPage /></AdminProtectedRoute>} />
+          <Route path="/admin/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
+          
+          {/* Shop Routes */}
+          <Route path="/admin/shops/new" element={<AdminProtectedRoute><NewShopPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id" element={<AdminProtectedRoute><ShopDashboardPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/products" element={<AdminProtectedRoute><ShopProductsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/products/:productId" element={<AdminProtectedRoute><ShopProductDetailsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/collections" element={<AdminProtectedRoute><ShopCollectionsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/blog" element={<AdminProtectedRoute><ShopBlogPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/diagnostics" element={<AdminProtectedRoute><ShopDiagnosticsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/settings" element={<AdminProtectedRoute><ShopSettingsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
+          
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+      </Router>
+    </ErrorBoundary>
+  );
+}
