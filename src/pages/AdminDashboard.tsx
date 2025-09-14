@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import { LayoutDashboard, Search, FileText, Building2, BookOpen, AlertCircle, RefreshCw } from 'lucide-react';
 import Button from '../components/Button';
 import { getShops } from '../utils/shops';
-import { DashboardStats } from '../utils/types';
+import { DashboardStats, Shop } from '../utils/types';
 
 function StatCard({ title, value, icon: Icon }: { title: string; value: string | number; icon: React.ElementType }) {
   return (
@@ -36,7 +36,23 @@ export default function AdminDashboard() {
     refunds: 0,
     countries: []
   });
-  const shops = getShops();
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadShops = async () => {
+      try {
+        const shopData = await getShops();
+        setShops(shopData);
+      } catch (error) {
+        console.error('Error loading shops:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadShops();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -50,7 +66,12 @@ export default function AdminDashboard() {
               <p className="text-gray-600">Vue d'ensemble de vos boutiques</p>
             </div>
 
-            {shops.length === 0 ? (
+            {loading ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Chargement des boutiques...</p>
+              </div>
+            ) : shops.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                 <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -91,38 +112,38 @@ export default function AdminDashboard() {
                               Gérer
                             </Button>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                         ))}
+                       </div>
+                     </div>
+                   </div>
 
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Crédits restants</h3>
-                      <div className="text-3xl font-bold text-indigo-600 mb-2">2550</div>
-                      <p className="text-sm text-gray-600">Sur votre plan Pro</p>
-                    </div>
+                   <div className="space-y-6">
+                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Crédits restants</h3>
+                       <div className="text-3xl font-bold text-indigo-600 mb-2">2550</div>
+                       <p className="text-sm text-gray-600">Sur votre plan Pro</p>
+                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h3>
-                      <div className="space-y-2">
-                        <Button variant="secondary" className="w-full justify-start">
-                          <FileText className="w-4 h-4 mr-2" />
-                          Traiter un CSV
-                        </Button>
-                        <Button variant="secondary" className="w-full justify-start">
-                          <Search className="w-4 h-4 mr-2" />
-                          Scraper une boutique
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
+                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h3>
+                       <div className="space-y-2">
+                         <Button variant="secondary" className="w-full justify-start">
+                           <FileText className="w-4 h-4 mr-2" />
+                           Traiter un CSV
+                         </Button>
+                         <Button variant="secondary" className="w-full justify-start">
+                           <Search className="w-4 h-4 mr-2" />
+                           Scraper une boutique
+                         </Button>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </>
+             )}
+           </div>
+         </main>
+       </div>
+     </div>
+   );
+ }

@@ -1,31 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import Button from '../components/Button';
 import { getShopById, updateShop } from '../utils/shops';
+import { Shop } from '../utils/types';
 import { Trash2 } from 'lucide-react';
 
 export default function ShopSettingsPage() {
   const { id } = useParams();
-  const [shop] = useState(() => getShopById(id || ''));
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const [formData, setFormData] = useState({
-    name: shop?.name || '',
-    type: shop?.type || 'WooCommerce',
-    url: shop?.url || '',
-    language: shop?.language || 'Français',
-    collectionsSlug: shop?.collectionsSlug || 'collections',
-    consumerKey: shop?.consumerKey || '',
-    consumerSecret: shop?.consumerSecret || '',
-    wpUsername: shop?.wpUsername || '',
-    wpPassword: shop?.wpPassword || '',
-    openaiApiKey: shop?.openaiApiKey || ''
+    name: '',
+    type: 'WooCommerce',
+    url: '',
+    language: 'Français',
+    collectionsSlug: 'collections',
+    consumerKey: '',
+    consumerSecret: '',
+    wpUsername: '',
+    wpPassword: '',
+    openaiApiKey: ''
   });
+
+  useEffect(() => {
+    const loadShop = async () => {
+      if (!id) return;
+      
+      try {
+        const shopData = await getShopById(id);
+        if (shopData) {
+          setShop(shopData);
+          setFormData({
+            name: shopData.name,
+            type: shopData.type,
+            url: shopData.url,
+            language: shopData.language,
+            collectionsSlug: shopData.collectionsSlug,
+            consumerKey: shopData.consumerKey,
+            consumerSecret: shopData.consumerSecret,
+            wpUsername: shopData.wpUsername,
+            wpPassword: shopData.wpPassword,
+            openaiApiKey: shopData.openaiApiKey || ''
+          });
+        }
+      } catch (error) {
+        console.error('Error loading shop:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadShop();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   if (!shop) {
     return (
@@ -52,7 +93,7 @@ export default function ShopSettingsPage() {
     setSuccess('');
 
     try {
-      updateShop(shop.id, formData);
+      await updateShop(shop.id, formData);
       setSuccess('Boutique mise à jour avec succès');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

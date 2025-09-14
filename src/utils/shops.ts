@@ -1,47 +1,154 @@
+import { supabase } from '@/integrations/supabase/client';
 import { Shop } from './types';
 
-const SHOPS_STORAGE_KEY = 'shops';
+export const getShops = async (): Promise<Shop[]> => {
+  const { data, error } = await supabase
+    .from('shops')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-export const getShops = (): Shop[] => {
-  const shopsData = localStorage.getItem(SHOPS_STORAGE_KEY);
-  return shopsData ? JSON.parse(shopsData) : [];
-};
-
-export const addShop = (shopData: Omit<Shop, 'id'>): Shop => {
-  const shops = getShops();
-  const newShop = {
-    ...shopData,
-    id: Date.now().toString()
-  };
-
-  shops.push(newShop);
-  localStorage.setItem(SHOPS_STORAGE_KEY, JSON.stringify(shops));
-  return newShop;
-};
-
-export const updateShop = (id: string, updates: Partial<Shop>): Shop => {
-  const shops = getShops();
-  const index = shops.findIndex(shop => shop.id === id);
-  
-  if (index === -1) {
-    throw new Error('Boutique non trouvée');
+  if (error) {
+    console.error('Error fetching shops:', error);
+    return [];
   }
 
-  const updatedShop = {
-    ...shops[index],
-    ...updates
+  return data.map(shop => ({
+    id: shop.id,
+    name: shop.name,
+    type: shop.type,
+    status: shop.status as 'publish' | 'draft' | 'pending' | 'private',
+    url: shop.url,
+    language: shop.language,
+    consumerKey: shop.consumer_key || '',
+    consumerSecret: shop.consumer_secret || '',
+    wpUsername: shop.wp_username || '',
+    wpPassword: shop.wp_password || '',
+    collectionsSlug: shop.collections_slug || '',
+    openaiApiKey: shop.openai_api_key || ''
+  }));
+};
+
+export const addShop = async (shopData: Omit<Shop, 'id'>): Promise<Shop> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('Utilisateur non authentifié');
+  }
+
+  const { data, error } = await supabase
+    .from('shops')
+    .insert({
+      user_id: user.id,
+      name: shopData.name,
+      type: shopData.type,
+      status: shopData.status,
+      url: shopData.url,
+      language: shopData.language,
+      consumer_key: shopData.consumerKey,
+      consumer_secret: shopData.consumerSecret,
+      wp_username: shopData.wpUsername,
+      wp_password: shopData.wpPassword,
+      collections_slug: shopData.collectionsSlug,
+      openai_api_key: shopData.openaiApiKey
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erreur lors de la création de la boutique: ${error.message}`);
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type,
+    status: data.status as 'publish' | 'draft' | 'pending' | 'private',
+    url: data.url,
+    language: data.language,
+    consumerKey: data.consumer_key || '',
+    consumerSecret: data.consumer_secret || '',
+    wpUsername: data.wp_username || '',
+    wpPassword: data.wp_password || '',
+    collectionsSlug: data.collections_slug || '',
+    openaiApiKey: data.openai_api_key || ''
   };
-
-  shops[index] = updatedShop;
-  localStorage.setItem(SHOPS_STORAGE_KEY, JSON.stringify(shops));
-  return updatedShop;
 };
 
-export const removeShop = (id: string): void => {
-  const shops = getShops().filter(shop => shop.id !== id);
-  localStorage.setItem(SHOPS_STORAGE_KEY, JSON.stringify(shops));
+export const updateShop = async (id: string, updates: Partial<Shop>): Promise<Shop> => {
+  const { data, error } = await supabase
+    .from('shops')
+    .update({
+      name: updates.name,
+      type: updates.type,
+      status: updates.status,
+      url: updates.url,
+      language: updates.language,
+      consumer_key: updates.consumerKey,
+      consumer_secret: updates.consumerSecret,
+      wp_username: updates.wpUsername,
+      wp_password: updates.wpPassword,
+      collections_slug: updates.collectionsSlug,
+      openai_api_key: updates.openaiApiKey
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erreur lors de la mise à jour de la boutique: ${error.message}`);
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type,
+    status: data.status as 'publish' | 'draft' | 'pending' | 'private',
+    url: data.url,
+    language: data.language,
+    consumerKey: data.consumer_key || '',
+    consumerSecret: data.consumer_secret || '',
+    wpUsername: data.wp_username || '',
+    wpPassword: data.wp_password || '',
+    collectionsSlug: data.collections_slug || '',
+    openaiApiKey: data.openai_api_key || ''
+  };
 };
 
-export const getShopById = (id: string): Shop | undefined => {
-  return getShops().find(shop => shop.id === id);
+export const removeShop = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('shops')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Erreur lors de la suppression de la boutique: ${error.message}`);
+  }
+};
+
+export const getShopById = async (id: string): Promise<Shop | null> => {
+  const { data, error } = await supabase
+    .from('shops')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching shop:', error);
+    return null;
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type,
+    status: data.status as 'publish' | 'draft' | 'pending' | 'private',
+    url: data.url,
+    language: data.language,
+    consumerKey: data.consumer_key || '',
+    consumerSecret: data.consumer_secret || '',
+    wpUsername: data.wp_username || '',
+    wpPassword: data.wp_password || '',
+    collectionsSlug: data.collections_slug || '',
+    openaiApiKey: data.openai_api_key || ''
+  };
 };

@@ -14,6 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
+      blog_posts: {
+        Row: {
+          content: string | null
+          created_at: string
+          excerpt: string | null
+          featured_image: string | null
+          id: string
+          published_at: string | null
+          seo_description: string | null
+          seo_title: string | null
+          shop_id: string
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          id?: string
+          published_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          shop_id: string
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          id?: string
+          published_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          shop_id?: string
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          parent_id: number | null
+          product_count: number | null
+          shop_id: string
+          slug: string
+          updated_at: string
+          woocommerce_id: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          parent_id?: number | null
+          product_count?: number | null
+          shop_id: string
+          slug: string
+          updated_at?: string
+          woocommerce_id: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          parent_id?: number | null
+          product_count?: number | null
+          shop_id?: string
+          slug?: string
+          updated_at?: string
+          woocommerce_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          categories: Json | null
+          created_at: string
+          description: string | null
+          featured: boolean | null
+          id: string
+          images: Json | null
+          name: string
+          on_sale: boolean | null
+          price: number | null
+          regular_price: number | null
+          sale_price: number | null
+          shop_id: string
+          short_description: string | null
+          sku: string | null
+          slug: string
+          status: string
+          stock_quantity: number | null
+          stock_status: string | null
+          updated_at: string
+          woocommerce_id: number
+        }
+        Insert: {
+          categories?: Json | null
+          created_at?: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          images?: Json | null
+          name: string
+          on_sale?: boolean | null
+          price?: number | null
+          regular_price?: number | null
+          sale_price?: number | null
+          shop_id: string
+          short_description?: string | null
+          sku?: string | null
+          slug: string
+          status?: string
+          stock_quantity?: number | null
+          stock_status?: string | null
+          updated_at?: string
+          woocommerce_id: number
+        }
+        Update: {
+          categories?: Json | null
+          created_at?: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          images?: Json | null
+          name?: string
+          on_sale?: boolean | null
+          price?: number | null
+          regular_price?: number | null
+          sale_price?: number | null
+          shop_id?: string
+          short_description?: string | null
+          sku?: string | null
+          slug?: string
+          status?: string
+          stock_quantity?: number | null
+          stock_status?: string | null
+          updated_at?: string
+          woocommerce_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -56,6 +239,7 @@ export type Database = {
           id: string
           language: string
           name: string
+          openai_api_key: string | null
           status: string
           type: string
           updated_at: string
@@ -72,6 +256,7 @@ export type Database = {
           id?: string
           language?: string
           name: string
+          openai_api_key?: string | null
           status?: string
           type: string
           updated_at?: string
@@ -88,6 +273,7 @@ export type Database = {
           id?: string
           language?: string
           name?: string
+          openai_api_key?: string | null
           status?: string
           type?: string
           updated_at?: string

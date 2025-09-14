@@ -1,16 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import { getShopById } from '../utils/shops';
+import { Shop } from '../utils/types';
 import { Search } from 'lucide-react';
 import Button from '../components/Button';
 
 export default function ShopCollectionsPage() {
   const { id } = useParams();
-  const [shop] = useState(() => getShopById(id || ''));
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const loadShop = async () => {
+      if (!id) return;
+      
+      try {
+        const shopData = await getShopById(id);
+        setShop(shopData);
+      } catch (error) {
+        console.error('Error loading shop:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadShop();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   if (!shop) {
     return (

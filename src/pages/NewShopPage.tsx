@@ -36,7 +36,7 @@ export default function NewShopPage() {
 
     try {
       // Ajouter la boutique
-      const newShop = addShop(formData);
+      const newShop = await addShop(formData);
       navigate(`/admin/shops/${newShop.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

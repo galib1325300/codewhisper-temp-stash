@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Globe, FileText, Store, Plus } from 'lucide-react';
 import { getShops } from '../utils/shops';
+import { Shop } from '../utils/types';
 
 interface SidebarLinkProps {
   to: string;
@@ -32,7 +33,23 @@ function SidebarLink({ to, icon, label, active, subLabel }: SidebarLinkProps) {
 
 export default function AdminSidebar() {
   const location = useLocation();
-  const shops = getShops();
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadShops = async () => {
+      try {
+        const shopData = await getShops();
+        setShops(shopData);
+      } catch (error) {
+        console.error('Error loading shops:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadShops();
+  }, []);
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
@@ -76,7 +93,11 @@ export default function AdminSidebar() {
             </Link>
           </div>
           
-          {shops.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500">Chargement...</p>
+            </div>
+          ) : shops.length > 0 ? (
             <div className="space-y-1">
               {shops.map((shop) => (
                 <Link
