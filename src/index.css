@@ -137,19 +137,31 @@
   
   /* Status Indicators */
   .status-success {
-    @apply bg-success-light text-success border border-success/20 px-3 py-1 rounded-full text-sm font-medium;
+    background-color: hsl(var(--success-light));
+    color: hsl(var(--success));
+    border: 1px solid hsl(var(--success) / 0.2);
+    @apply px-3 py-1 rounded-full text-sm font-medium;
   }
   
   .status-warning {
-    @apply bg-warning-light text-warning border border-warning/20 px-3 py-1 rounded-full text-sm font-medium;
+    background-color: hsl(var(--warning-light));
+    color: hsl(var(--warning));
+    border: 1px solid hsl(var(--warning) / 0.2);
+    @apply px-3 py-1 rounded-full text-sm font-medium;
   }
   
   .status-error {
-    @apply bg-error-light text-error border border-error/20 px-3 py-1 rounded-full text-sm font-medium;
+    background-color: hsl(var(--error-light));
+    color: hsl(var(--error));
+    border: 1px solid hsl(var(--error) / 0.2);
+    @apply px-3 py-1 rounded-full text-sm font-medium;
   }
   
   .status-info {
-    @apply bg-info-light text-info border border-info/20 px-3 py-1 rounded-full text-sm font-medium;
+    background-color: hsl(var(--info-light));
+    color: hsl(var(--info));
+    border: 1px solid hsl(var(--info) / 0.2);
+    @apply px-3 py-1 rounded-full text-sm font-medium;
   }
   
   /* Loading States */
