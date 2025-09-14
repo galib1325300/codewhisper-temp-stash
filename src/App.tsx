@@ -21,6 +21,7 @@ import ShopDiagnosticsPage from './pages/ShopDiagnosticsPage';
 import ShopSettingsPage from './pages/ShopSettingsPage';
 import ShopScrapingPage from './pages/ShopScrapingPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import SEOOptimizationPage from './pages/SEOOptimizationPage';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/admin/shops/:id/settings" element={<AdminProtectedRoute><ShopSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
             <Route path="/admin/shops/:id/analytics" element={<AdminProtectedRoute><AnalyticsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/seo-optimization" element={<AdminProtectedRoute><SEOOptimizationPage /></AdminProtectedRoute>} />
             
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
