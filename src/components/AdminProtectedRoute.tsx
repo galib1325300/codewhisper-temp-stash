@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AdminProtectedRouteProps {
   children: React.ReactNode;
@@ -7,15 +8,25 @@ interface AdminProtectedRouteProps {
 
 export default function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
   const navigate = useNavigate();
+  const { user, isAdmin, isLoading } = useAuth();
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    const isAdmin = localStorage.getItem('isAdmin') === 'true';
-
-    if (!isAuthenticated || !isAdmin) {
-      navigate('/');
+    if (!isLoading && (!user || !isAdmin)) {
+      navigate('/auth');
     }
-  }, [navigate]);
+  }, [user, isAdmin, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return null;
+  }
 
   return <>{children}</>;
 }

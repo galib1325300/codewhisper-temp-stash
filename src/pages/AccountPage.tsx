@@ -1,18 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import Button from '../components/Button';
-import { Pencil, Key, User } from 'lucide-react';
+import { Key, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function AccountPage() {
-  const [email] = useState(localStorage.getItem('userEmail') || '');
-  const [firstName, setFirstName] = useState('Romain');
+  const { user, updateProfile } = useAuth();
+  const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [apiKey, setApiKey] = useState('sk-proj-UC12sjUGQICV1LWz5tZbS-DUlQi...');
+  const [apiKey, setApiKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSaveChanges = () => {
-    setIsEditing(false);
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, openai_api_key')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setFirstName(data.first_name || '');
+        setLastName(data.last_name || '');
+        setApiKey(data.openai_api_key || '');
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await updateProfile({
+        first_name: firstName,
+        last_name: lastName,
+      });
+
+      if (error) throw error;
+
+      toast.success('Profil mis à jour avec succès');
+      setIsEditing(false);
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour du profil');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await updateProfile({
+        openai_api_key: apiKey,
+      });
+
+      if (error) throw error;
+
+      toast.success('Clé API mise à jour avec succès');
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour de la clé API');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -49,7 +113,7 @@ export default function AccountPage() {
                     </label>
                     <input
                       type="email"
-                      value={email}
+                      value={user?.email || ''}
                       disabled
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                     />
@@ -83,9 +147,19 @@ export default function AccountPage() {
                 </div>
 
                 {isEditing && (
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={handleSaveChanges}>
-                      Enregistrer les modifications
+                  <div className="mt-6 flex justify-end space-x-4">
+                    <Button 
+                      variant="secondary"
+                      onClick={() => setIsEditing(false)}
+                      disabled={isLoading}
+                    >
+                      Annuler
+                    </Button>
+                    <Button 
+                      onClick={handleSaveChanges}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
                     </Button>
                   </div>
                 )}
@@ -116,8 +190,12 @@ export default function AccountPage() {
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="sk-..."
                     />
-                    <Button variant="secondary">
-                      Vérifier
+                    <Button 
+                      variant="secondary"
+                      onClick={handleSaveApiKey}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Enregistrement...' : 'Enregistrer'}
                     </Button>
                   </div>
                 </div>

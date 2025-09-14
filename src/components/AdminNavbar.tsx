@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Wand2, User, History, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export default function AdminNavbar() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const userEmail = localStorage.getItem('userEmail');
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('userEmail');
-    navigate('/');
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast.error('Erreur lors de la déconnexion');
+    } else {
+      toast.success('Déconnexion réussie');
+      navigate('/');
+    }
   };
 
   return (
@@ -33,7 +38,7 @@ export default function AdminNavbar() {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center space-x-3 text-gray-700 hover:text-gray-900 focus:outline-none"
                 >
-                  <span>{userEmail}</span>
+                  <span>{user?.email}</span>
                   <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
                     <User className="h-5 w-5 text-indigo-600" />
                   </div>

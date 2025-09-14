@@ -1,7 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './hooks/useAuth';
+import { Toaster } from 'sonner';
 import ErrorBoundary from './components/ErrorBoundary';
 import LandingPage from './pages/LandingPage';
+import AuthPage from './pages/AuthPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ScrapingPage from './pages/ScrapingPage';
 import FilesPage from './pages/FilesPage';
@@ -22,33 +25,37 @@ import AdminProtectedRoute from './components/AdminProtectedRoute';
 export default function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
-          <Route path="/admin/scraping" element={<AdminProtectedRoute><ScrapingPage /></AdminProtectedRoute>} />
-          <Route path="/admin/files" element={<AdminProtectedRoute><FilesPage /></AdminProtectedRoute>} />
-          <Route path="/admin/account" element={<AdminProtectedRoute><AccountPage /></AdminProtectedRoute>} />
-          <Route path="/admin/subscribe" element={<AdminProtectedRoute><SubscriptionPage /></AdminProtectedRoute>} />
-          <Route path="/admin/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
-          
-          {/* Shop Routes */}
-          <Route path="/admin/shops/new" element={<AdminProtectedRoute><NewShopPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id" element={<AdminProtectedRoute><ShopDashboardPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/products" element={<AdminProtectedRoute><ShopProductsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/products/:productId" element={<AdminProtectedRoute><ShopProductDetailsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/collections" element={<AdminProtectedRoute><ShopCollectionsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/blog" element={<AdminProtectedRoute><ShopBlogPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/diagnostics" element={<AdminProtectedRoute><ShopDiagnosticsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/settings" element={<AdminProtectedRoute><ShopSettingsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
-          
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/scraping" element={<AdminProtectedRoute><ScrapingPage /></AdminProtectedRoute>} />
+            <Route path="/admin/files" element={<AdminProtectedRoute><FilesPage /></AdminProtectedRoute>} />
+            <Route path="/admin/account" element={<AdminProtectedRoute><AccountPage /></AdminProtectedRoute>} />
+            <Route path="/admin/subscribe" element={<AdminProtectedRoute><SubscriptionPage /></AdminProtectedRoute>} />
+            <Route path="/admin/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
+            
+            {/* Shop Routes */}
+            <Route path="/admin/shops/new" element={<AdminProtectedRoute><NewShopPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id" element={<AdminProtectedRoute><ShopDashboardPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/products" element={<AdminProtectedRoute><ShopProductsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/products/:productId" element={<AdminProtectedRoute><ShopProductDetailsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/collections" element={<AdminProtectedRoute><ShopCollectionsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/blog" element={<AdminProtectedRoute><ShopBlogPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/diagnostics" element={<AdminProtectedRoute><ShopDiagnosticsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/settings" element={<AdminProtectedRoute><ShopSettingsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
+            
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+        <Toaster position="top-right" />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

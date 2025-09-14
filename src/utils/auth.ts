@@ -1,21 +1,6 @@
-interface User {
-  email: string;
-  password: string;
-  isAdmin: boolean;
-}
+// This file is deprecated - authentication is now handled by Supabase
+// See src/hooks/useAuth.tsx for the new authentication system
 
-const ADMIN_USER: User = {
-  email: 'contact.azquality@gmail.com',
-  password: 'Galib1315025300',
-  isAdmin: true
-};
-
-export const authenticateUser = (email: string, password: string): { success: boolean; isAdmin: boolean } => {
-  if (email === ADMIN_USER.email && password === ADMIN_USER.password) {
-    localStorage.setItem('isAuthenticated', 'true');
-    localStorage.setItem('isAdmin', 'true');
-    localStorage.setItem('userEmail', email);
-    return { success: true, isAdmin: true };
-  }
-  return { success: false, isAdmin: false };
+export const authenticateUser = () => {
+  throw new Error('This function is deprecated. Use Supabase authentication instead.');
 };

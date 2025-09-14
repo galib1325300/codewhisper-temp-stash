@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { Wand2 } from 'lucide-react';
 import Button from './Button';
-import LoginModal from './LoginModal';
 
 export default function Navbar() {
-  const [showLoginModal, setShowLoginModal] = useState(false);
-
+  
   const handleLogin = () => {
-    setShowLoginModal(true);
+    window.location.href = '/auth';
   };
 
   const handleSubscribe = () => {
@@ -42,10 +41,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)} 
-      />
     </>
   );
 }
