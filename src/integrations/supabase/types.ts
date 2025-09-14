@@ -14,7 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          openai_api_key: string | null
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          openai_api_key?: string | null
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          openai_api_key?: string | null
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shops: {
+        Row: {
+          collections_slug: string | null
+          consumer_key: string | null
+          consumer_secret: string | null
+          created_at: string
+          id: string
+          language: string
+          name: string
+          status: string
+          type: string
+          updated_at: string
+          url: string
+          user_id: string
+          wp_password: string | null
+          wp_username: string | null
+        }
+        Insert: {
+          collections_slug?: string | null
+          consumer_key?: string | null
+          consumer_secret?: string | null
+          created_at?: string
+          id?: string
+          language?: string
+          name: string
+          status?: string
+          type: string
+          updated_at?: string
+          url: string
+          user_id: string
+          wp_password?: string | null
+          wp_username?: string | null
+        }
+        Update: {
+          collections_slug?: string | null
+          consumer_key?: string | null
+          consumer_secret?: string | null
+          created_at?: string
+          id?: string
+          language?: string
+          name?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+          wp_password?: string | null
+          wp_username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
