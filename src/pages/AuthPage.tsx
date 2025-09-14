@@ -198,15 +198,6 @@ export default function AuthPage() {
             </button>
           </div>
 
-          {isLogin && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>Accès administrateur :</strong><br />
-                Email: contact.azquality@gmail.com<br />
-                (Compte administrateur principal)
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
