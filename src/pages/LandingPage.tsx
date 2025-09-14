@@ -1,30 +1,30 @@
 import React, { useState } from 'react';
-import { Bot, Search, ShoppingBag, Rocket, Clock, BarChart, DollarSign, Target, Languages } from 'lucide-react';
+import { Bot, Search, ShoppingBag, Rocket, Clock, BarChart, DollarSign, Target, Languages, Sparkles, TrendingUp, Globe } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 
 function FeatureCard({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+    <div className="card-elevated p-6 interactive-hover group">
       <div className="flex items-center space-x-4 mb-4">
-        <div className="p-2 bg-indigo-100 rounded-lg">
-          <Icon className="w-6 h-6 text-indigo-600" />
+        <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
+          <Icon className="w-6 h-6 text-primary" />
         </div>
-        <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+        <h3 className="text-xl font-semibold text-foreground">{title}</h3>
       </div>
-      <p className="text-gray-600">{description}</p>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }
 
 function BenefitCard({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) {
   return (
-    <div className="flex flex-col items-center text-center p-6">
-      <div className="p-3 bg-indigo-100 rounded-full mb-4">
-        <Icon className="w-8 h-8 text-indigo-600" />
+    <div className="flex flex-col items-center text-center p-6 group">
+      <div className="p-4 bg-primary/10 rounded-2xl mb-4 group-hover:bg-primary/20 transition-all duration-300 group-hover:scale-110">
+        <Icon className="w-8 h-8 text-primary" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-gray-600">{description}</p>
+      <h3 className="text-lg font-semibold mb-2 text-foreground">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -46,25 +46,33 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-info/10">
       <Navbar />
       
       {/* Hero Section */}
       <header className="container mx-auto px-4 py-16 md:py-24 pt-24">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Dominez le SEO avec l'Intelligence Artificielle
+          <div className="inline-flex items-center px-4 py-2 bg-primary/10 rounded-full mb-6">
+            <Sparkles className="w-4 h-4 text-primary mr-2" />
+            <span className="text-sm font-medium text-primary">Powered by AI</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
+            Dominez le SEO avec
+            <span className="text-gradient block mt-2">l'Intelligence Artificielle</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Automatisez votre stratégie de contenu, analysez vos concurrents et boostez votre référencement naturel
+          <p className="text-xl text-muted-foreground mb-8 leading-relaxed max-w-2xl mx-auto">
+            Automatisez votre stratégie de contenu, analysez vos concurrents et boostez votre référencement naturel grâce à l'IA de dernière génération
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button onClick={handleStartNow}>
+            <Button onClick={handleStartNow} className="btn-gradient text-lg px-8 py-3">
               Commencer Maintenant
             </Button>
-            <Button variant="secondary" onClick={handleRequestDemo}>
+            <Button variant="secondary" onClick={handleRequestDemo} className="text-lg px-8 py-3 border border-border hover:bg-muted/50">
               Demander une Démo
             </Button>
+          </div>
+          <div className="mt-8 text-sm text-muted-foreground">
+            <span>✨ Essai gratuit de 14 jours • 🚀 Aucune carte requise • 💬 Support français</span>
           </div>
         </div>
       </header>
@@ -72,44 +80,48 @@ export default function LandingPage() {
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <div className="inline-flex items-center px-4 py-2 bg-info/10 rounded-full mb-4">
+            <TrendingUp className="w-4 h-4 text-info mr-2" />
+            <span className="text-sm font-medium text-info">Révolutionnaire</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Révolutionnez votre SEO
           </h2>
-          <p className="text-xl text-gray-600">
-            Des outils puissants pour dominer les résultats de recherche
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Des outils puissants alimentés par l'IA pour dominer les résultats de recherche et surpasser vos concurrents
           </p>
         </div>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <FeatureCard
             icon={Bot}
-            title="IA Avancée"
-            description="Génération automatique de contenu SEO optimisé grâce à l'intelligence artificielle de pointe"
+            title="IA Avancée GPT-5"
+            description="Génération automatique de contenu SEO optimisé grâce aux derniers modèles d'intelligence artificielle"
           />
           <FeatureCard
             icon={Search}
             title="Analyse Concurrentielle"
-            description="Surveillez vos concurrents et découvrez leurs stratégies SEO gagnantes"
+            description="Surveillez vos concurrents en temps réel et découvrez leurs stratégies SEO gagnantes"
           />
           <FeatureCard
             icon={ShoppingBag}
             title="E-commerce SEO"
-            description="Optimisez vos fiches produits et descriptions pour maximiser vos ventes"
+            description="Optimisez automatiquement vos fiches produits et descriptions pour maximiser vos ventes"
           />
           <FeatureCard
-            icon={Languages}
-            title="Multi-langues"
-            description="Créez du contenu optimisé dans plus de 25 langues différentes"
+            icon={Globe}
+            title="Multi-langues & Multi-pays"
+            description="Créez du contenu optimisé dans plus de 25 langues avec adaptation culturelle locale"
           />
           <FeatureCard
             icon={BarChart}
-            title="Analyses Détaillées"
-            description="Suivez vos performances et mesurez l'impact de vos optimisations"
+            title="Analytics Prédictifs"
+            description="Suivez vos performances et prédisez l'impact de vos optimisations avec l'IA"
           />
           <FeatureCard
             icon={Rocket}
-            title="Résultats Rapides"
-            description="Voyez vos classements s'améliorer en quelques semaines seulement"
+            title="Résultats Ultra-Rapides"
+            description="Observez vos classements s'améliorer en quelques jours grâce à notre technologie avancée"
           />
         </div>
       </section>
@@ -154,62 +166,93 @@ export default function LandingPage() {
       {/* Pricing Section */}
       <section id="pricing" className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <div className="inline-flex items-center px-4 py-2 bg-success/10 rounded-full mb-4">
+            <DollarSign className="w-4 h-4 text-success mr-2" />
+            <span className="text-sm font-medium text-success">Offre Limitée</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Tarifs Transparents
           </h2>
-          <p className="text-xl text-gray-600">
-            Commencez gratuitement, évoluez selon vos besoins
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Commencez gratuitement et évoluez selon vos besoins. Pas de frais cachés, pas d'engagement.
           </p>
         </div>
         
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-8 border-4 border-indigo-200">
-            <div className="text-center">
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Plan Pro</h3>
-              <div className="text-4xl font-bold text-indigo-600 mb-4">49€<span className="text-lg text-gray-500">/mois</span></div>
-              <p className="text-gray-600 mb-8">Tout ce dont vous avez besoin pour dominer votre marché</p>
+          <div className="card-elevated border-4 border-primary/20 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-info"></div>
+            <div className="p-8 text-center">
+              <div className="inline-flex items-center px-3 py-1 bg-primary/10 rounded-full mb-4">
+                <span className="text-sm font-medium text-primary">🔥 PLUS POPULAIRE</span>
+              </div>
+              <h3 className="text-2xl font-bold text-foreground mb-2">Plan Pro</h3>
+              <div className="text-4xl font-bold text-primary mb-4">
+                49€
+                <span className="text-lg text-muted-foreground">/mois</span>
+              </div>
+              <p className="text-muted-foreground mb-8">
+                Tout ce dont vous avez besoin pour dominer votre marché et surpasser vos concurrents
+              </p>
               
-              <ul className="text-left space-y-3 mb-8">
-                <li className="flex items-center">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full mr-3"></div>
-                  Génération illimitée de contenu SEO
-                </li>
-                <li className="flex items-center">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full mr-3"></div>
-                  Analyse concurrentielle avancée
-                </li>
-                <li className="flex items-center">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full mr-3"></div>
-                  Support multilingue (25+ langues)
-                </li>
-                <li className="flex items-center">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full mr-3"></div>
-                  Intégration e-commerce complète
-                </li>
-                <li className="flex items-center">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full mr-3"></div>
-                  Support prioritaire 24/7
-                </li>
-              </ul>
+              <div className="grid md:grid-cols-2 gap-4 text-left mb-8">
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-success rounded-full mr-3"></div>
+                    <span className="text-foreground">Génération illimitée de contenu SEO</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-success rounded-full mr-3"></div>
+                    <span className="text-foreground">Analyse concurrentielle en temps réel</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-success rounded-full mr-3"></div>
+                    <span className="text-foreground">Support multilingue (25+ langues)</span>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-success rounded-full mr-3"></div>
+                    <span className="text-foreground">Intégration e-commerce complète</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-success rounded-full mr-3"></div>
+                    <span className="text-foreground">Analytics prédictifs avancés</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-success rounded-full mr-3"></div>
+                    <span className="text-foreground">Support prioritaire 24/7</span>
+                  </div>
+                </div>
+              </div>
               
-              <Button onClick={handleFreeStart} className="w-full text-lg py-3">
-                Commencer l'Essai Gratuit
+              <Button onClick={handleFreeStart} className="btn-gradient w-full text-lg py-4 mb-4">
+                🚀 Commencer l'Essai Gratuit
               </Button>
+              <p className="text-sm text-muted-foreground">
+                14 jours gratuits • Aucune carte requise • Annulation en un clic
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-foreground text-background py-12">
         <div className="container mx-auto px-4 text-center">
+          <div className="inline-flex items-center px-4 py-2 bg-primary/20 backdrop-blur-sm rounded-full mb-4">
+            <Sparkles className="w-4 h-4 text-primary mr-2" />
+            <span className="text-sm font-medium text-primary">Rejoignez la révolution SEO</span>
+          </div>
           <h3 className="text-2xl font-bold mb-4">Prêt à dominer Google ?</h3>
-          <p className="text-gray-300 mb-8">
-            Rejoignez des milliers d'entreprises qui font confiance à Magic SEO
+          <p className="text-background/80 mb-8 max-w-2xl mx-auto">
+            Plus de 10,000 entreprises font confiance à Magic SEO pour transformer leur visibilité en ligne et multiplier leurs revenus
           </p>
-          <Button onClick={handleStartNow} variant="white">
-            Démarrer Maintenant
+          <Button onClick={handleStartNow} variant="white" className="text-lg px-8 py-3">
+            🚀 Démarrer Maintenant - C'est Gratuit
           </Button>
+          <p className="text-sm text-background/60 mt-4">
+            Aucune carte requise • Support français • Résultats garantis ou remboursé
+          </p>
         </div>
       </footer>
     </div>

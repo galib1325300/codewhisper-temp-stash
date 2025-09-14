@@ -5,14 +5,23 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
+import { WooCommerceService } from '../utils/woocommerce';
 import { Shop } from '../utils/types';
-import { Search, Eye } from 'lucide-react';
+import { Search, Eye, RefreshCw, Package, ExternalLink, Edit } from 'lucide-react';
+import LoadingState from '../components/ui/loading-state';
+import EmptyState from '../components/ui/empty-state';
+import StatusBadge from '../components/ui/status-badge';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function ShopProductsPage() {
   const { id } = useParams();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -21,8 +30,13 @@ export default function ShopProductsPage() {
       try {
         const shopData = await getShopById(id);
         setShop(shopData);
+        
+        if (shopData) {
+          loadProducts(shopData.id);
+        }
       } catch (error) {
         console.error('Error loading shop:', error);
+        toast.error('Erreur lors du chargement de la boutique');
       } finally {
         setLoading(false);
       }
@@ -31,27 +45,71 @@ export default function ShopProductsPage() {
     loadShop();
   }, [id]);
 
+  const loadProducts = async (shopId: string) => {
+    setProductsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error loading products:', error);
+      toast.error('Erreur lors du chargement des produits');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  const handleSyncProducts = async () => {
+    if (!shop) return;
+    
+    setSyncing(true);
+    try {
+      const result = await WooCommerceService.syncProducts(shop.id);
+      if (result.success) {
+        toast.success(`${result.count} produits synchronisés avec succès`);
+        loadProducts(shop.id);
+      } else {
+        toast.error(result.error || 'Erreur lors de la synchronisation');
+      }
+    } catch (error) {
+      console.error('Error syncing products:', error);
+      toast.error('Erreur lors de la synchronisation');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingState size="lg" text="Chargement des produits..." />
       </div>
     );
   }
 
   if (!shop) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900">Boutique non trouvée</h2>
-          <p className="mt-2 text-gray-600">La boutique que vous recherchez n'existe pas.</p>
+          <h2 className="text-xl font-semibold text-foreground">Boutique non trouvée</h2>
+          <p className="mt-2 text-muted-foreground">La boutique que vous recherchez n'existe pas.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <AdminNavbar />
       <div className="flex">
         <AdminSidebar />
@@ -59,53 +117,127 @@ export default function ShopProductsPage() {
           <div className="max-w-7xl mx-auto">
             <ShopNavigation shopName={shop.name} />
             
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
+            <div className="card-elevated">
+              <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Produits</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Produits</h2>
                   <div className="flex items-center space-x-4">
                     <div className="relative">
-                      <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Search className="w-5 h-5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         placeholder="Rechercher un produit..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="pl-10 pr-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-colors"
                       />
                     </div>
-                    <Button>Actualiser</Button>
+                    <Button 
+                      onClick={handleSyncProducts}
+                      disabled={syncing || !shop.consumerKey || !shop.consumerSecret}
+                      variant="secondary"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                      Synchroniser
+                    </Button>
                   </div>
                 </div>
               </div>
 
               <div className="p-6">
                 {!shop.consumerKey || !shop.consumerSecret ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4">
-                      <Search className="w-12 h-12 mx-auto" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Configuration requise
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      Configurez vos clés API WooCommerce pour voir vos produits
-                    </p>
-                    <Button onClick={() => window.location.href = `/admin/shops/${id}/settings`}>
-                      Configurer maintenant
-                    </Button>
+                  <EmptyState
+                    icon={Package}
+                    title="Configuration requise"
+                    description="Configurez vos clés API WooCommerce pour voir vos produits"
+                    action={{
+                      label: "Configurer maintenant",
+                      onClick: () => window.location.href = `/admin/shops/${id}/settings`
+                    }}
+                  />
+                ) : productsLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-4 p-4 border border-border rounded-lg">
+                        <div className="w-16 h-16 bg-muted loading-shimmer rounded-lg" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted loading-shimmer rounded w-3/4" />
+                          <div className="h-3 bg-muted loading-shimmer rounded w-1/2" />
+                        </div>
+                        <div className="h-6 w-20 bg-muted loading-shimmer rounded" />
+                      </div>
+                    ))}
                   </div>
+                ) : filteredProducts.length === 0 ? (
+                  <EmptyState
+                    icon={Package}
+                    title="Aucun produit trouvé"
+                    description={searchQuery ? "Aucun produit ne correspond à votre recherche" : "Vos produits apparaîtront ici une fois synchronisés"}
+                    action={!searchQuery ? {
+                      label: "Synchroniser maintenant",
+                      onClick: handleSyncProducts
+                    } : undefined}
+                  />
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4">
-                      <Search className="w-12 h-12 mx-auto" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Aucun produit trouvé
-                    </h3>
-                    <p className="text-gray-600">
-                      Vos produits apparaîtront ici une fois la connexion établie
-                    </p>
+                  <div className="space-y-4">
+                    {filteredProducts.map((product) => (
+                      <div key={product.id} className="card-interactive p-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                            {product.images && product.images.length > 0 ? (
+                              <img 
+                                src={product.images[0].src} 
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package className="w-8 h-8 text-muted-foreground" />
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
+                            <p className="text-sm text-muted-foreground">{product.sku || 'Pas de SKU'}</p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <StatusBadge 
+                                status={product.status === 'publish' ? 'success' : 'warning'}
+                                variant="dot"
+                              >
+                                {product.status === 'publish' ? 'Publié' : 'Brouillon'}
+                              </StatusBadge>
+                              {product.featured && (
+                                <StatusBadge status="info" variant="outline">
+                                  En vedette
+                                </StatusBadge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <p className="font-bold text-foreground">
+                              {product.price ? `${product.price}€` : 'Prix non défini'}
+                            </p>
+                            {product.regular_price && product.sale_price && (
+                              <p className="text-sm text-muted-foreground line-through">
+                                {product.regular_price}€
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              Stock: {product.stock_quantity || 'N/A'}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <Button variant="secondary">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="secondary">
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
