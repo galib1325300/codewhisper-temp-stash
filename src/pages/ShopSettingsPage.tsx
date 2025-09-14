@@ -5,14 +5,18 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import Button from '../components/Button';
 import { getShopById, updateShop } from '../utils/shops';
+import { WooCommerceService } from '../utils/woocommerce';
 import { Shop } from '../utils/types';
 import { Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ShopSettingsPage() {
   const { id } = useParams();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -99,6 +103,49 @@ export default function ShopSettingsPage() {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!shop) return;
+    
+    setTesting(true);
+    try {
+      const result = await WooCommerceService.testConnection(shop.id);
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('Erreur lors du test de connexion');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleSyncData = async () => {
+    if (!shop) return;
+    
+    setSyncing(true);
+    try {
+      // Sync products
+      const productsResult = await WooCommerceService.syncProducts(shop.id);
+      if (!productsResult.success) {
+        throw new Error(productsResult.error);
+      }
+
+      // Sync collections
+      const collectionsResult = await WooCommerceService.syncCollections(shop.id);
+      if (!collectionsResult.success) {
+        throw new Error(collectionsResult.error);
+      }
+
+      toast.success(`Synchronisation réussie! ${productsResult.count} produits et ${collectionsResult.count} collections synchronisés.`);
+    } catch (error) {
+      toast.error(`Erreur lors de la synchronisation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -208,6 +255,30 @@ export default function ShopSettingsPage() {
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Actions WooCommerce
+                  </h3>
+                  <div className="flex space-x-4 mb-6">
+                    <Button
+                      type="button"
+                      onClick={handleTestConnection}
+                      disabled={testing}
+                      variant="secondary"
+                    >
+                      {testing ? 'Test en cours...' : 'Tester la connexion'}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSyncData}
+                      disabled={syncing}
+                      variant="secondary"
+                    >
+                      {syncing ? 'Synchronisation...' : 'Synchroniser les données'}
+                    </Button>
                   </div>
                 </div>
 

@@ -3,15 +3,25 @@ import { useParams } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
-import { getShopById } from '../utils/shops';
-import { Shop } from '../utils/types';
-import { Search, Plus } from 'lucide-react';
 import Button from '../components/Button';
+import { getShopById } from '../utils/shops';
+import { SEOContentService } from '../utils/seoContent';
+import { Shop } from '../utils/types';
+import { FileText, Plus, Edit, Trash2, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function ShopBlogPage() {
   const { id } = useParams();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [blogPosts, setBlogPosts] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [formData, setFormData] = useState({
+    topic: '',
+    keywords: ''
+  });
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -21,6 +31,10 @@ export default function ShopBlogPage() {
       try {
         const shopData = await getShopById(id);
         setShop(shopData);
+        
+        if (shopData) {
+          loadBlogPosts();
+        }
       } catch (error) {
         console.error('Error loading shop:', error);
       } finally {
@@ -30,6 +44,62 @@ export default function ShopBlogPage() {
 
     loadShop();
   }, [id]);
+
+  const loadBlogPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('shop_id', id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setBlogPosts(data || []);
+    } catch (error) {
+      console.error('Error loading blog posts:', error);
+    }
+  };
+
+  const handleGeneratePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shop) return;
+    
+    setGenerating(true);
+    try {
+      const keywords = formData.keywords.split(',').map(k => k.trim()).filter(k => k);
+      const result = await SEOContentService.generateBlogPost(shop.id, formData.topic, keywords);
+      
+      if (result.success && result.post) {
+        toast.success('Article généré avec succès !');
+        setShowForm(false);
+        setFormData({ topic: '', keywords: '' });
+        loadBlogPosts(); // Reload to show the new post
+      } else {
+        toast.error(result.error || 'Erreur lors de la génération');
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la génération de l\'article');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      draft: 'bg-gray-100 text-gray-800',
+      published: 'bg-green-100 text-green-800',
+      pending: 'bg-yellow-100 text-yellow-800'
+    };
+    return badges[status as keyof typeof badges] || badges.draft;
+  };
 
   if (loading) {
     return (

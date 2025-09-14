@@ -5,13 +5,28 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
-import { Shop } from '../utils/types';
+import { WooCommerceService } from '../utils/woocommerce';
+import { Shop, DashboardStats } from '../utils/types';
 import { Settings, AlertTriangle } from 'lucide-react';
 
 export default function ShopDashboardPage() {
   const { id } = useParams();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    products: 0,
+    collections: 0,
+    blogPosts: 0,
+    unpublishedChanges: 0,
+    revenue: '0.00€',
+    orders: 0,
+    averageCart: '0.00€',
+    customers: 0,
+    productsSold: 0,
+    refunds: 0,
+    countries: []
+  });
 
   useEffect(() => {
     const loadShop = async () => {
@@ -20,6 +35,10 @@ export default function ShopDashboardPage() {
       try {
         const shopData = await getShopById(id);
         setShop(shopData);
+        
+        if (shopData) {
+          loadStats(shopData.id);
+        }
       } catch (error) {
         console.error('Error loading shop:', error);
       } finally {
@@ -29,6 +48,27 @@ export default function ShopDashboardPage() {
 
     loadShop();
   }, [id]);
+
+  const loadStats = async (shopId: string) => {
+    setStatsLoading(true);
+    try {
+      const result = await WooCommerceService.getDashboardStats(shopId);
+      if (result.success && result.stats) {
+        setStats(prevStats => ({
+          ...prevStats,
+          products: result.stats!.products,
+          collections: result.stats!.collections,
+          orders: result.stats!.orders,
+          revenue: result.stats!.revenue,
+          customers: result.stats!.customers,
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -61,19 +101,27 @@ export default function ShopDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-sm font-medium text-gray-500">Produits</h3>
-                <p className="text-3xl font-bold text-indigo-600">0</p>
+                <p className="text-3xl font-bold text-indigo-600">
+                  {statsLoading ? "..." : stats.products}
+                </p>
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-sm font-medium text-gray-500">Collections</h3>
-                <p className="text-3xl font-bold text-indigo-600">0</p>
+                <p className="text-3xl font-bold text-indigo-600">
+                  {statsLoading ? "..." : stats.collections}
+                </p>
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-sm font-medium text-gray-500">Articles</h3>
-                <p className="text-3xl font-bold text-indigo-600">0</p>
+                <p className="text-3xl font-bold text-indigo-600">
+                  {stats.blogPosts}
+                </p>
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-sm font-medium text-gray-500">Commandes</h3>
-                <p className="text-3xl font-bold text-indigo-600">0</p>
+                <p className="text-3xl font-bold text-indigo-600">
+                  {statsLoading ? "..." : stats.orders}
+                </p>
               </div>
             </div>
 

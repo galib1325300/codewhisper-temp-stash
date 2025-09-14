@@ -5,13 +5,17 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
+import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { Plus, Eye, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ShopDiagnosticsPage() {
   const { id } = useParams();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const [report, setReport] = useState<any>(null);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -29,6 +33,40 @@ export default function ShopDiagnosticsPage() {
 
     loadShop();
   }, [id]);
+
+  const runDiagnostic = async () => {
+    if (!shop) return;
+    
+    setDiagnosticLoading(true);
+    try {
+      const result = await SEOContentService.runSEODiagnostic(shop.id);
+      if (result.success && result.report) {
+        setReport(result.report);
+        toast.success('Diagnostic SEO terminé');
+      } else {
+        toast.error(result.error || 'Erreur lors du diagnostic');
+      }
+    } catch (error) {
+      toast.error('Erreur lors du diagnostic');
+    } finally {
+      setDiagnosticLoading(false);
+    }
+  };
+
+  const getIssueIcon = (type: string) => {
+    switch (type) {
+      case 'error': return <AlertTriangle className="w-5 h-5 text-red-500" />;
+      case 'warning': return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+      case 'info': return <Info className="w-5 h-5 text-blue-500" />;
+      default: return <Info className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600';
+    if (score >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
 
   if (loading) {
     return (
