@@ -20,6 +20,7 @@ import ShopBlogPage from './pages/ShopBlogPage';
 import ShopDiagnosticsPage from './pages/ShopDiagnosticsPage';
 import ShopSettingsPage from './pages/ShopSettingsPage';
 import ShopScrapingPage from './pages/ShopScrapingPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/admin/shops/:id/diagnostics" element={<AdminProtectedRoute><ShopDiagnosticsPage /></AdminProtectedRoute>} />
             <Route path="/admin/shops/:id/settings" element={<AdminProtectedRoute><ShopSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/analytics" element={<AdminProtectedRoute><AnalyticsPage /></AdminProtectedRoute>} />
             
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

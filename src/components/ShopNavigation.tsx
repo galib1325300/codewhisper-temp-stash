@@ -15,6 +15,7 @@ export default function ShopNavigation({ shopName }: ShopNavigationProps) {
     { name: 'Collections', path: `/admin/shops/${id}/collections` },
     { name: 'Blog', path: `/admin/shops/${id}/blog` },
     { name: 'Diagnostics', path: `/admin/shops/${id}/diagnostics` },
+    { name: 'Analytics', path: `/admin/shops/${id}/analytics` },
     { name: 'Scraping', path: `/admin/shops/${id}/scraping` },
     { name: 'Paramètres', path: `/admin/shops/${id}/settings` }
   ];
