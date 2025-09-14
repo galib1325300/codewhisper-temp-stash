@@ -53,6 +53,7 @@ export default function App() {
             <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
             <Route path="/admin/shops/:id/analytics" element={<AdminProtectedRoute><AnalyticsPage /></AdminProtectedRoute>} />
             <Route path="/admin/shops/:id/seo-optimization" element={<AdminProtectedRoute><SEOOptimizationPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/:id/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
             
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
