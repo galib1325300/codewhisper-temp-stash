@@ -1,349 +1,319 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Wand2, Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import Button from '../components/Button';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import LoadingState from '../components/ui/loading-state';
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResetMode, setIsResetMode] = useState(false);
-  const [isSettingNewPassword, setIsSettingNewPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
-  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    confirmPassword: ''
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (user) {
-      navigate('/admin');
+      const from = location.state?.from?.pathname || '/admin';
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location]);
 
-  // Détecte le flux de récupération de mot de passe de Supabase
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      setIsSettingNewPassword(true);
-      setIsLogin(true);
-      setIsResetMode(false);
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.email) {
+      newErrors.email = 'Email requis';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email invalide';
     }
-  }, []);
+
+    if (!formData.password) {
+      newErrors.password = 'Mot de passe requis';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Minimum 6 caractères';
+    }
+
+    if (isSignUp) {
+      if (!formData.firstName) {
+        newErrors.firstName = 'Prénom requis';
+      }
+      
+      if (!formData.lastName) {
+        newErrors.lastName = 'Nom requis';
+      }
+
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Confirmation requise';
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Mots de passe différents';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!validateForm()) return;
 
+    setLoading(true);
     try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
+      if (isSignUp) {
+        const { error } = await signUp(formData.email, formData.password);
+        if (error) {
+          toast.error(error.message);
+        } else {
+          toast.success('Compte créé ! Vérifiez votre email pour confirmer.');
+        }
+      } else {
+        const { error } = await signIn(formData.email, formData.password);
         if (error) {
           toast.error(error.message);
         } else {
           toast.success('Connexion réussie !');
-          navigate('/admin');
-        }
-      } else {
-        if (password !== confirmPassword) {
-          toast.error('Les mots de passe ne correspondent pas');
-          return;
-        }
-        
-        const { error } = await signUp(email, password);
-        if (error) {
-          toast.error(error.message);
-        } else {
-          toast.success('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
         }
       }
-    } catch (error) {
-      toast.error('Une erreur est survenue');
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      toast.error(error.message || 'Erreur d\'authentification');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleSendResetEmail = async () => {
-    if (!email) {
-      toast.error("Veuillez saisir votre email");
-      return;
-    }
-    try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
-      });
-      if (error) throw error;
-      toast.success("Email de réinitialisation envoyé. Vérifiez votre boîte de réception.");
-      setIsResetMode(false);
-    } catch (err: any) {
-      toast.error(err.message || "Impossible d'envoyer l'email");
-    } finally {
-      setIsLoading(false);
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const handleSetNewPassword = async () => {
-    if (newPassword.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
-      return;
+  const inputClasses = (field: string) => `
+    w-full px-4 py-3 pl-12 rounded-lg border transition-colors duration-200
+    ${errors[field] 
+      ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
+      : 'border-input bg-background focus:border-primary focus:ring-primary/20'
     }
-    if (newPassword !== newPasswordConfirm) {
-      toast.error('Les mots de passe ne correspondent pas');
-      return;
-    }
-    try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      toast.success('Mot de passe mis à jour. Vous pouvez maintenant vous connecter.');
-      // Nettoyer le hash d'URL potentiel
-      window.location.hash = '';
-      setIsSettingNewPassword(false);
-      setIsLogin(true);
-    } catch (err: any) {
-      toast.error(err.message || 'Mise à jour impossible');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    focus:ring-2 focus:outline-none
+  `;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-info/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center space-x-2 text-indigo-600 hover:text-indigo-700 transition-colors">
-            <Wand2 className="w-8 h-8" />
-            <span className="text-2xl font-bold">MAGIC SEO</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mt-6 mb-2">
-            {isLogin ? 'Connexion' : 'Créer un compte'}
-          </h1>
-          <p className="text-gray-600">
-            {isLogin ? 'Accédez à votre tableau de bord' : 'Rejoignez Magic SEO aujourd\'hui'}
-          </p>
-        </div>
-
-        {/* Form */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          {isSettingNewPassword ? (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Définir un nouveau mot de passe</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nouveau mot de passe</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="••••••••"
-                    minLength={6}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Confirmer le nouveau mot de passe</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={newPasswordConfirm}
-                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="••••••••"
-                    minLength={6}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={handleSetNewPassword}
-                  disabled={isLoading}
-                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isLoading ? 'Chargement...' : 'Mettre à jour le mot de passe'}
-                </button>
-              </div>
-              <div className="text-center">
-                <button onClick={() => setIsSettingNewPassword(false)} className="text-indigo-600 hover:text-indigo-700 font-medium">
-                  Revenir à la connexion
-                </button>
-              </div>
+        <div className="card-elevated p-8 backdrop-blur-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
+              <User className="w-8 h-8 text-primary" />
             </div>
-          ) : isResetMode ? (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Réinitialiser votre mot de passe</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="votre@email.com"
-                    required
-                  />
-                </div>
-              </div>
-              <button
-                onClick={handleSendResetEmail}
-                disabled={isLoading}
-                className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? 'Envoi...' : 'Envoyer le lien de réinitialisation'}
-              </button>
-              <div className="text-center">
-                <button onClick={() => setIsResetMode(false)} className="text-indigo-600 hover:text-indigo-700 font-medium">
-                  Revenir à la connexion
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {!isLogin && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                        Prénom
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <input
-                          id="firstName"
-                          type="text"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="Prénom"
-                          required={!isLogin}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                        Nom
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <input
-                          id="lastName"
-                          type="text"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="Nom"
-                          required={!isLogin}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              {isSignUp ? 'Créer un compte' : 'Se connecter'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isSignUp 
+                ? 'Rejoignez Magic SEO et dominez Google' 
+                : 'Connectez-vous à votre tableau de bord'
+              }
+            </p>
+          </div>
 
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {isSignUp && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Prénom
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="votre@email.com"
-                      required
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
+                      className={inputClasses('firstName')}
+                      placeholder="Jean"
+                      disabled={loading}
                     />
                   </div>
+                  {errors.firstName && (
+                    <p className="text-red-500 text-sm mt-1 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {errors.firstName}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Mot de passe
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Nom
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="••••••••"
-                      required
-                      minLength={6}
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                      className={inputClasses('lastName')}
+                      placeholder="Dupont"
+                      disabled={loading}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
                   </div>
+                  {errors.lastName && (
+                    <p className="text-red-500 text-sm mt-1 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {errors.lastName}
+                    </p>
+                  )}
                 </div>
+              </div>
+            )}
 
-                {!isLogin && (
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                      Confirmer le mot de passe
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input
-                        id="confirmPassword"
-                        type={showPassword ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="••••••••"
-                        required={!isLogin}
-                        minLength={6}
-                      />
-                    </div>
-                  </div>
-                )}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className={inputClasses('email')}
+                  placeholder="votre@email.com"
+                  disabled={loading}
+                />
+              </div>
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {errors.email}
+                </p>
+              )}
+            </div>
 
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  className={inputClasses('password')}
+                  placeholder="••••••••"
+                  disabled={loading}
+                />
                 <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={loading}
                 >
-                  {isLoading ? 'Chargement...' : (isLogin ? 'Se connecter' : 'Créer un compte')}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
-              </form>
+              </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {errors.password}
+                </p>
+              )}
+            </div>
 
-              <div className="mt-4 text-center">
-                {isLogin && (
-                  <button onClick={() => setIsResetMode(true)} className="text-indigo-600 hover:text-indigo-700 font-medium">
-                    Mot de passe oublié ?
-                  </button>
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Confirmer le mot de passe
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    className={inputClasses('confirmPassword')}
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-sm mt-1 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {errors.confirmPassword}
+                  </p>
                 )}
               </div>
+            )}
 
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  {isLogin ? 'Pas encore de compte ? Créer un compte' : 'Déjà un compte ? Se connecter'}
-                </button>
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="w-full btn-gradient text-lg py-4 mt-8"
+            >
+              {loading ? (
+                <LoadingState size="sm" className="text-primary-foreground" />
+              ) : (
+                <>
+                  {isSignUp ? 'Créer mon compte' : 'Se connecter'}
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrors({});
+                setFormData({
+                  email: '',
+                  password: '',
+                  firstName: '',
+                  lastName: '',
+                  confirmPassword: ''
+                });
+              }}
+              className="text-primary hover:text-primary/80 transition-colors font-medium"
+              disabled={loading}
+            >
+              {isSignUp 
+                ? 'Déjà un compte ? Se connecter' 
+                : 'Pas de compte ? Créer un compte'
+              }
+            </button>
+          </div>
+
+          {isSignUp && (
+            <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-primary mt-0.5" />
+                <div className="text-sm text-primary">
+                  <p className="font-medium mb-1">Votre compte inclut :</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• 14 jours d'essai gratuit</li>
+                    <li>• Génération illimitée de contenu IA</li>
+                    <li>• Analytics SEO avancés</li>
+                    <li>• Support technique prioritaire</li>
+                  </ul>
+                </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
