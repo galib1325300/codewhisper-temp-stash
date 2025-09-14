@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { AlertTriangle, CheckCircle, Info, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, RefreshCw, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ShopDiagnosticsPage() {
