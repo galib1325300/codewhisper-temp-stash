@@ -1,6 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-import WooCommerceRestApi from "https://esm.sh/woocommerce-rest-api@1.0.1?target=deno";
+
+// WooCommerce API helper
+function createWooCommerceAuth(consumerKey: string, consumerSecret: string) {
+  const credentials = btoa(`${consumerKey}:${consumerSecret}`);
+  return `Basic ${credentials}`;
+}
+
+async function wooCommerceRequest(url: string, endpoint: string, auth: string, params: Record<string, any> = {}) {
+  const searchParams = new URLSearchParams(params);
+  const fullUrl = `${url}/wp-json/wc/v3/${endpoint}?${searchParams}`;
+  
+  const response = await fetch(fullUrl, {
+    headers: {
+      'Authorization': auth,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`WooCommerce API error: ${response.statusText}`);
+  }
+  
+  return {
+    data: await response.json(),
+    headers: Object.fromEntries(response.headers.entries())
+  };
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,33 +61,28 @@ serve(async (req) => {
       throw new Error('Identifiants WooCommerce manquants');
     }
 
-    // Initialize WooCommerce API
-    const WooCommerce = new WooCommerceRestApi({
-      url: shop.url,
-      consumerKey: shop.consumer_key,
-      consumerSecret: shop.consumer_secret,
-      version: "wc/v3"
-    });
+    // Initialize WooCommerce API auth
+    const auth = createWooCommerceAuth(shop.consumer_key, shop.consumer_secret);
 
     // Get products count
-    const productsResponse = await WooCommerce.get("products", { per_page: 1 });
+    const productsResponse = await wooCommerceRequest(shop.url, "products", auth, { per_page: 1 });
     const productsCount = parseInt(productsResponse.headers['x-wp-total'] || '0');
 
     // Get categories count
-    const categoriesResponse = await WooCommerce.get("products/categories", { per_page: 1 });
+    const categoriesResponse = await wooCommerceRequest(shop.url, "products/categories", auth, { per_page: 1 });
     const categoriesCount = parseInt(categoriesResponse.headers['x-wp-total'] || '0');
 
     // Get orders count and revenue
-    const ordersResponse = await WooCommerce.get("orders", { per_page: 100, status: 'completed' });
+    const ordersResponse = await wooCommerceRequest(shop.url, "orders", auth, { per_page: 100, status: 'completed' });
     const orders = ordersResponse.data || [];
     const ordersCount = orders.length;
     
-    const revenue = orders.reduce((total, order) => {
+    const revenue = orders.reduce((total: number, order: any) => {
       return total + parseFloat(order.total || '0');
     }, 0);
 
     // Get customers count
-    const customersResponse = await WooCommerce.get("customers", { per_page: 1 });
+    const customersResponse = await wooCommerceRequest(shop.url, "customers", auth, { per_page: 1 });
     const customersCount = parseInt(customersResponse.headers['x-wp-total'] || '0');
 
     const stats = {

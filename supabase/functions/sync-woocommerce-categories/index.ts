@@ -1,6 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-import WooCommerceRestApi from "https://esm.sh/woocommerce-rest-api@1.0.1?target=deno";
+
+// WooCommerce API helper
+function createWooCommerceAuth(consumerKey: string, consumerSecret: string) {
+  const credentials = btoa(`${consumerKey}:${consumerSecret}`);
+  return `Basic ${credentials}`;
+}
+
+async function wooCommerceRequest(url: string, endpoint: string, auth: string, params: Record<string, any> = {}) {
+  const searchParams = new URLSearchParams(params);
+  const fullUrl = `${url}/wp-json/wc/v3/${endpoint}?${searchParams}`;
+  
+  const response = await fetch(fullUrl, {
+    headers: {
+      'Authorization': auth,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`WooCommerce API error: ${response.statusText}`);
+  }
+  
+  return {
+    data: await response.json(),
+    headers: Object.fromEntries(response.headers.entries())
+  };
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,23 +61,18 @@ serve(async (req) => {
       throw new Error('Identifiants WooCommerce manquants');
     }
 
-    // Initialize WooCommerce API
-    const WooCommerce = new WooCommerceRestApi({
-      url: shop.url,
-      consumerKey: shop.consumer_key,
-      consumerSecret: shop.consumer_secret,
-      version: "wc/v3"
-    });
+    // Initialize WooCommerce API auth
+    const auth = createWooCommerceAuth(shop.consumer_key, shop.consumer_secret);
 
     // Fetch categories from WooCommerce
-    let allCategories = [];
+    let allCategories: any[] = [];
     let page = 1;
     const perPage = 100;
 
     do {
-      const response = await WooCommerce.get("products/categories", {
-        page,
-        per_page: perPage,
+      const response = await wooCommerceRequest(shop.url, "products/categories", auth, {
+        page: page.toString(),
+        per_page: perPage.toString(),
       });
       
       if (response.data && response.data.length > 0) {
@@ -63,7 +84,7 @@ serve(async (req) => {
     } while (true);
 
     // Transform and insert categories into Supabase
-    const categoriesToInsert = allCategories.map(category => ({
+    const categoriesToInsert = allCategories.map((category: any) => ({
       shop_id: shopId,
       woocommerce_id: category.id,
       name: category.name,
