@@ -75,7 +75,7 @@ export default function TeamManagement({ className }: TeamManagementProps) {
       permissions: ['view_analytics'],
       shops: ['1']
     }
-  ];
+  ]);
 
   const roles = [
     {

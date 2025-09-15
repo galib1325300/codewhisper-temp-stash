@@ -124,29 +124,24 @@ export default function MultiStoreOverview() {
               <StatCard
                 title="Trafic Total"
                 value={totalTraffic.toLocaleString()}
-                description="Sessions ce mois"
-                icon={<BarChart3 className="w-6 h-6" />}
-                trend="+12.5%"
+                icon={BarChart3}
+                trend={{ value: 12.5 }}
               />
               <StatCard
                 title="Conversions"
                 value={totalConversions.toString()}
-                description="Objectifs atteints"
-                icon={<TrendingUp className="w-6 h-6" />}
-                trend="+8.3%"
+                icon={TrendingUp}
+                trend={{ value: 8.3 }}
               />
               <StatCard
                 title="Score SEO Moyen"
                 value={`${averageSeoScore}/100`}
-                description="Toutes boutiques"
-                icon={<CheckCircle className="w-6 h-6" />}
+                icon={CheckCircle}
               />
               <StatCard
                 title="Problèmes Détectés"
                 value={totalIssues.toString()}
-                description="À corriger"
-                icon={<AlertTriangle className="w-6 h-6" />}
-                trend={totalIssues > 10 ? "Critique" : "Normal"}
+                icon={AlertTriangle}
               />
             </div>
 
