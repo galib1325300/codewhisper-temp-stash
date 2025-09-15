@@ -22,6 +22,7 @@ import ShopSettingsPage from './pages/ShopSettingsPage';
 import ShopScrapingPage from './pages/ShopScrapingPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SEOOptimizationPage from './pages/SEOOptimizationPage';
+import MultiStoreOverview from './pages/MultiStoreOverview';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 
 export default function App() {
@@ -40,6 +41,8 @@ export default function App() {
             <Route path="/admin/account" element={<AdminProtectedRoute><AccountPage /></AdminProtectedRoute>} />
             <Route path="/admin/subscribe" element={<AdminProtectedRoute><SubscriptionPage /></AdminProtectedRoute>} />
             <Route path="/admin/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
+            <Route path="/admin/multi-store" element={<AdminProtectedRoute><MultiStoreOverview /></AdminProtectedRoute>} />
+            <Route path="/admin/team" element={<AdminProtectedRoute><div>Team Management Coming Soon</div></AdminProtectedRoute>} />
             
             {/* Shop Routes */}
             <Route path="/admin/shops/new" element={<AdminProtectedRoute><NewShopPage /></AdminProtectedRoute>} />
