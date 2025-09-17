@@ -232,14 +232,17 @@ export type Database = {
       }
       shops: {
         Row: {
+          analytics_enabled: boolean | null
           collections_slug: string | null
           consumer_key: string | null
           consumer_secret: string | null
           created_at: string
           id: string
+          jetpack_access_token: string | null
           language: string
           name: string
           openai_api_key: string | null
+          shopify_access_token: string | null
           status: string
           type: string
           updated_at: string
@@ -249,14 +252,17 @@ export type Database = {
           wp_username: string | null
         }
         Insert: {
+          analytics_enabled?: boolean | null
           collections_slug?: string | null
           consumer_key?: string | null
           consumer_secret?: string | null
           created_at?: string
           id?: string
+          jetpack_access_token?: string | null
           language?: string
           name: string
           openai_api_key?: string | null
+          shopify_access_token?: string | null
           status?: string
           type: string
           updated_at?: string
@@ -266,14 +272,17 @@ export type Database = {
           wp_username?: string | null
         }
         Update: {
+          analytics_enabled?: boolean | null
           collections_slug?: string | null
           consumer_key?: string | null
           consumer_secret?: string | null
           created_at?: string
           id?: string
+          jetpack_access_token?: string | null
           language?: string
           name?: string
           openai_api_key?: string | null
+          shopify_access_token?: string | null
           status?: string
           type?: string
           updated_at?: string

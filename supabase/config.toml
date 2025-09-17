@@ -1,1 +1,7 @@
 project_id = "ysrwnhhbcvjsjwecezdf"
+
+[functions.get-wordpress-analytics]
+verify_jwt = true
+
+[functions.get-shopify-analytics]
+verify_jwt = true
