@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
@@ -7,11 +7,12 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { AlertTriangle, CheckCircle, Info, RefreshCw, Plus } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, RefreshCw, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ShopDiagnosticsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
@@ -50,6 +51,17 @@ export default function ShopDiagnosticsPage() {
       toast.error('Erreur lors du diagnostic');
     } finally {
       setDiagnosticLoading(false);
+    }
+  };
+
+  const isShopConnected = () => {
+    if (!shop) return false;
+    return !!(shop.consumerKey && shop.consumerSecret);
+  };
+
+  const handleConfigureConnection = () => {
+    if (shop) {
+      navigate(`/admin/shops/${shop.id}/settings`);
     }
   };
 
@@ -108,20 +120,43 @@ export default function ShopDiagnosticsPage() {
               </div>
 
               <div className="p-6">
-                <div className="text-center py-12">
-                  <div className="text-gray-400 mb-4">
-                    <AlertTriangle className="w-12 h-12 mx-auto" />
+                {!isShopConnected() ? (
+                  <div className="text-center py-12">
+                    <div className="text-amber-500 mb-4">
+                      <Settings className="w-12 h-12 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Boutique non connectée
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Vous devez connecter votre boutique pour effectuer des diagnostics SEO
+                    </p>
+                    <Button onClick={handleConfigureConnection}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Configurer la connexion
+                    </Button>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Aucun diagnostic effectué
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Lancez votre premier diagnostic SEO pour identifier les problèmes
-                  </p>
-                  <Button>
-                    Lancer un diagnostic
-                  </Button>
-                </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 mb-4">
+                      <AlertTriangle className="w-12 h-12 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Aucun diagnostic effectué
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Lancez votre premier diagnostic SEO pour identifier les problèmes
+                    </p>
+                    <Button onClick={runDiagnostic} disabled={diagnosticLoading}>
+                      {diagnosticLoading ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4 mr-2" />
+                      )}
+                      {diagnosticLoading ? 'Diagnostic en cours...' : 'Lancer un diagnostic'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
