@@ -8,15 +8,15 @@ interface AdminProtectedRouteProps {
 
 export default function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
   const navigate = useNavigate();
-  const { user, isAdmin, isLoading, isRoleLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !isRoleLoading && (!user || !isAdmin)) {
+    if (!isLoading && !user) {
       navigate('/auth');
     }
-  }, [user, isAdmin, isLoading, isRoleLoading, navigate]);
+  }, [user, isLoading, navigate]);
 
-  if (isLoading || isRoleLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
@@ -24,7 +24,7 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user) {
     return null;
   }
 
