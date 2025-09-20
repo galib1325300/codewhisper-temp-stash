@@ -24,7 +24,10 @@ export const getShops = async (): Promise<Shop[]> => {
     wpUsername: shop.wp_username || '',
     wpPassword: shop.wp_password || '',
     collectionsSlug: shop.collections_slug || '',
-    openaiApiKey: shop.openai_api_key || ''
+    openaiApiKey: shop.openai_api_key || '',
+    analyticsEnabled: shop.analytics_enabled || false,
+    jetpackAccessToken: shop.jetpack_access_token || '',
+    shopifyAccessToken: shop.shopify_access_token || ''
   }));
 };
 
@@ -49,7 +52,10 @@ export const addShop = async (shopData: Omit<Shop, 'id'>): Promise<Shop> => {
       wp_username: shopData.wpUsername,
       wp_password: shopData.wpPassword,
       collections_slug: shopData.collectionsSlug,
-      openai_api_key: shopData.openaiApiKey
+      openai_api_key: shopData.openaiApiKey,
+      analytics_enabled: shopData.analyticsEnabled,
+      jetpack_access_token: shopData.jetpackAccessToken,
+      shopify_access_token: shopData.shopifyAccessToken
     })
     .select()
     .single();
@@ -70,7 +76,10 @@ export const addShop = async (shopData: Omit<Shop, 'id'>): Promise<Shop> => {
     wpUsername: data.wp_username || '',
     wpPassword: data.wp_password || '',
     collectionsSlug: data.collections_slug || '',
-    openaiApiKey: data.openai_api_key || ''
+    openaiApiKey: data.openai_api_key || '',
+    analyticsEnabled: data.analytics_enabled || false,
+    jetpackAccessToken: data.jetpack_access_token || '',
+    shopifyAccessToken: data.shopify_access_token || ''
   };
 };
 
@@ -88,7 +97,10 @@ export const updateShop = async (id: string, updates: Partial<Shop>): Promise<Sh
       wp_username: updates.wpUsername,
       wp_password: updates.wpPassword,
       collections_slug: updates.collectionsSlug,
-      openai_api_key: updates.openaiApiKey
+      openai_api_key: updates.openaiApiKey,
+      analytics_enabled: updates.analyticsEnabled,
+      jetpack_access_token: updates.jetpackAccessToken,
+      shopify_access_token: updates.shopifyAccessToken
     })
     .eq('id', id)
     .select()
@@ -110,7 +122,10 @@ export const updateShop = async (id: string, updates: Partial<Shop>): Promise<Sh
     wpUsername: data.wp_username || '',
     wpPassword: data.wp_password || '',
     collectionsSlug: data.collections_slug || '',
-    openaiApiKey: data.openai_api_key || ''
+    openaiApiKey: data.openai_api_key || '',
+    analyticsEnabled: data.analytics_enabled || false,
+    jetpackAccessToken: data.jetpack_access_token || '',
+    shopifyAccessToken: data.shopify_access_token || ''
   };
 };
 
@@ -149,6 +164,9 @@ export const getShopById = async (id: string): Promise<Shop | null> => {
     wpUsername: data.wp_username || '',
     wpPassword: data.wp_password || '',
     collectionsSlug: data.collections_slug || '',
-    openaiApiKey: data.openai_api_key || ''
+    openaiApiKey: data.openai_api_key || '',
+    analyticsEnabled: data.analytics_enabled || false,
+    jetpackAccessToken: data.jetpack_access_token || '',
+    shopifyAccessToken: data.shopify_access_token || ''
   };
 };

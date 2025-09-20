@@ -51,8 +51,7 @@ serve(async (req) => {
     // Extract site domain from shop URL
     const siteUrl = shop.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     
-    // Fetch WordPress.com stats
-    const statsUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${siteUrl}/stats`;
+    // Fetch WordPress.com stats with corrected endpoints
     const summaryUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${siteUrl}/stats/summary`;
     const topPostsUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${siteUrl}/stats/top-posts`;
     const referrersUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${siteUrl}/stats/referrers`;
@@ -62,27 +61,27 @@ serve(async (req) => {
       'Content-Type': 'application/json'
     };
 
-    // Fetch analytics data in parallel
-    const [statsResponse, summaryResponse, topPostsResponse, referrersResponse] = await Promise.all([
-      fetch(`${statsUrl}?period=day&date=${timeRange}`, { headers }),
+    console.log(`Fetching WordPress analytics for ${timeRange} days`);
+
+    // Fetch analytics data in parallel with corrected parameters
+    const [summaryResponse, topPostsResponse, referrersResponse] = await Promise.all([
       fetch(`${summaryUrl}?period=day&num=${timeRange}`, { headers }),
-      fetch(`${topPostsUrl}?period=day&date=${timeRange}`, { headers }),
-      fetch(`${referrersUrl}?period=day&date=${timeRange}`, { headers })
+      fetch(`${topPostsUrl}?period=day&num=${timeRange}`, { headers }),
+      fetch(`${referrersUrl}?period=day&num=${timeRange}`, { headers })
     ]);
 
-    if (!statsResponse.ok) {
-      console.error('WordPress API error:', await statsResponse.text());
+    if (!summaryResponse.ok) {
+      console.error('WordPress API error:', await summaryResponse.text());
       return new Response(JSON.stringify({ 
         error: 'Failed to fetch WordPress analytics',
-        status: statsResponse.status 
+        status: summaryResponse.status 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const [statsData, summaryData, topPostsData, referrersData] = await Promise.all([
-      statsResponse.json(),
+    const [summaryData, topPostsData, referrersData] = await Promise.all([
       summaryResponse.json(),
       topPostsResponse.json(),
       referrersResponse.json()
@@ -122,7 +121,6 @@ serve(async (req) => {
         organicPercentage: Number(organicTrafficPercentage.toFixed(2))
       },
       rawData: {
-        stats: statsData,
         summary: summaryData,
         topPosts: topPostsData,
         referrers: referrersData,

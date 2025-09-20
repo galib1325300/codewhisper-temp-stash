@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   Users, 
@@ -47,6 +48,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [shopType, setShopType] = useState<string>('');
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Fetch analytics data
   const fetchAnalyticsData = async () => {
@@ -54,10 +56,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     
     setLoading(true);
     try {
-      // First get shop details to determine type
+      // First get shop details to determine type and configuration
       const { data: shop, error: shopError } = await supabase
         .from('shops')
-        .select('type, analytics_enabled')
+        .select('type, analytics_enabled, jetpack_access_token, shopify_access_token')
         .eq('id', shopId)
         .single();
       
@@ -65,15 +67,28 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         throw new Error('Shop not found');
       }
       
-      setShopType(shop.type);
+      const normalizedType = shop.type.toLowerCase();
+      setShopType(normalizedType);
       
+      // Check if analytics are enabled and required token is available
       if (!shop.analytics_enabled) {
+        console.log('Analytics not enabled for shop');
+        setAnalyticsData(null);
+        return;
+      }
+
+      const hasRequiredToken = normalizedType === 'shopify' 
+        ? !!shop.shopify_access_token 
+        : !!shop.jetpack_access_token;
+
+      if (!hasRequiredToken) {
+        console.log(`Required ${normalizedType} token not configured`);
         setAnalyticsData(null);
         return;
       }
 
       // Determine which analytics function to call based on shop type
-      const functionName = shop.type === 'shopify' ? 'get-shopify-analytics' : 'get-wordpress-analytics';
+      const functionName = normalizedType === 'shopify' ? 'get-shopify-analytics' : 'get-wordpress-analytics';
       
       // Fetch current period data
       const { data: currentData, error: currentError } = await supabase.functions.invoke(functionName, {
@@ -83,10 +98,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       if (currentError) {
         // Check if it's a token configuration error
         if (currentError.message?.includes('not configured') || currentError.message?.includes('access token')) {
+          console.log('Token configuration error:', currentError.message);
           setAnalyticsData(null);
           return;
         }
         throw currentError;
+      }
+
+      if (!currentData || !currentData.metrics) {
+        console.log('No valid analytics data received');
+        setAnalyticsData(null);
+        return;
       }
 
       // Fetch previous period data for comparison
@@ -222,11 +244,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     <div className={`space-y-6 ${className}`}>
       {/* Configuration Warning */}
       {needsConfiguration && (
-        <Card className="border-warning bg-warning/5">
+        <Card className="border-[hsl(var(--warning))] bg-[hsl(var(--warning)/0.05)]">
           <CardContent className="pt-6">
             <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-warning/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-warning" />
+              <div className="w-12 h-12 bg-[hsl(var(--warning)/0.2)] rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-[hsl(var(--warning))]" />
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -238,8 +260,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button 
-                    onClick={() => window.location.href = `/admin/shops/${shopId}/settings`}
-                    className="bg-warning text-warning-foreground hover:bg-warning/90"
+                    onClick={() => navigate(`/admin/shops/${shopId}/settings`)}
+                    className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning)/0.9)]"
                   >
                     Configurer {tokenType}
                   </Button>

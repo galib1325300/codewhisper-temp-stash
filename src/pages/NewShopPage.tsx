@@ -20,7 +20,11 @@ export default function NewShopPage() {
     wpUsername: '',
     wpPassword: '',
     collectionsSlug: 'collections',
-    status: 'publish' as const
+    status: 'publish' as const,
+    analyticsEnabled: false,
+    jetpackAccessToken: '',
+    shopifyAccessToken: '',
+    openaiApiKey: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

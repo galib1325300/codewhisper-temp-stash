@@ -7,8 +7,9 @@ import Button from '../components/Button';
 import { getShopById, updateShop } from '../utils/shops';
 import { WooCommerceService } from '../utils/woocommerce';
 import { Shop } from '../utils/types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ShopSettingsPage() {
   const { id } = useParams();
@@ -30,7 +31,10 @@ export default function ShopSettingsPage() {
     consumerSecret: '',
     wpUsername: '',
     wpPassword: '',
-    openaiApiKey: ''
+    openaiApiKey: '',
+    analyticsEnabled: false,
+    jetpackAccessToken: '',
+    shopifyAccessToken: ''
   });
 
   useEffect(() => {
@@ -51,7 +55,10 @@ export default function ShopSettingsPage() {
             consumerSecret: shopData.consumerSecret,
             wpUsername: shopData.wpUsername,
             wpPassword: shopData.wpPassword,
-            openaiApiKey: shopData.openaiApiKey || ''
+            openaiApiKey: shopData.openaiApiKey || '',
+            analyticsEnabled: shopData.analyticsEnabled,
+            jetpackAccessToken: shopData.jetpackAccessToken || '',
+            shopifyAccessToken: shopData.shopifyAccessToken || ''
           });
         }
       } catch (error) {
@@ -84,8 +91,13 @@ export default function ShopSettingsPage() {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
     setError('');
     setSuccess('');
   };
@@ -106,19 +118,28 @@ export default function ShopSettingsPage() {
     }
   };
 
-  const handleTestConnection = async () => {
+  const handleTestAnalytics = async () => {
     if (!shop) return;
     
     setTesting(true);
     try {
-      const result = await WooCommerceService.testConnection(shop.id);
-      if (result.success) {
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
+      const functionName = formData.type.toLowerCase() === 'shopify' ? 'get-shopify-analytics' : 'get-wordpress-analytics';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { shopId: shop.id, timeRange: '7' }
+      });
+
+      if (error) {
+        throw error;
       }
-    } catch (error) {
-      toast.error('Erreur lors du test de connexion');
+
+      toast.success('Test de connexion Analytics réussi');
+    } catch (error: any) {
+      if (error.message?.includes('not configured') || error.message?.includes('access token')) {
+        toast.error('Token d\'accès non configuré ou invalide');
+      } else {
+        toast.error('Erreur lors du test de connexion Analytics');
+      }
     } finally {
       setTesting(false);
     }
@@ -259,17 +280,94 @@ export default function ShopSettingsPage() {
                 </div>
 
                 <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Settings className="w-5 h-5 mr-2" />
+                    Configuration Analytics
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="analyticsEnabled"
+                        name="analyticsEnabled"
+                        checked={formData.analyticsEnabled}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="analyticsEnabled" className="text-sm font-medium text-gray-700">
+                        Activer les analytics SEO
+                      </label>
+                    </div>
+
+                    {formData.analyticsEnabled && (
+                      <div className="space-y-4 pl-7 border-l-2 border-gray-200">
+                        {formData.type.toLowerCase() === 'shopify' ? (
+                          <div>
+                            <label htmlFor="shopifyAccessToken" className="block text-sm font-medium text-gray-700 mb-2">
+                              Shopify Admin API Access Token
+                            </label>
+                            <input
+                              type="password"
+                              id="shopifyAccessToken"
+                              name="shopifyAccessToken"
+                              value={formData.shopifyAccessToken}
+                              onChange={handleInputChange}
+                              placeholder="shpat_..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                              Token d'accès à l'API Admin Shopify pour récupérer les données analytics
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <label htmlFor="jetpackAccessToken" className="block text-sm font-medium text-gray-700 mb-2">
+                              Jetpack Access Token
+                            </label>
+                            <input
+                              type="password"
+                              id="jetpackAccessToken"
+                              name="jetpackAccessToken"
+                              value={formData.jetpackAccessToken}
+                              onChange={handleInputChange}
+                              placeholder="Token WordPress.com/Jetpack..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                              Token d'accès Jetpack pour récupérer les statistiques WordPress.com
+                            </p>
+                          </div>
+                        )}
+                        
+                        <div className="flex space-x-3">
+                          <Button
+                            type="button"
+                            onClick={handleTestAnalytics}
+                            disabled={testing}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            {testing ? 'Test en cours...' : 'Tester la connexion Analytics'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Actions WooCommerce
                   </h3>
                   <div className="flex space-x-4 mb-6">
                     <Button
                       type="button"
-                      onClick={handleTestConnection}
+                      onClick={handleTestAnalytics}
                       disabled={testing}
                       variant="secondary"
                     >
-                      {testing ? 'Test en cours...' : 'Tester la connexion'}
+                      {testing ? 'Test en cours...' : 'Tester la connexion Analytics'}
                     </Button>
                     <Button
                       type="button"

@@ -11,6 +11,9 @@ export interface Shop {
   wpPassword: string;
   collectionsSlug: string;
   openaiApiKey?: string;
+  analyticsEnabled: boolean;
+  jetpackAccessToken?: string;
+  shopifyAccessToken?: string;
 }
 
 export interface DashboardStats {
