@@ -25,29 +25,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkAdminRole = async (uid: string) => {
+      console.log('Checking admin role for user:', uid);
       setIsRoleLoading(true);
       try {
-        const { data } = await supabase.rpc('has_role', {
+        const { data, error } = await supabase.rpc('has_role', {
           _user_id: uid,
           _role: 'admin',
         });
-        setIsAdmin(!!data);
+        if (error) {
+          console.error('RPC error:', error);
+          setIsAdmin(false);
+        } else {
+          console.log('Admin role check result:', data);
+          setIsAdmin(!!data);
+        }
       } catch (error) {
         console.error('Error checking admin role:', error);
         setIsAdmin(false);
       } finally {
+        console.log('Role loading finished');
         setIsRoleLoading(false);
       }
     };
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
+        console.log('Auth state changed:', _event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await checkAdminRole(session.user.id);
+          // Use setTimeout to avoid blocking the auth state change
+          setTimeout(() => {
+            checkAdminRole(session.user.id);
+          }, 0);
         } else {
           setIsAdmin(false);
           setIsRoleLoading(false);
