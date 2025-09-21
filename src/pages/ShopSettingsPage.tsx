@@ -123,22 +123,39 @@ export default function ShopSettingsPage() {
     
     setTesting(true);
     try {
-      const functionName = formData.type.toLowerCase() === 'shopify' ? 'get-shopify-analytics' : 'get-wordpress-analytics';
+      let functionName = '';
+      
+      if (formData.type.toLowerCase() === 'shopify') {
+        functionName = 'get-shopify-analytics';
+        if (!formData.shopifyAccessToken) {
+          throw new Error('Token Shopify requis');
+        }
+      } else {
+        // For WordPress/WooCommerce, try Jetpack first, then basic API
+        if (formData.jetpackAccessToken) {
+          functionName = 'get-wordpress-analytics';
+        } else if (formData.consumerKey && formData.consumerSecret) {
+          functionName = 'get-wordpress-basic-analytics';
+        } else {
+          throw new Error('Credentials WooCommerce ou token Jetpack requis');
+        }
+      }
       
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { shopId: shop.id, timeRange: '7' }
+        body: { shopId: shop.id, timeRange: '7days' }
       });
 
       if (error) {
         throw error;
       }
 
-      toast.success('Test de connexion Analytics réussi');
+      const isBasicAPI = functionName.includes('basic');
+      toast.success(`Test de connexion Analytics réussi ${isBasicAPI ? '(API WordPress de base)' : '(Jetpack)'}`);
     } catch (error: any) {
       if (error.message?.includes('not configured') || error.message?.includes('access token')) {
         toast.error('Token d\'accès non configuré ou invalide');
       } else {
-        toast.error('Erreur lors du test de connexion Analytics');
+        toast.error(`Erreur: ${error.message || 'Erreur lors du test de connexion Analytics'}`);
       }
     } finally {
       setTesting(false);
@@ -317,26 +334,44 @@ export default function ShopSettingsPage() {
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             />
                             <p className="mt-1 text-xs text-gray-500">
-                              Token d'accès à l'API Admin Shopify pour récupérer les données analytics
+                              Trouvez votre token dans Admin Shopify → Apps → Gérer les apps privées
                             </p>
                           </div>
                         ) : (
-                          <div>
-                            <label htmlFor="jetpackAccessToken" className="block text-sm font-medium text-gray-700 mb-2">
-                              Jetpack Access Token
-                            </label>
-                            <input
-                              type="password"
-                              id="jetpackAccessToken"
-                              name="jetpackAccessToken"
-                              value={formData.jetpackAccessToken}
-                              onChange={handleInputChange}
-                              placeholder="Token WordPress.com/Jetpack..."
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                            <p className="mt-1 text-xs text-gray-500">
-                              Token d'accès Jetpack pour récupérer les statistiques WordPress.com
-                            </p>
+                          <div className="space-y-4">
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <h4 className="font-medium text-blue-900 mb-2">Options Analytics WordPress</h4>
+                              <div className="text-sm text-blue-800 space-y-1">
+                                <p><strong>Option 1 (Recommandée) :</strong> Utilisez vos credentials WooCommerce existants</p>
+                                <p><strong>Option 2 :</strong> Configurez Jetpack pour analytics avancées</p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label htmlFor="jetpackAccessToken" className="block text-sm font-medium text-gray-700 mb-2">
+                                Token d'accès Jetpack (optionnel)
+                              </label>
+                              <input
+                                type="password"
+                                id="jetpackAccessToken"
+                                name="jetpackAccessToken"
+                                value={formData.jetpackAccessToken}
+                                onChange={handleInputChange}
+                                placeholder="wp_... (optionnel)"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Si vide, utilisation automatique de vos credentials WooCommerce pour analytics de base.
+                              </p>
+                            </div>
+
+                            {!formData.jetpackAccessToken && (formData.consumerKey && formData.consumerSecret) && (
+                              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p className="text-sm text-green-800">
+                                  ✅ Analytics disponibles avec vos credentials WooCommerce existants
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                         

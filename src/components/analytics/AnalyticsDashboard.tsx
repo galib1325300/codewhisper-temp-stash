@@ -56,98 +56,109 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     
     setLoading(true);
     try {
-      // First get shop details to determine type and configuration
-      const { data: shop, error: shopError } = await supabase
+      // Get shop details first
+      const { data: shopData, error: shopError } = await supabase
         .from('shops')
-        .select('type, analytics_enabled, jetpack_access_token, shopify_access_token')
+        .select('*')
         .eq('id', shopId)
         .single();
-      
-      if (shopError || !shop) {
-        throw new Error('Shop not found');
-      }
-      
-      const normalizedType = shop.type.toLowerCase();
-      setShopType(normalizedType);
-      
-      // Check if analytics are enabled and required token is available
-      if (!shop.analytics_enabled) {
-        console.log('Analytics not enabled for shop');
-        setAnalyticsData(null);
-        return;
-      }
 
-      const hasRequiredToken = normalizedType === 'shopify' 
-        ? !!shop.shopify_access_token 
-        : !!shop.jetpack_access_token;
-
-      if (!hasRequiredToken) {
-        console.log(`Required ${normalizedType} token not configured`);
-        setAnalyticsData(null);
-        return;
-      }
-
-      // Determine which analytics function to call based on shop type
-      const functionName = normalizedType === 'shopify' ? 'get-shopify-analytics' : 'get-wordpress-analytics';
-      
-      // Fetch current period data
-      const { data: currentData, error: currentError } = await supabase.functions.invoke(functionName, {
-        body: { shopId, timeRange }
-      });
-
-      if (currentError) {
-        // Check if it's a token configuration error
-        if (currentError.message?.includes('not configured') || currentError.message?.includes('access token')) {
-          console.log('Token configuration error:', currentError.message);
-          setAnalyticsData(null);
-          return;
-        }
-        throw currentError;
-      }
-
-      if (!currentData || !currentData.metrics) {
-        console.log('No valid analytics data received');
-        setAnalyticsData(null);
-        return;
-      }
-
-      // Fetch previous period data for comparison
-      const previousTimeRange = (parseInt(timeRange) * 2).toString();
-      const { data: previousData } = await supabase.functions.invoke(functionName, {
-        body: { shopId, timeRange: previousTimeRange }
-      });
-
-      setAnalyticsData({
-        organicTraffic: currentData.metrics.organicTraffic || 0,
-        conversions: currentData.metrics.conversions || 0,
-        ctr: currentData.metrics.ctr || 0,
-        revenue: currentData.metrics.revenue || 0,
-        previousData: previousData ? {
-          organicTraffic: Math.round((previousData.metrics.organicTraffic || 0) * 0.8), // Simulate previous period
-          conversions: Math.round((previousData.metrics.conversions || 0) * 0.8),
-          ctr: (previousData.metrics.ctr || 0) * 0.9,
-          revenue: Math.round((previousData.metrics.revenue || 0) * 0.8)
-        } : undefined
-      });
-
-      toast({
-        title: "Données mises à jour",
-        description: "Les analytics ont été actualisées avec succès."
-      });
-
-    } catch (error: any) {
-      console.error('Error fetching analytics:', error);
-      
-      if (error.message?.includes('not configured') || error.message?.includes('access token')) {
-        setAnalyticsData(null);
-      } else {
+      if (shopError || !shopData) {
         toast({
-          title: "Erreur de chargement",
-          description: "Impossible de charger les données analytics.",
+          title: "Erreur",
+          description: "Impossible de charger les données de la boutique",
           variant: "destructive"
         });
-        setAnalyticsData(null);
+        return;
       }
+
+      setShopType(shopData.type);
+
+      // Check if analytics are enabled
+      if (!shopData.analytics_enabled) {
+        setAnalyticsData(null);
+        return;
+      }
+
+      let functionName = '';
+      let hasRequiredTokens = false;
+
+      if (shopData.type === 'shopify') {
+        functionName = 'get-shopify-analytics';
+        hasRequiredTokens = !!shopData.shopify_access_token;
+      } else if (shopData.type === 'wordpress' || shopData.type === 'woocommerce') {
+        // Try Jetpack first, fall back to basic WordPress API
+        if (shopData.jetpack_access_token) {
+          functionName = 'get-wordpress-analytics';
+          hasRequiredTokens = true;
+        } else if (shopData.consumer_key && shopData.consumer_secret) {
+          functionName = 'get-wordpress-basic-analytics';
+          hasRequiredTokens = true;
+        } else {
+          hasRequiredTokens = false;
+        }
+      }
+
+      if (!hasRequiredTokens) {
+        toast({
+          title: "Configuration requise",
+          description: "Veuillez configurer vos tokens d'accès ou credentials WooCommerce dans les paramètres",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log(`Calling ${functionName} for shop ${shopId}`);
+
+      const { data: analyticsData, error } = await supabase.functions.invoke(functionName, {
+        body: { 
+          shopId,
+          timeRange: `${timeRange}days`
+        }
+      });
+
+      if (error) {
+        console.error('Analytics error:', error);
+        toast({
+          title: "Erreur Analytics",
+          description: `Impossible de récupérer les données: ${error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Map the new analytics data structure
+      const current = analyticsData.current || {};
+      const previous = analyticsData.previous || {};
+      
+      setAnalyticsData({
+        organicTraffic: current.organic_traffic || 0,
+        conversions: current.conversions || 0,
+        ctr: current.ctr || 0,
+        revenue: current.revenue || 0,
+        previousData: {
+          organicTraffic: previous.organic_traffic || 0,
+          conversions: previous.conversions || 0,
+          ctr: previous.ctr || 0,
+          revenue: previous.revenue || 0
+        }
+      });
+      
+      const source = analyticsData?.metadata?.source || functionName;
+      const isBasicAPI = source.includes('basic') || source.includes('wp-statistics');
+      
+      toast({
+        title: "Données mises à jour",
+        description: `Analytics récupérées ${isBasicAPI ? '(API WordPress de base)' : '(Jetpack)'}`,
+      });
+
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors du chargement des analytics",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -255,8 +266,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   Analytics non configuré
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Pour afficher les vraies données analytics de votre boutique {tokenType}, 
-                  vous devez configurer l'accès aux données dans les paramètres.
+                  {shopType === 'shopify' 
+                    ? 'Configurez votre token Shopify pour accéder aux analytics.'
+                    : 'Configurez vos credentials WooCommerce ou votre token Jetpack pour accéder aux analytics.'
+                  }
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button 
