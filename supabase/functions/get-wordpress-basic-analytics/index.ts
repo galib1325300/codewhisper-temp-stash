@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       .from('shops')
       .select('*')
       .eq('id', shopId)
-      .single();
+      .maybeSingle();
 
     if (shopError || !shop) {
       console.error('Shop not found:', shopError);
