@@ -74,11 +74,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
       setShopType(shopData.type);
 
-      // Check if analytics are enabled
-      if (!shopData.analytics_enabled) {
-        setAnalyticsData(null);
-        return;
-      }
 
       let functionName = '';
       let hasRequiredTokens = false;
