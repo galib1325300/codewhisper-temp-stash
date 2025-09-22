@@ -78,10 +78,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       let functionName = '';
       let hasRequiredTokens = false;
 
-      if (shopData.type === 'shopify') {
+      const normalizedType = (shopData.type || '').toLowerCase();
+      if (normalizedType === 'shopify') {
         functionName = 'get-shopify-analytics';
         hasRequiredTokens = !!shopData.shopify_access_token;
-      } else if (shopData.type === 'wordpress' || shopData.type === 'woocommerce') {
+      } else if (normalizedType === 'wordpress' || normalizedType === 'woocommerce') {
         // Try Jetpack first, fall back to basic WordPress API
         if (shopData.jetpack_access_token) {
           functionName = 'get-wordpress-analytics';
@@ -112,11 +113,23 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         }
       });
 
+      console.log('Analytics response:', { data: analyticsData, error });
+
       if (error) {
         console.error('Analytics error:', error);
         toast({
           title: "Erreur Analytics",
           description: `Impossible de récupérer les données: ${error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!analyticsData) {
+        console.error('No analytics data received');
+        toast({
+          title: "Erreur Analytics",
+          description: "Aucune donnée reçue de l'API",
           variant: "destructive"
         });
         return;
