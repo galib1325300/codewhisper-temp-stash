@@ -36,6 +36,20 @@ interface AnalyticsData {
     ctr: number;
     revenue: number;
   };
+  trends?: Array<{
+    date: string;
+    organic_traffic: number;
+    conversions: number;
+    ctr: number;
+    revenue: number;
+  }>;
+  metadata?: {
+    source: string;
+    posts_count: number;
+    pages_count: number;
+    orders_count: number;
+    wp_stats_available: boolean;
+  };
 }
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ 
@@ -149,7 +163,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           conversions: previous.conversions || 0,
           ctr: previous.ctr || 0,
           revenue: previous.revenue || 0
-        }
+        },
+        trends: analyticsData.trends || [],
+        metadata: analyticsData.metadata || {}
       });
       
       const source = analyticsData?.metadata?.source || functionName;
@@ -221,27 +237,36 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     }
   ] : [];
 
-  const trafficData = [
-    { name: 'Jan', value: 8500 },
-    { name: 'Fév', value: 9200 },
-    { name: 'Mar', value: 10100 },
-    { name: 'Avr', value: 11300 },
-    { name: 'Mai', value: 10800 },
-    { name: 'Jun', value: 12547 }
-  ];
+  // Prepare real chart data from API trends
+  const trafficData = analyticsData?.trends?.length ? 
+    analyticsData.trends.map(trend => ({
+      name: new Date(trend.date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
+      value: trend.organic_traffic
+    })) : [
+      { name: 'Aucune donnée', value: 0 }
+    ];
 
-  const keywordsData = [
-    { name: 'Mot-clé 1', value: 1250 },
-    { name: 'Mot-clé 2', value: 980 },
-    { name: 'Mot-clé 3', value: 850 },
-    { name: 'Mot-clé 4', value: 720 },
-    { name: 'Mot-clé 5', value: 650 }
-  ];
+  const conversionsData = analyticsData?.trends?.length ? 
+    analyticsData.trends.map(trend => ({
+      name: new Date(trend.date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
+      value: trend.conversions
+    })) : [
+      { name: 'Aucune donnée', value: 0 }
+    ];
 
+  const revenueData = analyticsData?.trends?.length ? 
+    analyticsData.trends.map(trend => ({
+      name: new Date(trend.date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
+      value: trend.revenue
+    })) : [
+      { name: 'Aucune donnée', value: 0 }
+    ];
+
+  // Device data based on typical e-commerce patterns
   const deviceData = [
-    { name: 'Desktop', value: 45 },
-    { name: 'Mobile', value: 40 },
-    { name: 'Tablet', value: 15 }
+    { name: 'Desktop', value: Math.floor((analyticsData?.organicTraffic || 0) * 0.45) || 45 },
+    { name: 'Mobile', value: Math.floor((analyticsData?.organicTraffic || 0) * 0.40) || 40 },
+    { name: 'Tablet', value: Math.floor((analyticsData?.organicTraffic || 0) * 0.15) || 15 }
   ];
 
   const handleRefresh = async () => {
@@ -365,9 +390,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             />
             
             <AnalyticsChart
-              data={keywordsData}
+              data={conversionsData}
               type="bar"
-              title="Top Mots-clés"
+              title="Conversions par Jour"
               height={350}
               color="hsl(var(--info))"
               xAxisKey="name"
@@ -378,9 +403,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <AnalyticsChart
-                data={trafficData}
+                data={revenueData}
                 type="line"
-                title="Performance Mensuelle"
+                title="Revenus par Jour"
                 height={300}
                 color="hsl(var(--success))"
               />
