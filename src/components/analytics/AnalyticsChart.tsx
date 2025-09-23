@@ -33,6 +33,7 @@ interface AnalyticsChartProps {
   title?: string;
   showGrid?: boolean;
   gradientColors?: string[];
+  format?: 'currency' | 'percentage' | 'number';
 }
 
 const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
@@ -45,7 +46,8 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
   xAxisKey = 'name',
   title,
   showGrid = true,
-  gradientColors = ['hsl(var(--primary))', 'hsl(var(--primary) / 0.1)']
+  gradientColors = ['hsl(var(--primary))', 'hsl(var(--primary) / 0.1)'],
+  format = 'number'
 }) => {
   const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -56,7 +58,7 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
           <LineChart data={data}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />}
             <XAxis dataKey={xAxisKey} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={formatValue} />
             <Tooltip content={renderTooltip} />
             <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} />
           </LineChart>
@@ -73,7 +75,7 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
             </defs>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />}
             <XAxis dataKey={xAxisKey} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={formatValue} />
             <Tooltip content={renderTooltip} />
             <Area type="monotone" dataKey={dataKey} stroke={color} fill={`url(#${gradientId})`} />
           </AreaChart>
@@ -84,7 +86,7 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
           <BarChart data={data}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />}
             <XAxis dataKey={xAxisKey} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={formatValue} />
             <Tooltip content={renderTooltip} />
             <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} />
           </BarChart>
@@ -108,6 +110,19 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
     }
   };
 
+  const formatValue = (value: number) => {
+    switch (format) {
+      case 'currency':
+        return `${value.toFixed(2)}€`;
+      case 'percentage':
+        return `${value.toFixed(1)}%`;
+      case 'number':
+        return value.toLocaleString('fr-FR');
+      default:
+        return value.toString();
+    }
+  };
+
   const renderTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -115,7 +130,7 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
           <p className="text-foreground font-medium">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
-              {`${entry.dataKey}: ${entry.value}`}
+              {`${entry.name || entry.dataKey}: ${formatValue(entry.value)}`}
             </p>
           ))}
         </div>
