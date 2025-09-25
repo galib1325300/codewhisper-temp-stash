@@ -132,9 +132,9 @@ export default function ShopSettingsPage() {
         }
       } else {
         // For WordPress/WooCommerce, try Jetpack first, then basic API
-        if (formData.jetpackAccessToken) {
-          functionName = 'get-wordpress-analytics';
-        } else if (formData.consumerKey && formData.consumerSecret) {
+        if (shop.jetpackAccessToken) {
+          functionName = 'get-wordpress-jetpack-analytics';
+        } else if (shop.consumerKey && shop.consumerSecret) {
           functionName = 'get-wordpress-basic-analytics';
         } else {
           throw new Error('Credentials WooCommerce ou token Jetpack requis');
@@ -150,7 +150,8 @@ export default function ShopSettingsPage() {
       }
 
       const isBasicAPI = functionName.includes('basic');
-      toast.success(`Test de connexion Analytics réussi ${isBasicAPI ? '(API WordPress de base)' : '(Jetpack)'}`);
+      const isJetpack = functionName.includes('jetpack');
+      toast.success(`Test de connexion Analytics réussi ${isJetpack ? '(Jetpack - données réelles)' : isBasicAPI ? '(API WordPress de base - revenus réels, trafic estimé)' : '(Jetpack)'}`);
     } catch (error: any) {
       if (error.message?.includes('not configured') || error.message?.includes('access token')) {
         toast.error('Token d\'accès non configuré ou invalide');
@@ -342,8 +343,8 @@ export default function ShopSettingsPage() {
                             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                               <h4 className="font-medium text-blue-900 mb-2">Options Analytics WordPress</h4>
                               <div className="text-sm text-blue-800 space-y-1">
-                                <p><strong>Option 1 (Recommandée) :</strong> Utilisez vos credentials WooCommerce existants</p>
-                                <p><strong>Option 2 :</strong> Configurez Jetpack pour analytics avancées</p>
+                                 <p><strong>Option 1 (Recommandée) :</strong> Configurez Jetpack pour analytics avancées</p>
+                                <p><strong>Option 2 :</strong> Utilisez vos credentials WooCommerce existants</p>
                               </div>
                             </div>
 
@@ -360,15 +361,21 @@ export default function ShopSettingsPage() {
                                 placeholder="wp_... (optionnel)"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                               />
-                              <p className="mt-1 text-xs text-gray-500">
-                                Si vide, utilisation automatique de vos credentials WooCommerce pour analytics de base.
+                               <p className="mt-1 text-xs text-gray-500">
+                                Si configuré, utilise Jetpack pour des données réelles. Sinon, utilise automatiquement vos credentials WooCommerce.
                               </p>
                             </div>
 
-                            {!formData.jetpackAccessToken && (formData.consumerKey && formData.consumerSecret) && (
+                            {formData.jetpackAccessToken ? (
                               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                                 <p className="text-sm text-green-800">
-                                  ✅ Analytics disponibles avec vos credentials WooCommerce existants
+                                  ✅ Analytics Jetpack configurées - données réelles disponibles
+                                </p>
+                              </div>
+                            ) : (formData.consumerKey && formData.consumerSecret) && (
+                              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm text-yellow-800">
+                                  ⚠️ Analytics de base disponibles avec WooCommerce - revenus réels, trafic estimé
                                 </p>
                               </div>
                             )}

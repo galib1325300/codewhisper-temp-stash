@@ -108,7 +108,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       } else if (normalizedType === 'wordpress' || normalizedType === 'woocommerce') {
         // Try Jetpack first, fall back to basic WordPress API
         if (shopData.jetpack_access_token) {
-          functionName = 'get-wordpress-analytics';
+          functionName = 'get-wordpress-jetpack-analytics';
           hasRequiredTokens = true;
         } else if (shopData.consumer_key && shopData.consumer_secret) {
           functionName = 'get-wordpress-basic-analytics';
@@ -200,11 +200,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       }
       
       const source = analyticsData?.metadata?.source || functionName;
-      const isBasicAPI = source.includes('basic') || source.includes('wp-statistics');
+      const isBasicAPI = source.includes('basic') || source.includes('woocommerce-basic');
+      const isJetpack = source.includes('jetpack');
       
       toast({
         title: "Données mises à jour",
-        description: `Analytics récupérées ${isBasicAPI ? '(API WordPress de base)' : '(Jetpack)'}`,
+        description: `Analytics récupérées ${isJetpack ? '(Jetpack - données réelles)' : isBasicAPI ? '(API WordPress de base - revenus réels, trafic estimé)' : '(Jetpack)'}`,
       });
 
     } catch (error) {

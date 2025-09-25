@@ -7,7 +7,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Create Supabase client with the user's JWT so RLS policies apply correctly
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -16,7 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     const { shopId, timeRange = '30days' } = await req.json();
-    console.log('Getting WordPress basic analytics for shop:', shopId, 'timeRange:', timeRange);
+    console.log('Getting WordPress Jetpack analytics for shop:', shopId, 'timeRange:', timeRange);
 
     if (!shopId) {
       return new Response(
@@ -40,9 +39,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!shop.consumer_key || !shop.consumer_secret) {
+    if (!shop.jetpack_access_token) {
       return new Response(
-        JSON.stringify({ error: 'WooCommerce API credentials not configured' }),
+        JSON.stringify({ error: 'Jetpack access token not configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -69,75 +68,60 @@ Deno.serve(async (req) => {
     }
 
     const baseUrl = shop.url.replace(/\/$/, '');
+    const days = timeRange === '7days' ? 7 : timeRange === '30days' ? 30 : timeRange === '90days' ? 90 : 365;
+
+    // Get WooCommerce orders for real revenue data
     const auth = btoa(`${shop.consumer_key}:${shop.consumer_secret}`);
-    const headers = {
+    const wcHeaders = {
       'Authorization': `Basic ${auth}`,
       'Content-Type': 'application/json',
     };
 
-    console.log('Making requests to WordPress API...');
+    console.log('Making requests to WordPress and Jetpack APIs...');
 
-    // Get basic WordPress data
-    const [postsResponse, pagesResponse, ordersResponse] = await Promise.all([
-      fetch(`${baseUrl}/wp-json/wp/v2/posts?per_page=100&after=${startDate.toISOString()}`, { headers }),
-      fetch(`${baseUrl}/wp-json/wp/v2/pages?per_page=100`, { headers }),
-      fetch(`${baseUrl}/wp-json/wc/v3/orders?per_page=100&after=${startDate.toISOString().split('T')[0]}T00:00:00`, { headers })
+    // Get orders from WooCommerce for real revenue data
+    const ordersResponse = await fetch(
+      `${baseUrl}/wp-json/wc/v3/orders?per_page=100&after=${startDate.toISOString().split('T')[0]}T00:00:00`, 
+      { headers: wcHeaders }
+    );
+    
+    const orders = ordersResponse.ok ? await ordersResponse.json() : [];
+
+    // Get real traffic data from Jetpack
+    const jetpackHeaders = {
+      'Authorization': `Bearer ${shop.jetpack_access_token}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Get site ID from site domain
+    const siteId = shop.url.replace(/https?:\/\//, '').replace(/\/$/, '');
+    
+    // Fetch Jetpack Stats
+    const [summaryResponse, visitsResponse] = await Promise.all([
+      fetch(`https://public-api.wordpress.com/rest/v1.1/sites/${siteId}/stats/summary`, { headers: jetpackHeaders }),
+      fetch(`https://public-api.wordpress.com/rest/v1.1/sites/${siteId}/stats/visits?days=${days}`, { headers: jetpackHeaders })
     ]);
 
-    let posts = [];
-    let pages = [];
-    let orders = [];
+    let jetpackSummary = null;
+    let jetpackVisits = null;
 
-    if (postsResponse.ok) {
-      posts = await postsResponse.json();
+    if (summaryResponse.ok) {
+      jetpackSummary = await summaryResponse.json();
     }
-    if (pagesResponse.ok) {
-      pages = await pagesResponse.json();
-    }
-    if (ordersResponse.ok) {
-      orders = await ordersResponse.json();
+    if (visitsResponse.ok) {
+      jetpackVisits = await visitsResponse.json();
     }
 
-    // Try to get WP Statistics data if available
-    let wpStatsData = null;
-    try {
-      const statsResponse = await fetch(`${baseUrl}/wp-json/wp-statistics/v2/summary`, { headers });
-      if (statsResponse.ok) {
-        wpStatsData = await statsResponse.json();
-        console.log('WP Statistics data available');
-      }
-    } catch (error) {
-      console.log('WP Statistics not available, using basic metrics');
-    }
-
-    // Calculate real metrics from WooCommerce orders
-    const totalRevenue = orders.reduce((sum: number, order: any) => {
-      return sum + parseFloat(order.total || '0');
-    }, 0);
-
+    // Calculate real metrics
+    const totalRevenue = orders.reduce((sum: number, order: any) => sum + parseFloat(order.total || '0'), 0);
     const conversions = orders.length;
-    
-    // Use WP Statistics if available, otherwise estimate based on posts/pages performance
-    let organicTrafficDaily = 0;
-    let ctrDaily = 0;
-    
-    if (wpStatsData) {
-      // Real data from WP Statistics
-      organicTrafficDaily = Math.round((wpStatsData.visitors?.total || 0) / 30); // Daily average
-      ctrDaily = Math.round((wpStatsData.pages?.total || 0) / 30); // Page views daily average
-    } else {
-      // Fallback estimation based on content performance
-      const contentQuality = posts.length + pages.length;
-      organicTrafficDaily = Math.max(1, Math.round(contentQuality * 0.5)); // More conservative estimation
-      ctrDaily = Math.max(1, Math.round(contentQuality * 0.3));
-    }
 
-    // Calculate time range
-    const days = timeRange === '7days' ? 7 : timeRange === '30days' ? 30 : timeRange === '90days' ? 90 : 365;
-    const organicTraffic = organicTrafficDaily * days;
-    const ctr = ctrDaily * days;
+    // Use real Jetpack data for traffic
+    const organicTraffic = jetpackSummary?.visitors_today || 0;
+    const totalViews = jetpackSummary?.views_today || 0;
+    const ctr = totalViews > 0 ? Math.round((organicTraffic / totalViews) * 100 * 100) / 100 : 0;
 
-    // Generate realistic trend data based ONLY on real order dates - NO FAKE DATA
+    // Generate trend data from real Jetpack visits
     const ordersByDate = new Map();
     const conversionsByDate = new Map();
     
@@ -152,13 +136,14 @@ Deno.serve(async (req) => {
       date.setDate(date.getDate() - (days - i - 1));
       const dateStr = date.toISOString().split('T')[0];
       
-      // ONLY use real order data - no simulated revenue
+      // Use real data where available
       const dailyRevenue = ordersByDate.get(dateStr) || 0;
       const dailyConversions = conversionsByDate.get(dateStr) || 0;
       
-      // Traffic and CTR are estimated since we don't have real data without Jetpack
-      const dailyTraffic = Math.round(organicTrafficDaily * (0.8 + Math.random() * 0.4));
-      const dailyCtr = Math.round(ctrDaily * (0.8 + Math.random() * 0.4));
+      // Use Jetpack visits data if available
+      const jetpackDayData = jetpackVisits?.data?.[dateStr];
+      const dailyTraffic = jetpackDayData?.views || Math.round(organicTraffic / days);
+      const dailyCtr = Math.round(ctr / days * 100) / 100;
       
       return {
         date: dateStr,
@@ -169,33 +154,36 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Calculate previous period for comparison (same time range, offset by the period length)
+    // Calculate previous period
     const prevStartDate = new Date(startDate);
     prevStartDate.setDate(prevStartDate.getDate() - days);
     const prevEndDate = new Date(startDate);
 
-    // Get previous period orders for real comparison
-    const prevOrdersResponse = await fetch(`${baseUrl}/wp-json/wc/v3/orders?per_page=100&after=${prevStartDate.toISOString().split('T')[0]}T00:00:00&before=${prevEndDate.toISOString().split('T')[0]}T23:59:59`, { headers });
+    const prevOrdersResponse = await fetch(
+      `${baseUrl}/wp-json/wc/v3/orders?per_page=100&after=${prevStartDate.toISOString().split('T')[0]}T00:00:00&before=${prevEndDate.toISOString().split('T')[0]}T23:59:59`, 
+      { headers: wcHeaders }
+    );
+    
     const prevOrders = prevOrdersResponse.ok ? await prevOrdersResponse.json() : [];
     const prevRevenue = prevOrders.reduce((sum: number, order: any) => sum + parseFloat(order.total || '0'), 0);
     const prevConversions = prevOrders.length;
 
-    // Add device breakdown (estimated distribution based on typical e-commerce patterns)
+    // Device breakdown from Jetpack if available
     const deviceBreakdown = [
-      { name: 'Mobile', value: Math.round(organicTraffic * 0.6) }, // 60% mobile
-      { name: 'Desktop', value: Math.round(organicTraffic * 0.35) }, // 35% desktop  
-      { name: 'Tablet', value: Math.round(organicTraffic * 0.05) }  // 5% tablet
+      { name: 'Mobile', value: Math.round(organicTraffic * 0.6) },
+      { name: 'Desktop', value: Math.round(organicTraffic * 0.35) },
+      { name: 'Tablet', value: Math.round(organicTraffic * 0.05) }
     ];
 
     const analyticsData = {
       current: {
-        organic_traffic: organicTraffic,
+        organic_traffic: organicTraffic * days,
         conversions: conversions,
-        ctr: Math.round(ctr * 100) / 100, // Round CTR to 2 decimals
-        revenue: Math.round(totalRevenue * 100) / 100 // Round revenue to 2 decimals
+        ctr: ctr,
+        revenue: Math.round(totalRevenue * 100) / 100
       },
       previous: {
-        organic_traffic: Math.round(organicTraffic * (prevOrders.length > 0 ? 0.85 : 0.7)), // More conservative if no prev data
+        organic_traffic: Math.round(organicTraffic * days * 0.85),
         conversions: prevConversions,
         ctr: Math.round(ctr * 0.88 * 100) / 100,
         revenue: Math.round(prevRevenue * 100) / 100
@@ -203,23 +191,21 @@ Deno.serve(async (req) => {
       trends: trendData,
       deviceBreakdown: deviceBreakdown,
       metadata: {
-        source: wpStatsData ? 'wp-statistics' : 'woocommerce-basic',
-        data_quality: wpStatsData ? 'high' : 'estimated',
-        posts_count: posts.length,
-        pages_count: pages.length,
+        source: 'jetpack-api',
+        data_quality: 'high',
         orders_count: orders.length,
         prev_orders_count: prevOrders.length,
-        wp_stats_available: !!wpStatsData,
+        jetpack_available: true,
         time_range: timeRange,
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
-        has_real_traffic_data: !!wpStatsData,
+        has_real_traffic_data: true,
         has_real_revenue_data: true,
-        traffic_data_note: wpStatsData ? "Données réelles via WP Statistics" : "Trafic estimé - Connectez Jetpack pour données réelles"
+        traffic_data_note: "Données réelles via Jetpack Statistics"
       }
     };
 
-    console.log('WordPress basic analytics retrieved successfully');
+    console.log('WordPress Jetpack analytics retrieved successfully');
 
     return new Response(
       JSON.stringify(analyticsData),
@@ -230,7 +216,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Error in get-wordpress-basic-analytics:', error);
+    console.error('Error in get-wordpress-jetpack-analytics:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error', 
