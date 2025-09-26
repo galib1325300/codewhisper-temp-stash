@@ -230,6 +230,54 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_diagnostics: {
+        Row: {
+          created_at: string
+          errors_count: number | null
+          id: string
+          info_count: number | null
+          issues: Json | null
+          recommendations: Json | null
+          score: number | null
+          shop_id: string
+          status: string
+          summary: Json | null
+          total_issues: number | null
+          updated_at: string
+          warnings_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          errors_count?: number | null
+          id?: string
+          info_count?: number | null
+          issues?: Json | null
+          recommendations?: Json | null
+          score?: number | null
+          shop_id: string
+          status?: string
+          summary?: Json | null
+          total_issues?: number | null
+          updated_at?: string
+          warnings_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          errors_count?: number | null
+          id?: string
+          info_count?: number | null
+          issues?: Json | null
+          recommendations?: Json | null
+          score?: number | null
+          shop_id?: string
+          status?: string
+          summary?: Json | null
+          total_issues?: number | null
+          updated_at?: string
+          warnings_count?: number | null
+        }
+        Relationships: []
+      }
       shops: {
         Row: {
           analytics_enabled: boolean | null
