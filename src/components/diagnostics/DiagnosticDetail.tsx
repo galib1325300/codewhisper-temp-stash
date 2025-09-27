@@ -26,8 +26,8 @@ interface DiagnosticData {
   errors_count: number;
   warnings_count: number;
   info_count: number;
-  issues: SEOIssue[];
-  recommendations: string[];
+  issues: any[];
+  recommendations: any[];
   summary: any;
   created_at: string;
 }
@@ -53,7 +53,14 @@ export default function DiagnosticDetail() {
         .single();
 
       if (error) throw error;
-      setDiagnostic(data as unknown as DiagnosticData);
+      
+      const diagnosticData = {
+        ...data,
+        issues: Array.isArray(data.issues) ? data.issues : [],
+        recommendations: Array.isArray(data.recommendations) ? data.recommendations : []
+      };
+      
+      setDiagnostic(diagnosticData);
     } catch (error) {
       console.error('Error loading diagnostic:', error);
     } finally {
@@ -89,12 +96,12 @@ export default function DiagnosticDetail() {
     return 'text-red-600';
   };
 
-  const filterIssues = (issues: SEOIssue[]) => {
+  const filterIssues = (issues: any[]) => {
     if (activeFilter === 'all') return issues;
-    if (activeFilter === 'errors') return issues.filter(i => i.type === 'error');
-    if (activeFilter === 'warnings') return issues.filter(i => i.type === 'warning');
-    if (activeFilter === 'info') return issues.filter(i => i.type === 'info');
-    return issues.filter(i => i.resource_type === activeFilter);
+    if (activeFilter === 'errors') return issues.filter((i: any) => i.type === 'error');
+    if (activeFilter === 'warnings') return issues.filter((i: any) => i.type === 'warning');
+    if (activeFilter === 'info') return issues.filter((i: any) => i.type === 'info');
+    return issues.filter((i: any) => i.resource_type === activeFilter);
   };
 
   const formatDate = (dateString: string) => {

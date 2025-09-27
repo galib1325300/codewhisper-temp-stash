@@ -9,7 +9,7 @@ import { SEOContentService } from '@/utils/seoContent';
 
 interface Diagnostic {
   id: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  status: string;
   score: number | null;
   total_issues: number;
   errors_count: number;
@@ -40,7 +40,7 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDiagnostics((data || []) as Diagnostic[]);
+      setDiagnostics(data || []);
     } catch (error) {
       console.error('Error loading diagnostics:', error);
       toast.error('Erreur lors du chargement des diagnostics');
