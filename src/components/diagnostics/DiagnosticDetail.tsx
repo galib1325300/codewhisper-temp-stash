@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, AlertTriangle, AlertCircle, Info, ExternalLink, Settings, Zap } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, AlertCircle, Info, Settings } from 'lucide-react';
 import LoadingState from '@/components/ui/loading-state';
+import IssueActions from './IssueActions';
+import DiagnosticProgress from './DiagnosticProgress';
+import DiagnosticExport from './DiagnosticExport';
 
 interface SEOIssue {
   type: 'error' | 'warning' | 'info';
@@ -30,6 +33,7 @@ interface DiagnosticData {
   recommendations: any[];
   summary: any;
   created_at: string;
+  status?: string;
 }
 
 export default function DiagnosticDetail() {
@@ -161,6 +165,17 @@ export default function DiagnosticDetail() {
         </div>
       </div>
 
+      {/* Progress Card for Running Diagnostics */}
+      {diagnostic.status !== 'completed' && (
+        <DiagnosticProgress
+          diagnosticId={diagnostic.id}
+          status={diagnostic.status}
+          progress={diagnostic.status === 'running' ? 75 : 0}
+          currentTask={diagnostic.status === 'running' ? 'Analyse des produits et collections...' : undefined}
+          estimatedTimeRemaining={diagnostic.status === 'running' ? 45 : 0}
+        />
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -230,55 +245,15 @@ export default function DiagnosticDetail() {
             </Card>
           ) : (
             filteredIssues.map((issue, index) => (
-              <Card key={index} className={`border ${getIssueColor(issue.type)}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      {getIssueIcon(issue.type)}
-                      <div>
-                        <CardTitle className="text-lg">{issue.title}</CardTitle>
-                        <Badge variant="outline" className="mt-1">
-                          {issue.category}
-                        </Badge>
-                      </div>
-                    </div>
-                    {issue.action_available && (
-                      <Button size="sm" variant="outline">
-                        <Zap className="w-4 h-4 mr-2" />
-                        Résoudre
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-3">{issue.description}</p>
-                  <div className="bg-muted p-3 rounded-lg mb-3">
-                    <p className="text-sm"><strong>Recommandation :</strong> {issue.recommendation}</p>
-                  </div>
-                  {issue.affected_items && issue.affected_items.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium mb-2">
-                        Éléments concernés ({issue.affected_items.length}) :
-                      </p>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {issue.affected_items.slice(0, 5).map((item, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
-                            <span>{item.name || item.title}</span>
-                            <Button size="sm" variant="ghost" className="h-auto p-1">
-                              <ExternalLink className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        {issue.affected_items.length > 5 && (
-                          <p className="text-sm text-muted-foreground">
-                            ... et {issue.affected_items.length - 5} autres
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <IssueActions
+                key={index}
+                issue={issue}
+                shopId={shopId || ''}
+                onIssueResolved={() => {
+                  // Optionally refresh the diagnostic data
+                  loadDiagnostic();
+                }}
+              />
             ))
           )}
         </TabsContent>
@@ -300,6 +275,12 @@ export default function DiagnosticDetail() {
           </ul>
         </CardContent>
       </Card>
+
+      {/* Export Section */}
+      <DiagnosticExport 
+        diagnostic={diagnostic} 
+        shopName="Votre boutique" 
+      />
     </div>
   );
 }

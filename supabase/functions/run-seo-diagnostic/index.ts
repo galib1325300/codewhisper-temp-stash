@@ -76,7 +76,7 @@ serve(async (req) => {
 
     // Enhanced product analysis
     if (products && products.length > 0) {
-      // Missing alt texts
+      // 1. Missing alt texts (textes alternatifs d'images manquants)
       const productsWithMissingAltTexts = products.filter(product => {
         if (!product.images || product.images.length === 0) return false
         return product.images.some((img: any) => !img.alt || img.alt.trim() === '')
@@ -95,7 +95,7 @@ serve(async (req) => {
         })
       }
 
-      // Short descriptions
+      // 2. Short descriptions (descriptions courtes manquantes)
       const productsWithShortDescriptions = products.filter(product => 
         !product.description || product.description.length < 150
       )
@@ -109,6 +109,147 @@ serve(async (req) => {
           recommendation: 'Rédigez des descriptions détaillées d\'au moins 150 caractères',
           affected_items: productsWithShortDescriptions.map(p => ({ id: p.id, name: p.name, type: 'product' })),
           resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 3. Missing structured content (listes à puces manquantes)
+      const productsWithoutStructuredContent = products.filter(product => {
+        const description = product.description || ''
+        const hasLists = description.includes('•') || description.includes('<ul>') || description.includes('<li>') || description.includes('-')
+        const hasHeadings = description.includes('**') || description.includes('<h2>') || description.includes('<h3>')
+        return description.length > 200 && !hasLists && !hasHeadings
+      })
+
+      if (productsWithoutStructuredContent.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Structure',
+          title: `${productsWithoutStructuredContent.length} produits sans structure de contenu`,
+          description: 'Les descriptions sans listes ou titres sont moins lisibles et moins SEO-friendly',
+          recommendation: 'Ajoutez des listes à puces, des titres et une structure claire à vos descriptions',
+          affected_items: productsWithoutStructuredContent.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 4. Missing SEO meta descriptions
+      const productsWithoutMetaDescription = products.filter(product => 
+        !product.short_description || product.short_description.length < 120 || product.short_description.length > 160
+      )
+
+      if (productsWithoutMetaDescription.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'SEO',
+          title: `${productsWithoutMetaDescription.length} produits avec méta-descriptions manquantes ou inadéquates`,
+          description: 'Les méta-descriptions doivent faire entre 120-160 caractères pour un SEO optimal',
+          recommendation: 'Rédigez des méta-descriptions attractives entre 120-160 caractères',
+          affected_items: productsWithoutMetaDescription.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 5. Products without AI-generated content (pages non générées)
+      const productsWithoutGeneratedContent = products.filter(product => {
+        const description = product.description || ''
+        const isGenericOrShort = description.length < 100 || 
+          description.toLowerCase().includes('lorem ipsum') ||
+          !description.includes('.')
+        return isGenericOrShort
+      })
+
+      if (productsWithoutGeneratedContent.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Génération IA',
+          title: `${productsWithoutGeneratedContent.length} produits sans contenu généré par IA`,
+          description: 'Ces produits n\'ont pas de description optimisée générée automatiquement',
+          recommendation: 'Utilisez la génération automatique de contenu pour créer des descriptions riches',
+          affected_items: productsWithoutGeneratedContent.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 6. Missing internal links (liens internes manquants)
+      const productsWithoutInternalLinks = products.filter(product => {
+        const description = product.description || ''
+        const hasInternalLinks = description.includes('href=') || description.includes('[') || description.includes('voir aussi') || description.includes('découvrir')
+        return description.length > 200 && !hasInternalLinks
+      })
+
+      if (productsWithoutInternalLinks.length > 0) {
+        issues.push({
+          type: 'info',
+          category: 'Maillage interne',
+          title: `${productsWithoutInternalLinks.length} produits sans liens internes`,
+          description: 'Le maillage interne améliore le SEO et l\'expérience utilisateur',
+          recommendation: 'Ajoutez des liens vers d\'autres produits ou catégories pertinents',
+          affected_items: productsWithoutInternalLinks.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+    }
+
+    // Blog posts analysis
+    if (blogPosts && blogPosts.length > 0) {
+      // Missing featured images
+      const postsWithoutFeaturedImage = blogPosts.filter(post => 
+        !post.featured_image || post.featured_image.trim() === ''
+      )
+
+      if (postsWithoutFeaturedImage.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Images',
+          title: `${postsWithoutFeaturedImage.length} articles sans image mise en avant`,
+          description: 'Les images mises en avant améliorent l\'engagement et le partage social',
+          recommendation: 'Ajoutez une image mise en avant pour tous vos articles de blog',
+          affected_items: postsWithoutFeaturedImage.map(p => ({ id: p.id, name: p.title, type: 'blog' })),
+          resource_type: 'blog',
+          action_available: true
+        })
+      }
+
+      // Missing SEO titles/descriptions
+      const postsWithoutSEO = blogPosts.filter(post => 
+        !post.seo_title || !post.seo_description || post.seo_description.length < 120
+      )
+
+      if (postsWithoutSEO.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'SEO',
+          title: `${postsWithoutSEO.length} articles sans optimisation SEO`,
+          description: 'Les titres et descriptions SEO sont essentiels pour le référencement',
+          recommendation: 'Configurez des titres SEO accrocheurs et des méta-descriptions de 120-160 caractères',
+          affected_items: postsWithoutSEO.map(p => ({ id: p.id, name: p.title, type: 'blog' })),
+          resource_type: 'blog',
+          action_available: true
+        })
+      }
+    }
+
+    // Collections analysis
+    if (collections && collections.length > 0) {
+      // Collections without descriptions
+      const collectionsWithoutDescription = collections.filter(collection => 
+        !collection.description || collection.description.length < 100
+      )
+
+      if (collectionsWithoutDescription.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Contenu',
+          title: `${collectionsWithoutDescription.length} collections sans description détaillée`,
+          description: 'Les descriptions de collections améliorent leur référencement',
+          recommendation: 'Rédigez des descriptions détaillées pour toutes vos collections',
+          affected_items: collectionsWithoutDescription.map(c => ({ id: c.id, name: c.name, type: 'collection' })),
+          resource_type: 'collection',
           action_available: true
         })
       }
@@ -149,9 +290,14 @@ serve(async (req) => {
     }
 
     const recommendations = [
-      'Priorisez la correction des erreurs avant les avertissements',
-      'Commencez par optimiser vos produits les plus populaires',
-      'Ajoutez des textes alternatifs à toutes vos images'
+      'Priorisez la correction des erreurs (textes alternatifs, méta-descriptions) avant les avertissements',
+      'Commencez par optimiser vos produits les plus populaires et visités',
+      'Ajoutez des textes alternatifs descriptifs à toutes vos images de produits',
+      'Structurez vos descriptions avec des listes à puces et des sous-titres',
+      'Créez un maillage interne entre vos produits et catégories',
+      'Utilisez la génération automatique pour enrichir le contenu de vos produits',
+      'Optimisez la longueur de vos méta-descriptions (120-160 caractères)',
+      'Ajoutez des images mises en avant pour tous vos articles de blog'
     ]
 
     // Update diagnostic record
