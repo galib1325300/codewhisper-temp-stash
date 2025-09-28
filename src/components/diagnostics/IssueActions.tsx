@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Zap, CheckCircle, Clock, AlertTriangle, ExternalLink, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import IssueItemSelector from './IssueItemSelector';
 
 interface IssueActionsProps {
   issue: {
@@ -24,6 +25,7 @@ interface IssueActionsProps {
 export default function IssueActions({ issue, shopId, onIssueResolved }: IssueActionsProps) {
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   const getIssueIcon = (type: string) => {
     switch (type) {
@@ -69,19 +71,24 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
     }
   };
 
-  const handleAutoResolve = async () => {
-    if (!issue.action_available || !issue.affected_items?.length) return;
+  const handleAutoResolve = async (itemIds: string[]) => {
+    if (!issue.action_available || !issue.affected_items?.length || itemIds.length === 0) return;
     
     setResolving(true);
     let successCount = 0;
 
     try {
-      // Call the new resolve-seo-issues function
+      // Filter affected items to only process selected ones
+      const selectedAffectedItems = issue.affected_items.filter(item => 
+        itemIds.includes(item.id)
+      );
+
+      // Call the resolve-seo-issues function
       const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
         body: {
           shopId,
           issueType: issue.category,
-          affectedItems: issue.affected_items.map(item => ({
+          affectedItems: selectedAffectedItems.map(item => ({
             id: item.id,
             type: item.type,
             name: item.name || item.title
@@ -95,9 +102,12 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
 
       if (data?.success) {
         successCount = data.results.success;
-        setResolved(true);
-        toast.success(`${successCount} éléments traités avec succès`);
+        if (successCount === selectedAffectedItems.length) {
+          setResolved(true);
+        }
+        toast.success(`${successCount} éléments traités avec succès sur ${selectedAffectedItems.length} sélectionnés`);
         onIssueResolved?.();
+        setSelectedItems([]); // Reset selection
       } else {
         toast.error(data?.error || 'Erreur lors de la résolution automatique');
       }
@@ -122,22 +132,16 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
               </Badge>
             </div>
           </div>
-          {issue.action_available && !resolved && (
-            <Button
-              size="sm"
-              variant={issue.type === 'error' ? 'default' : 'outline'}
-              onClick={handleAutoResolve}
-              disabled={resolving}
-            >
-              {resolving ? (
-                <Clock className="w-4 h-4 mr-2 animate-spin" />
-              ) : resolved ? (
-                <CheckCircle className="w-4 h-4 mr-2" />
-              ) : (
-                <Wand2 className="w-4 h-4 mr-2" />
-              )}
-              {getActionText()}
-            </Button>
+          {issue.action_available && !resolved && issue.affected_items && issue.affected_items.length > 0 && (
+            <IssueItemSelector
+              items={issue.affected_items}
+              selectedItems={selectedItems}
+              onSelectionChange={setSelectedItems}
+              issueTitle={issue.title}
+              actionButtonText={getActionText()}
+              onAction={handleAutoResolve}
+              isLoading={resolving}
+            />
           )}
         </div>
       </CardHeader>
@@ -153,9 +157,9 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
               Éléments concernés ({issue.affected_items.length}) :
             </p>
             <div className="space-y-1 max-h-32 overflow-y-auto">
-              {issue.affected_items.slice(0, 5).map((item, i) => (
+              {issue.affected_items.slice(0, 3).map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
-                  <span>{item.name || item.title}</span>
+                  <span className="truncate">{item.name || item.title}</span>
                   <div className="flex items-center space-x-1">
                     <Badge variant="secondary" className="text-xs">
                       {item.type}
@@ -166,10 +170,12 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
                   </div>
                 </div>
               ))}
-              {issue.affected_items.length > 5 && (
-                <p className="text-sm text-muted-foreground">
-                  ... et {issue.affected_items.length - 5} autres
-                </p>
+              {issue.affected_items.length > 3 && (
+                <div className="text-sm text-muted-foreground p-2 bg-muted rounded border text-center">
+                  ... et {issue.affected_items.length - 3} autres éléments
+                  <br />
+                  <span className="text-xs">Utilisez le sélecteur ci-dessus pour voir tous les éléments</span>
+                </div>
               )}
             </div>
           </div>

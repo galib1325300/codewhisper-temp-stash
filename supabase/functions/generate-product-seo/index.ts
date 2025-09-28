@@ -124,7 +124,7 @@ Retournez uniquement la description optimisée.
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Erreur lors de la génération' 
+        error: (error as Error).message || 'Erreur lors de la génération' 
       }),
       {
         status: 400,

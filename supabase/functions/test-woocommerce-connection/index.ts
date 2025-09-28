@@ -78,7 +78,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        message: error.message || 'Erreur de connexion WooCommerce' 
+        message: (error as Error).message || 'Erreur de connexion WooCommerce' 
       }),
       {
         status: 400,

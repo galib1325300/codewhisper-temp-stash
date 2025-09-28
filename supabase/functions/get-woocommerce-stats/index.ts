@@ -105,7 +105,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Erreur lors de la récupération des statistiques' 
+        error: (error as Error).message || 'Erreur lors de la récupération des statistiques' 
       }),
       {
         status: 400,

@@ -114,15 +114,15 @@ serve(async (req) => {
     const estimatedRevenue = estimatedConversions * avgOrderValue;
 
     // Generate trend data from daily stats if available
-    const trendData = [];
+    const trendData: any[] = [];
     if (summaryData.stats) {
       Object.entries(summaryData.stats).forEach(([date, stats]) => {
-        const organicViews = Math.round((stats.views || 0) * (organicTrafficPercentage / 100));
+        const organicViews = Math.round(((stats as any).views || 0) * (organicTrafficPercentage / 100));
         trendData.push({
           date: date,
           organic_traffic: organicViews,
           conversions: Math.round(organicViews * 0.025), // 2.5% conversion estimate
-          ctr: Number((organicViews / Math.max(1, stats.views || 1) * 100).toFixed(2)),
+          ctr: Number((organicViews / Math.max(1, (stats as any).views || 1) * 100).toFixed(2)),
           revenue: Math.round(organicViews * 0.025 * avgOrderValue * 100) / 100
         });
       });
@@ -176,7 +176,7 @@ serve(async (req) => {
     console.error('Error in get-wordpress-analytics:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message 
+      details: (error as Error).message 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

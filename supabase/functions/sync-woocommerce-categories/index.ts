@@ -122,7 +122,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Erreur lors de la synchronisation' 
+        error: (error as Error).message || 'Erreur lors de la synchronisation' 
       }),
       {
         status: 400,
