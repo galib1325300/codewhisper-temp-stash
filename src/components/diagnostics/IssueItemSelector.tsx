@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, CheckSquare, Square, ExternalLink } from 'lucide-react';
+import { Search, CheckSquare, Square, ExternalLink, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import ItemPreviewModal from './ItemPreviewModal';
 
 interface IssueItem {
   id: string;
@@ -14,6 +15,12 @@ interface IssueItem {
   title?: string;
   type: string;
   url?: string;
+  images?: Array<{
+    src: string;
+    alt?: string;
+  }>;
+  description?: string;
+  short_description?: string;
 }
 
 interface IssueItemSelectorProps {
@@ -21,6 +28,7 @@ interface IssueItemSelectorProps {
   selectedItems: string[];
   onSelectionChange: (selectedIds: string[]) => void;
   issueTitle: string;
+  issueType: string;
   actionButtonText: string;
   onAction: (selectedIds: string[]) => void;
   isLoading: boolean;
@@ -31,6 +39,7 @@ export default function IssueItemSelector({
   selectedItems,
   onSelectionChange,
   issueTitle,
+  issueType,
   actionButtonText,
   onAction,
   isLoading
@@ -38,6 +47,7 @@ export default function IssueItemSelector({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [previewItem, setPreviewItem] = useState<IssueItem | null>(null);
   const itemsPerPage = 20;
 
   // Filter items based on search term
@@ -183,9 +193,21 @@ export default function IssueItemSelector({
                                 {item.type}
                               </Badge>
                               
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-auto p-1"
+                                onClick={() => setPreviewItem(item)}
+                                title="Aperçu"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                              
                               {item.url && (
-                                <Button size="sm" variant="ghost" className="h-auto p-1">
-                                  <ExternalLink className="w-3 h-3" />
+                                <Button size="sm" variant="ghost" className="h-auto p-1" asChild>
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" title="Voir en ligne">
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
                                 </Button>
                               )}
                             </div>
@@ -245,6 +267,13 @@ export default function IssueItemSelector({
           </div>
         </div>
       </DialogContent>
+      
+      <ItemPreviewModal
+        isOpen={!!previewItem}
+        onClose={() => setPreviewItem(null)}
+        item={previewItem}
+        issueType={issueType}
+      />
     </Dialog>
   );
 }

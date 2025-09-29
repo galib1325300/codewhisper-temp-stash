@@ -138,6 +138,7 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
               selectedItems={selectedItems}
               onSelectionChange={setSelectedItems}
               issueTitle={issue.title}
+              issueType={issue.category}
               actionButtonText={getActionText()}
               onAction={handleAutoResolve}
               isLoading={resolving}

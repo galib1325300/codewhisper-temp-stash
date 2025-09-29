@@ -122,6 +122,25 @@ serve(async (req) => {
             }
             break;
 
+          case 'Maillage interne':
+            // Add internal links to content
+            if (item.type === 'product') {
+              const { data: product } = await supabase
+                .from('products')
+                .select('description, name, categories')
+                .eq('id', item.id)
+                .single()
+
+              if (product?.description) {
+                const enhancedDescription = addInternalLinks(product.description, product.name, product.categories)
+                updateResult = await supabase
+                  .from('products')
+                  .update({ description: enhancedDescription })
+                  .eq('id', item.id)
+              }
+            }
+            break;
+
           case 'Génération IA':
             // Handle AI content generation
             if (item.type === 'product') {
@@ -272,6 +291,23 @@ function addStructureToDescription(description: string, productName: string): st
   }
   
   return structured
+}
+
+// Function to add internal links to content
+function addInternalLinks(description: string, productName: string, categories: any[]): string {
+  let enhanced = description;
+  
+  // Add category-based internal links
+  if (categories && categories.length > 0) {
+    const categoryName = categories[0].name;
+    if (!enhanced.includes(`collection/${categoryName}`)) {
+      enhanced += `\n\n### Voir aussi\n`;
+      enhanced += `Découvrez notre [collection ${categoryName}](/collections/${categoryName.toLowerCase().replace(/\s+/g, '-')}) pour plus de produits similaires.\n`;
+      enhanced += `Pour des conseils d'utilisation, consultez notre [guide d'achat](/guides/${categoryName.toLowerCase().replace(/\s+/g, '-')}).\n`;
+    }
+  }
+  
+  return enhanced;
 }
 
 // Helper function to generate AI content
