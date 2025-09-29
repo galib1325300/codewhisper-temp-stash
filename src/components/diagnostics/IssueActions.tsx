@@ -26,6 +26,7 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [resolvedItems, setResolvedItems] = useState<string[]>([]); // Track individually resolved items
 
   const getIssueIcon = (type: string) => {
     switch (type) {
@@ -102,11 +103,25 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
 
       if (data?.success) {
         successCount = data.results.success;
-        if (successCount === selectedAffectedItems.length) {
+        
+        // Track which items were successfully resolved
+        const successfullyResolvedIds = data.results.details
+          .filter((detail: any) => detail.success)
+          .map((detail: any) => detail.id);
+        
+        setResolvedItems(prev => [...prev, ...successfullyResolvedIds]);
+        
+        // Only mark the entire issue as resolved if ALL items have been processed
+        const remainingItems = issue.affected_items?.filter(item => 
+          !resolvedItems.includes(item.id) && !successfullyResolvedIds.includes(item.id)
+        ) || [];
+        
+        if (remainingItems.length === 0) {
           setResolved(true);
+          onIssueResolved?.();
         }
+        
         toast.success(`${successCount} éléments traités avec succès sur ${selectedAffectedItems.length} sélectionnés`);
-        onIssueResolved?.();
         setSelectedItems([]); // Reset selection
       } else {
         toast.error(data?.error || 'Erreur lors de la résolution automatique');
@@ -134,7 +149,7 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
           </div>
           {issue.action_available && !resolved && issue.affected_items && issue.affected_items.length > 0 && (
             <IssueItemSelector
-              items={issue.affected_items}
+              items={issue.affected_items.filter(item => !resolvedItems.includes(item.id))} // Filter out resolved items
               selectedItems={selectedItems}
               onSelectionChange={setSelectedItems}
               issueTitle={issue.title}
@@ -155,10 +170,10 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
         {issue.affected_items && issue.affected_items.length > 0 && (
           <div>
             <p className="text-sm font-medium mb-2">
-              Éléments concernés ({issue.affected_items.length}) :
+              Éléments concernés ({issue.affected_items.length - resolvedItems.length} restants sur {issue.affected_items.length}) :
             </p>
             <div className="space-y-1 max-h-32 overflow-y-auto">
-              {issue.affected_items.slice(0, 3).map((item, i) => (
+              {issue.affected_items.filter(item => !resolvedItems.includes(item.id)).slice(0, 3).map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
                   <span className="truncate">{item.name || item.title}</span>
                   <div className="flex items-center space-x-1">
@@ -171,11 +186,35 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
                   </div>
                 </div>
               ))}
-              {issue.affected_items.length > 3 && (
+              {issue.affected_items.filter(item => !resolvedItems.includes(item.id)).length > 3 && (
                 <div className="text-sm text-muted-foreground p-2 bg-muted rounded border text-center">
-                  ... et {issue.affected_items.length - 3} autres éléments
+                  ... et {issue.affected_items.filter(item => !resolvedItems.includes(item.id)).length - 3} autres éléments
                   <br />
                   <span className="text-xs">Utilisez le sélecteur ci-dessus pour voir tous les éléments</span>
+                </div>
+              )}
+              
+              {/* Show resolved items */}
+              {resolvedItems.length > 0 && (
+                <div className="border-t pt-2 mt-2">
+                  <p className="text-sm font-medium text-green-600 mb-1">
+                    Éléments traités ({resolvedItems.length}) :
+                  </p>
+                  {issue.affected_items?.filter(item => resolvedItems.includes(item.id)).slice(0, 2).map((item, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm p-2 bg-green-50 rounded border border-green-200">
+                      <span className="truncate">{item.name || item.title}</span>
+                      <div className="flex items-center space-x-1">
+                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                          Résolu
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                  {resolvedItems.length > 2 && (
+                    <div className="text-xs text-green-600 text-center mt-1">
+                      ... et {resolvedItems.length - 2} autres éléments résolus
+                    </div>
+                  )}
                 </div>
               )}
             </div>
