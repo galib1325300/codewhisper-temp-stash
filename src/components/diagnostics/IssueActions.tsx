@@ -7,6 +7,21 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import IssueItemSelector from './IssueItemSelector';
 
+// Utility function to generate product URLs
+const generateProductUrl = (shopUrl: string, productSlug: string, shopType: string): string => {
+  const baseUrl = shopUrl.replace(/\/$/, ''); // Remove trailing slash
+  
+  switch (shopType) {
+    case 'woocommerce':
+    case 'wordpress':
+      return `${baseUrl}/product/${productSlug}`;
+    case 'shopify':
+      return `${baseUrl}/products/${productSlug}`;
+    default:
+      return `${baseUrl}/product/${productSlug}`;
+  }
+};
+
 interface IssueActionsProps {
   issue: {
     type: 'error' | 'warning' | 'info';
@@ -19,10 +34,12 @@ interface IssueActionsProps {
     action_available?: boolean;
   };
   shopId: string;
+  shopUrl?: string;
+  shopType?: string;
   onIssueResolved?: () => void;
 }
 
-export default function IssueActions({ issue, shopId, onIssueResolved }: IssueActionsProps) {
+export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssueResolved }: IssueActionsProps) {
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -149,7 +166,10 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
           </div>
           {issue.action_available && !resolved && issue.affected_items && issue.affected_items.length > 0 && (
             <IssueItemSelector
-              items={issue.affected_items.filter(item => !resolvedItems.includes(item.id))} // Filter out resolved items
+              items={issue.affected_items.filter(item => !resolvedItems.includes(item.id)).map(item => ({
+                ...item,
+                url: item.slug && shopUrl && shopType ? generateProductUrl(shopUrl, item.slug, shopType) : undefined
+              }))} // Add URLs to items
               selectedItems={selectedItems}
               onSelectionChange={setSelectedItems}
               issueTitle={issue.title}
@@ -180,9 +200,18 @@ export default function IssueActions({ issue, shopId, onIssueResolved }: IssueAc
                     <Badge variant="secondary" className="text-xs">
                       {item.type}
                     </Badge>
-                    <Button size="sm" variant="ghost" className="h-auto p-1">
-                      <ExternalLink className="w-3 h-3" />
-                    </Button>
+                    {item.slug && shopUrl && shopType && (
+                      <Button size="sm" variant="ghost" className="h-auto p-1" asChild>
+                        <a 
+                          href={generateProductUrl(shopUrl, item.slug, shopType)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          title="Voir en ligne"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

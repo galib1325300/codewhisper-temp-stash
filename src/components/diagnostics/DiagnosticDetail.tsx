@@ -39,14 +39,16 @@ interface DiagnosticData {
 export default function DiagnosticDetail() {
   const { id: shopId, diagnosticId } = useParams();
   const [diagnostic, setDiagnostic] = useState<DiagnosticData | null>(null);
+  const [shop, setShop] = useState<{ url: string; type: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
   useEffect(() => {
-    if (diagnosticId) {
+    if (diagnosticId && shopId) {
       loadDiagnostic();
+      loadShop();
     }
-  }, [diagnosticId]);
+  }, [diagnosticId, shopId]);
 
   const loadDiagnostic = async () => {
     try {
@@ -69,6 +71,21 @@ export default function DiagnosticDetail() {
       console.error('Error loading diagnostic:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadShop = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('url, type')
+        .eq('id', shopId)
+        .single();
+
+      if (error) throw error;
+      setShop(data);
+    } catch (error) {
+      console.error('Error loading shop:', error);
     }
   };
 
@@ -249,6 +266,8 @@ export default function DiagnosticDetail() {
                 key={index}
                 issue={issue}
                 shopId={shopId || ''}
+                shopUrl={shop?.url}
+                shopType={shop?.type}
                 onIssueResolved={() => {
                   // Optionally refresh the diagnostic data
                   loadDiagnostic();
