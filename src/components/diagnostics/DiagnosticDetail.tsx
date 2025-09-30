@@ -50,6 +50,49 @@ export default function DiagnosticDetail() {
     }
   }, [diagnosticId, shopId]);
 
+  const enrichIssuesWithProductData = async (issues: any[]) => {
+    // Extract all product IDs from issues
+    const productIds = new Set<string>();
+    issues.forEach((issue) => {
+      if (issue.affected_items && Array.isArray(issue.affected_items)) {
+        issue.affected_items.forEach((item: any) => {
+          if (item.type === 'product' && item.id) {
+            productIds.add(item.id);
+          }
+        });
+      }
+    });
+
+    if (productIds.size === 0) return issues;
+
+    // Fetch product slugs from database
+    try {
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('id, slug')
+        .in('id', Array.from(productIds));
+
+      if (error) throw error;
+
+      // Create a map of product ID to slug
+      const productSlugMap = new Map(
+        products?.map((p) => [p.id, p.slug]) || []
+      );
+
+      // Enrich issues with slugs
+      return issues.map((issue) => ({
+        ...issue,
+        affected_items: issue.affected_items?.map((item: any) => ({
+          ...item,
+          slug: item.type === 'product' ? productSlugMap.get(item.id) : item.slug,
+        })),
+      }));
+    } catch (error) {
+      console.error('Error enriching issues with product data:', error);
+      return issues;
+    }
+  };
+
   const loadDiagnostic = async () => {
     try {
       const { data, error } = await supabase
@@ -60,9 +103,14 @@ export default function DiagnosticDetail() {
 
       if (error) throw error;
       
+      let issues = Array.isArray(data.issues) ? data.issues : [];
+      
+      // Enrich issues with product slugs
+      issues = await enrichIssuesWithProductData(issues);
+      
       const diagnosticData = {
         ...data,
-        issues: Array.isArray(data.issues) ? data.issues : [],
+        issues,
         recommendations: Array.isArray(data.recommendations) ? data.recommendations : []
       };
       
