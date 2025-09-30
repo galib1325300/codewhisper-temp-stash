@@ -45,6 +45,12 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [resolvedItems, setResolvedItems] = useState<string[]>([]); // Track individually resolved items
 
+  // Enrich all items with URLs
+  const enrichedItems = issue.affected_items?.map(item => ({
+    ...item,
+    url: item.slug && shopUrl && shopType ? generateProductUrl(shopUrl, item.slug, shopType) : undefined
+  })) || [];
+
   const getIssueIcon = (type: string) => {
     switch (type) {
       case 'error':
@@ -164,12 +170,9 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
               </Badge>
             </div>
           </div>
-          {issue.action_available && !resolved && issue.affected_items && issue.affected_items.length > 0 && (
+          {issue.action_available && !resolved && enrichedItems.length > 0 && (
             <IssueItemSelector
-              items={issue.affected_items.filter(item => !resolvedItems.includes(item.id)).map(item => ({
-                ...item,
-                url: item.slug && shopUrl && shopType ? generateProductUrl(shopUrl, item.slug, shopType) : undefined
-              }))} // Add URLs to items
+              items={enrichedItems.filter(item => !resolvedItems.includes(item.id))}
               selectedItems={selectedItems}
               onSelectionChange={setSelectedItems}
               issueTitle={issue.title}
@@ -187,23 +190,23 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
           <p className="text-sm"><strong>Recommandation :</strong> {issue.recommendation}</p>
         </div>
         
-        {issue.affected_items && issue.affected_items.length > 0 && (
+        {enrichedItems.length > 0 && (
           <div>
             <p className="text-sm font-medium mb-2">
-              Éléments concernés ({issue.affected_items.length - resolvedItems.length} restants sur {issue.affected_items.length}) :
+              Éléments concernés ({enrichedItems.length - resolvedItems.length} restants sur {enrichedItems.length}) :
             </p>
             <div className="space-y-1 max-h-32 overflow-y-auto">
-              {issue.affected_items.filter(item => !resolvedItems.includes(item.id)).slice(0, 3).map((item, i) => (
+              {enrichedItems.filter(item => !resolvedItems.includes(item.id)).slice(0, 3).map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
                   <span className="truncate">{item.name || item.title}</span>
                   <div className="flex items-center space-x-1">
                     <Badge variant="secondary" className="text-xs">
                       {item.type}
                     </Badge>
-                    {item.slug && shopUrl && shopType && (
+                    {item.url && (
                       <Button size="sm" variant="ghost" className="h-auto p-1" asChild>
                         <a 
-                          href={generateProductUrl(shopUrl, item.slug, shopType)} 
+                          href={item.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           title="Voir en ligne"
@@ -215,9 +218,9 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
                   </div>
                 </div>
               ))}
-              {issue.affected_items.filter(item => !resolvedItems.includes(item.id)).length > 3 && (
+              {enrichedItems.filter(item => !resolvedItems.includes(item.id)).length > 3 && (
                 <div className="text-sm text-muted-foreground p-2 bg-muted rounded border text-center">
-                  ... et {issue.affected_items.filter(item => !resolvedItems.includes(item.id)).length - 3} autres éléments
+                  ... et {enrichedItems.filter(item => !resolvedItems.includes(item.id)).length - 3} autres éléments
                   <br />
                   <span className="text-xs">Utilisez le sélecteur ci-dessus pour voir tous les éléments</span>
                 </div>
@@ -229,7 +232,7 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
                   <p className="text-sm font-medium text-green-600 mb-1">
                     Éléments traités ({resolvedItems.length}) :
                   </p>
-                  {issue.affected_items?.filter(item => resolvedItems.includes(item.id)).slice(0, 2).map((item, i) => (
+                  {enrichedItems.filter(item => resolvedItems.includes(item.id)).slice(0, 2).map((item, i) => (
                     <div key={i} className="flex items-center justify-between text-sm p-2 bg-green-50 rounded border border-green-200">
                       <span className="truncate">{item.name || item.title}</span>
                       <div className="flex items-center space-x-1">
