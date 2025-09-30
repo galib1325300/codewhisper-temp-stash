@@ -314,6 +314,7 @@ export default function DiagnosticDetail() {
                 key={index}
                 issue={issue}
                 shopId={shopId || ''}
+                diagnosticId={diagnosticId || ''}
                 shopUrl={shop?.url}
                 shopType={shop?.type}
                 onIssueResolved={() => {

@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface ResolutionRequest {
   shopId: string;
+  diagnosticId: string;
   issueType: string;
   affectedItems: Array<{
     id: string;
@@ -27,8 +28,8 @@ serve(async (req) => {
   )
 
   try {
-    const { shopId, issueType, affectedItems }: ResolutionRequest = await req.json()
-    console.log('Resolving SEO issues:', { shopId, issueType, affectedItems: affectedItems.length })
+    const { shopId, diagnosticId, issueType, affectedItems }: ResolutionRequest = await req.json()
+    console.log('Resolving SEO issues:', { shopId, diagnosticId, issueType, affectedItems: affectedItems.length })
 
     const results = {
       success: 0,
@@ -199,6 +200,16 @@ serve(async (req) => {
       }
     }
 
+    // Update the diagnostic with resolved items
+    if (results.success > 0 && diagnosticId) {
+      try {
+        await updateDiagnostic(supabase, diagnosticId, issueType, results.details.filter(d => d.success).map(d => d.id));
+      } catch (updateError) {
+        console.error('Error updating diagnostic:', updateError);
+        // Don't fail the entire request if diagnostic update fails
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -358,4 +369,84 @@ async function generateAIContent(productId: string, openaiApiKey: string, supaba
   if (updateError) {
     throw updateError;
   }
+}
+
+// Function to update diagnostic after resolving issues
+async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: string, resolvedItemIds: string[]) {
+  // Fetch current diagnostic
+  const { data: diagnostic, error: fetchError } = await supabase
+    .from('seo_diagnostics')
+    .select('issues, errors_count, warnings_count, info_count, total_issues')
+    .eq('id', diagnosticId)
+    .single();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  if (!diagnostic || !Array.isArray(diagnostic.issues)) {
+    return;
+  }
+
+  // Find and update the specific issue
+  let updatedIssues = diagnostic.issues.map((issue: any) => {
+    if (issue.category === issueType) {
+      // Filter out resolved items
+      const remainingItems = (issue.affected_items || []).filter(
+        (item: any) => !resolvedItemIds.includes(item.id)
+      );
+      
+      return {
+        ...issue,
+        affected_items: remainingItems
+      };
+    }
+    return issue;
+  });
+
+  // Remove issues that have no more affected items
+  updatedIssues = updatedIssues.filter((issue: any) => 
+    !issue.affected_items || issue.affected_items.length > 0
+  );
+
+  // Recalculate counters
+  let errorsCount = 0;
+  let warningsCount = 0;
+  let infoCount = 0;
+
+  updatedIssues.forEach((issue: any) => {
+    const itemsCount = issue.affected_items?.length || 0;
+    switch (issue.type) {
+      case 'error':
+        errorsCount += itemsCount;
+        break;
+      case 'warning':
+        warningsCount += itemsCount;
+        break;
+      case 'info':
+        infoCount += itemsCount;
+        break;
+    }
+  });
+
+  const totalIssues = errorsCount + warningsCount + infoCount;
+
+  // Update diagnostic in database
+  const { error: updateError } = await supabase
+    .from('seo_diagnostics')
+    .update({
+      issues: updatedIssues,
+      errors_count: errorsCount,
+      warnings_count: warningsCount,
+      info_count: infoCount,
+      total_issues: totalIssues,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', diagnosticId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  console.log(`Updated diagnostic ${diagnosticId}: removed ${resolvedItemIds.length} items from ${issueType}`);
 }

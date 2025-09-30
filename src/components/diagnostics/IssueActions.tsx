@@ -34,12 +34,13 @@ interface IssueActionsProps {
     action_available?: boolean;
   };
   shopId: string;
+  diagnosticId: string;
   shopUrl?: string;
   shopType?: string;
   onIssueResolved?: () => void;
 }
 
-export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssueResolved }: IssueActionsProps) {
+export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, shopType, onIssueResolved }: IssueActionsProps) {
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -111,6 +112,7 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
       const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
         body: {
           shopId,
+          diagnosticId,
           issueType: issue.category,
           affectedItems: selectedAffectedItems.map(item => ({
             id: item.id,
@@ -141,8 +143,10 @@ export default function IssueActions({ issue, shopId, shopUrl, shopType, onIssue
         
         if (remainingItems.length === 0) {
           setResolved(true);
-          onIssueResolved?.();
         }
+        
+        // Always trigger a reload of the diagnostic to get updated data
+        onIssueResolved?.();
         
         toast.success(`${successCount} éléments traités avec succès sur ${selectedAffectedItems.length} sélectionnés`);
         setSelectedItems([]); // Reset selection
