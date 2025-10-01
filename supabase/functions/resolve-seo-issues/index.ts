@@ -265,21 +265,46 @@ function generateStructuredDescription(product: any): string {
 function generateMetaDescription(product: any): string {
   const { name, description = '', categories = [] } = product
   
-  let meta = `Découvrez ${name}`
+  // Start with product name (essential for SEO)
+  let meta = name
   
-  if (categories.length > 0) {
-    meta += ` - ${categories[0].name}`
+  // Add main category if available
+  if (categories && categories.length > 0 && categories[0]?.name) {
+    const categoryName = categories[0].name
+    meta += ` - ${categoryName}`
   }
   
-  if (description && description.length > 50) {
-    const cleanDesc = description.replace(/<[^>]*>/g, '').substring(0, 80)
-    meta += `. ${cleanDesc}...`
+  // Extract clean description snippet
+  if (description && description.length > 20) {
+    const cleanDesc = description
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+    
+    if (cleanDesc.length > 30) {
+      // Add relevant excerpt
+      const excerpt = cleanDesc.substring(0, 100).trim()
+      meta += `. ${excerpt}`
+      if (cleanDesc.length > 100) {
+        meta += '...'
+      }
+    }
   }
   
-  meta += ' Livraison rapide et satisfaction garantie.'
+  // Add call-to-action if there's space (optimal length: 120-160 chars)
+  if (meta.length < 130) {
+    meta += ' | Livraison rapide ✓ Qualité garantie'
+  } else if (meta.length < 145) {
+    meta += ' | Livraison rapide'
+  }
   
-  // Keep within SEO limits
-  return meta.substring(0, 160)
+  // Ensure optimal SEO length (120-160 characters)
+  if (meta.length > 160) {
+    meta = meta.substring(0, 157) + '...'
+  }
+  
+  console.log(`Generated meta description for "${name}": ${meta.length} chars`)
+  return meta
 }
 
 function addStructureToDescription(description: string, productName: string): string {
@@ -409,31 +434,38 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
     !issue.affected_items || issue.affected_items.length > 0
   );
 
-  // Recalculate counters
+  // Recalculate counters - count issue CATEGORIES, not individual items
   let errorsCount = 0;
   let warningsCount = 0;
   let infoCount = 0;
+  let totalItemsCount = 0;
 
   updatedIssues.forEach((issue: any) => {
     const itemsCount = issue.affected_items?.length || 0;
-    switch (issue.type) {
-      case 'error':
-        errorsCount += itemsCount;
-        break;
-      case 'warning':
-        warningsCount += itemsCount;
-        break;
-      case 'info':
-        infoCount += itemsCount;
-        break;
+    if (itemsCount > 0) {
+      // Count 1 per category, not per item
+      switch (issue.type) {
+        case 'error':
+          errorsCount += 1;
+          break;
+        case 'warning':
+          warningsCount += 1;
+          break;
+        case 'info':
+          infoCount += 1;
+          break;
+      }
+      totalItemsCount += itemsCount;
     }
   });
 
   const totalIssues = errorsCount + warningsCount + infoCount;
 
-  // Calculate SEO score based on remaining issues
+  // Calculate SEO score: -15 per error category, -8 per warning category, -3 per info category
   let score = 100 - (errorsCount * 15) - (warningsCount * 8) - (infoCount * 3);
   score = Math.max(0, score);
+
+  console.log(`Score calculation: ${errorsCount} errors, ${warningsCount} warnings, ${infoCount} info → Score: ${score}/100 (${totalItemsCount} items affected)`);
 
   // Update diagnostic in database
   const { error: updateError } = await supabase
