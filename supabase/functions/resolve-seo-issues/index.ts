@@ -431,6 +431,10 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
 
   const totalIssues = errorsCount + warningsCount + infoCount;
 
+  // Calculate SEO score based on remaining issues
+  let score = 100 - (errorsCount * 15) - (warningsCount * 8) - (infoCount * 3);
+  score = Math.max(0, score);
+
   // Update diagnostic in database
   const { error: updateError } = await supabase
     .from('seo_diagnostics')
@@ -440,6 +444,7 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
       warnings_count: warningsCount,
       info_count: infoCount,
       total_issues: totalIssues,
+      score: score,
       updated_at: new Date().toISOString()
     })
     .eq('id', diagnosticId);
