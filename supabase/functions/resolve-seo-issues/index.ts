@@ -151,8 +151,8 @@ serve(async (req) => {
                 throw new Error('Lovable AI non configuré');
               }
 
-              // Generate AI content for product
-              await generateAIContent(item.id, lovableApiKey, supabase);
+              // Generate AI content for product and sync with WooCommerce
+              await generateAIContent(item.id, lovableApiKey, supabase, shopId);
               updateResult = { error: null }; // Mark as successful
             }
             break;
@@ -330,11 +330,11 @@ function addInternalLinks(description: string, productName: string, categories: 
 }
 
 // Helper function to generate AI content with Lovable AI
-async function generateAIContent(productId: string, lovableApiKey: string, supabase: any) {
-  // Fetch complete product details
+async function generateAIContent(productId: string, lovableApiKey: string, supabase: any, shopId: string) {
+  // Fetch complete product details including woocommerce_id
   const { data: product } = await supabase
     .from('products')
-    .select('name, description, price, regular_price, categories, images, sku, short_description')
+    .select('name, description, price, regular_price, categories, images, sku, short_description, woocommerce_id, shop_id')
     .eq('id', productId)
     .single();
 
@@ -433,7 +433,7 @@ Génère UNIQUEMENT le contenu HTML, sans markdown ni balises ~~~html.`;
 
   console.log(`Generated AI description for ${product.name}: ${generatedContent.length} chars`);
 
-  // Update product with generated LONG description
+  // Update product in Supabase
   const { error: updateError } = await supabase
     .from('products')
     .update({ 
@@ -444,6 +444,49 @@ Génère UNIQUEMENT le contenu HTML, sans markdown ni balises ~~~html.`;
 
   if (updateError) {
     throw updateError;
+  }
+
+  // Sync with WooCommerce
+  if (product.woocommerce_id) {
+    try {
+      // Get shop credentials
+      const { data: shop } = await supabase
+        .from('shops')
+        .select('url, consumer_key, consumer_secret')
+        .eq('id', shopId)
+        .single();
+
+      if (shop?.consumer_key && shop?.consumer_secret) {
+        const auth = btoa(`${shop.consumer_key}:${shop.consumer_secret}`);
+        const wooUrl = `${shop.url}/wp-json/wc/v3/products/${product.woocommerce_id}`;
+
+        console.log(`Syncing product ${product.woocommerce_id} to WooCommerce...`);
+
+        const wooResponse = await fetch(wooUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            description: generatedContent
+          }),
+        });
+
+        if (!wooResponse.ok) {
+          const errorText = await wooResponse.text();
+          console.error('WooCommerce sync error:', wooResponse.status, errorText);
+          throw new Error(`WooCommerce sync failed: ${wooResponse.statusText}`);
+        }
+
+        console.log(`Successfully synced product ${product.woocommerce_id} to WooCommerce`);
+      } else {
+        console.warn('WooCommerce credentials not found, skipping sync');
+      }
+    } catch (syncError) {
+      console.error('Error syncing with WooCommerce:', syncError);
+      // Don't throw here, the content was still generated successfully
+    }
   }
 }
 
