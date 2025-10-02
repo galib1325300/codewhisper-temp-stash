@@ -172,7 +172,7 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {diagnostics.map((diagnostic) => (
+                {diagnostics.map((diagnostic, index) => (
                   <tr key={diagnostic.id} className="hover:bg-muted/25">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-muted-foreground">
                       #{diagnostic.id.slice(0, 8)}
@@ -217,14 +217,18 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
                       {formatDate(diagnostic.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {diagnostic.status === 'completed' && (
+                      {diagnostic.status === 'completed' && index === 0 ? (
                         <Link to={`/admin/shops/${shopId}/diagnostics/${diagnostic.id}`}>
                           <Button variant="outline" size="sm">
                             <Eye className="w-4 h-4 mr-1" />
                             Détails
                           </Button>
                         </Link>
-                      )}
+                      ) : diagnostic.status === 'completed' ? (
+                        <Badge variant="secondary" className="text-xs">
+                          Ancien diagnostic
+                        </Badge>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
