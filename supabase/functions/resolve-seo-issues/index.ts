@@ -143,33 +143,16 @@ serve(async (req) => {
             break;
 
           case 'Génération IA':
-            // Handle AI content generation
+            // Handle AI content generation with Lovable AI
             if (item.type === 'product') {
-              // Get OpenAI API key from shop or profile
-              const { data: shop } = await supabase
-                .from('shops')
-                .select('openai_api_key, user_id')
-                .eq('id', shopId)
-                .single();
-
-              let openaiApiKey = shop?.openai_api_key;
+              const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
               
-              if (!openaiApiKey) {
-                const { data: profile } = await supabase
-                  .from('profiles')
-                  .select('openai_api_key')
-                  .eq('user_id', shop?.user_id)
-                  .single();
-                
-                openaiApiKey = profile?.openai_api_key;
-              }
-
-              if (!openaiApiKey) {
-                throw new Error('Clé API OpenAI manquante');
+              if (!lovableApiKey) {
+                throw new Error('Lovable AI non configuré');
               }
 
               // Generate AI content for product
-              await generateAIContent(item.id, openaiApiKey, supabase);
+              await generateAIContent(item.id, lovableApiKey, supabase);
               updateResult = { error: null }; // Mark as successful
             }
             break;
@@ -346,47 +329,95 @@ function addInternalLinks(description: string, productName: string, categories: 
   return enhanced;
 }
 
-// Helper function to generate AI content
-async function generateAIContent(productId: string, openaiApiKey: string, supabase: any) {
-  const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+// Helper function to generate AI content with Lovable AI
+async function generateAIContent(productId: string, lovableApiKey: string, supabase: any) {
+  // Fetch complete product details
+  const { data: product } = await supabase
+    .from('products')
+    .select('name, description, price, regular_price, categories, images, sku')
+    .eq('id', productId)
+    .single();
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  // Build context for AI
+  const categoryNames = product.categories?.map((c: any) => c.name).join(', ') || 'Aucune catégorie';
+  const priceInfo = product.price ? `${product.price}€` : 'Prix non défini';
+  const existingDesc = product.description?.replace(/<[^>]*>/g, '').substring(0, 200) || '';
+
+  const prompt = `Génère une description de produit e-commerce optimisée SEO en français.
+
+INFORMATIONS DU PRODUIT :
+- Nom : ${product.name}
+- Catégories : ${categoryNames}
+- Prix : ${priceInfo}
+${existingDesc ? `- Description existante (pour référence) : ${existingDesc}` : ''}
+
+CONSIGNES STRICTES :
+1. Commence TOUJOURS par le nom du produit
+2. Inclus les mots-clés : nom du produit, catégories principales
+3. Longueur : 120-160 caractères (optimal pour SEO)
+4. Style : professionnel, engageant, orienté vente
+5. Structure : [Nom] - [Bénéfice principal]. [Caractéristique clé] | [Call-to-action court]
+6. Utilise des émojis si pertinent (1-2 max)
+7. PAS de phrases génériques type "Découvrez ce produit"
+
+EXEMPLE DE FORMAT :
+"Nom du Produit - Qualité premium pour [usage]. Matériau [X], design [Y]. Livraison rapide ✓"
+
+Génère UNIQUEMENT la description, sans introduction ni explication.`;
+
+  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
+      'Authorization': `Bearer ${lovableApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'google/gemini-2.5-flash',
       messages: [
         {
           role: 'system',
-          content: 'Vous êtes un expert en rédaction de contenu e-commerce. Générez des descriptions de produits attrayantes et optimisées SEO.'
+          content: 'Tu es un expert en rédaction de fiches produits e-commerce optimisées SEO. Tu génères des descriptions courtes, percutantes et riches en mots-clés pertinents.'
         },
         {
           role: 'user',
-          content: `Générez une description courte et optimisée SEO pour ce produit (ID: ${productId}). La description doit être engageante, inclure des mots-clés pertinents et être entre 150-200 caractères.`
+          content: prompt
         }
       ],
-      max_tokens: 200,
-      temperature: 0.7
+      temperature: 0.7,
+      max_tokens: 200
     }),
   });
 
-  if (!openAIResponse.ok) {
-    throw new Error(`OpenAI API error: ${openAIResponse.statusText}`);
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    console.error('Lovable AI error:', aiResponse.status, errorText);
+    throw new Error(`Lovable AI error: ${aiResponse.statusText}`);
   }
 
-  const openAIData = await openAIResponse.json();
-  const generatedContent = openAIData.choices[0]?.message?.content?.trim();
+  const aiData = await aiResponse.json();
+  const generatedContent = aiData.choices[0]?.message?.content?.trim();
 
   if (!generatedContent) {
     throw new Error('No content generated by AI');
   }
 
+  // Ensure optimal length for SEO (120-160 chars)
+  let finalContent = generatedContent;
+  if (finalContent.length > 160) {
+    finalContent = finalContent.substring(0, 157) + '...';
+  }
+
+  console.log(`Generated AI content for ${product.name}: ${finalContent.length} chars`);
+
   // Update product with generated content
   const { error: updateError } = await supabase
     .from('products')
     .update({ 
-      short_description: generatedContent,
+      short_description: finalContent,
       updated_at: new Date().toISOString()
     })
     .eq('id', productId);
