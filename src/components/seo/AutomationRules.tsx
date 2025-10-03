@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Zap, 
   Clock, 
@@ -23,20 +23,21 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import LoadingState from '../ui/loading-state';
 
 interface AutomationRule {
   id: string;
   name: string;
   description: string;
-  trigger: {
-    type: 'schedule' | 'event' | 'threshold';
-    value: string;
-  };
+  trigger_type: 'schedule' | 'event' | 'threshold';
+  trigger_value: string;
   actions: string[];
   status: 'active' | 'paused' | 'error';
-  lastRun: string;
-  success: number;
-  total: number;
+  last_run: string | null;
+  success_count: number;
+  total_runs: number;
   frequency: string;
 }
 
@@ -49,70 +50,10 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
   shopId,
   className = ''
 }) => {
-  const [rules, setRules] = useState<AutomationRule[]>([
-    {
-      id: '1',
-      name: 'Optimisation quotidienne des méta-données',
-      description: 'Génère automatiquement des titres et descriptions SEO pour les nouveaux produits',
-      trigger: {
-        type: 'schedule',
-        value: 'daily'
-      },
-      actions: ['Analyser nouveaux produits', 'Générer méta-descriptions', 'Optimiser titres'],
-      status: 'active',
-      lastRun: '2024-01-15T08:00:00Z',
-      success: 142,
-      total: 150,
-      frequency: 'Quotidien'
-    },
-    {
-      id: '2',
-      name: 'Surveillance des positions de mots-clés',
-      description: 'Surveille les positions et déclenche des optimisations si baisse détectée',
-      trigger: {
-        type: 'threshold',
-        value: 'position_drop_5'
-      },
-      actions: ['Analyser baisse position', 'Optimiser contenu', 'Notifier équipe'],
-      status: 'active',
-      lastRun: '2024-01-15T14:30:00Z',
-      success: 28,
-      total: 32,
-      frequency: 'En temps réel'
-    },
-    {
-      id: '3',
-      name: 'Analyse hebdomadaire de la concurrence',
-      description: 'Analyse les stratégies SEO des concurrents et suggère des améliorations',
-      trigger: {
-        type: 'schedule',
-        value: 'weekly'
-      },
-      actions: ['Scanner concurrents', 'Analyser mots-clés', 'Générer rapport'],
-      status: 'paused',
-      lastRun: '2024-01-08T10:00:00Z',
-      success: 8,
-      total: 10,
-      frequency: 'Hebdomadaire'
-    },
-    {
-      id: '4',
-      name: 'Optimisation automatique des images',
-      description: 'Compresse et optimise automatiquement les nouvelles images uploadées',
-      trigger: {
-        type: 'event',
-        value: 'image_upload'
-      },
-      actions: ['Compresser image', 'Générer alt text', 'Convertir WebP'],
-      status: 'active',
-      lastRun: '2024-01-15T16:45:00Z',
-      success: 87,
-      total: 89,
-      frequency: 'Sur événement'
-    }
-  ]);
-
+  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
   const [newRule, setNewRule] = useState({
     name: '',
     description: '',
@@ -120,6 +61,57 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
     triggerValue: '',
     actions: ''
   });
+
+  useEffect(() => {
+    if (shopId) {
+      loadRules();
+    }
+  }, [shopId]);
+
+  const loadRules = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('automation_rules')
+        .select('*')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedRules: AutomationRule[] = (data || []).map(rule => ({
+        id: rule.id,
+        name: rule.name,
+        description: rule.description || '',
+        trigger_type: rule.trigger_type as 'schedule' | 'event' | 'threshold',
+        trigger_value: rule.trigger_value,
+        actions: Array.isArray(rule.actions) ? rule.actions.map(a => String(a)) : [],
+        status: rule.status as 'active' | 'paused' | 'error',
+        last_run: rule.last_run,
+        success_count: rule.success_count || 0,
+        total_runs: rule.total_runs || 0,
+        frequency: getFrequencyLabel(rule.trigger_type, rule.trigger_value)
+      }));
+
+      setRules(mappedRules);
+    } catch (error) {
+      console.error('Error loading automation rules:', error);
+      toast.error('Erreur lors du chargement des automatisations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getFrequencyLabel = (triggerType: string, triggerValue: string): string => {
+    if (triggerType === 'schedule') {
+      if (triggerValue === 'daily') return 'Quotidien';
+      if (triggerValue === 'weekly') return 'Hebdomadaire';
+      if (triggerValue === 'monthly') return 'Mensuel';
+      return 'Planifié';
+    }
+    if (triggerType === 'event') return 'Sur événement';
+    return 'Conditionnel';
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -139,41 +131,111 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
     }
   };
 
-  const toggleRuleStatus = (ruleId: string) => {
-    setRules(prev => prev.map(rule => 
-      rule.id === ruleId 
-        ? { 
-            ...rule, 
-            status: rule.status === 'active' ? 'paused' : 'active' 
-          }
-        : rule
-    ));
+  const toggleRuleStatus = async (ruleId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+      
+      const { error } = await supabase
+        .from('automation_rules')
+        .update({ status: newStatus })
+        .eq('id', ruleId);
+
+      if (error) throw error;
+
+      setRules(prev => prev.map(rule => 
+        rule.id === ruleId 
+          ? { ...rule, status: newStatus as 'active' | 'paused' }
+          : rule
+      ));
+
+      toast.success(`Règle ${newStatus === 'active' ? 'activée' : 'désactivée'}`);
+    } catch (error) {
+      console.error('Error toggling rule status:', error);
+      toast.error('Erreur lors de la modification du statut');
+    }
   };
 
-  const deleteRule = (ruleId: string) => {
-    setRules(prev => prev.filter(rule => rule.id !== ruleId));
+  const deleteRule = async (ruleId: string) => {
+    try {
+      const { error } = await supabase
+        .from('automation_rules')
+        .delete()
+        .eq('id', ruleId);
+
+      if (error) throw error;
+
+      setRules(prev => prev.filter(rule => rule.id !== ruleId));
+      toast.success('Règle supprimée');
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+      toast.error('Erreur lors de la suppression');
+    }
   };
 
-  const createRule = () => {
-    const rule: AutomationRule = {
-      id: Date.now().toString(),
-      name: newRule.name,
-      description: newRule.description,
-      trigger: {
-        type: newRule.triggerType as any,
-        value: newRule.triggerValue
-      },
-      actions: newRule.actions.split(',').map(a => a.trim()),
-      status: 'active',
-      lastRun: new Date().toISOString(),
-      success: 0,
-      total: 0,
-      frequency: newRule.triggerType === 'schedule' 
-        ? newRule.triggerValue === 'daily' ? 'Quotidien' : 'Hebdomadaire'
-        : newRule.triggerType === 'event' ? 'Sur événement' : 'Conditionnel'
-    };
+  const createOrUpdateRule = async () => {
+    if (!shopId || !newRule.name.trim()) {
+      toast.error('Veuillez remplir tous les champs requis');
+      return;
+    }
 
-    setRules(prev => [rule, ...prev]);
+    try {
+      const actionsArray = newRule.actions.split(',').map(a => a.trim()).filter(a => a);
+
+      if (editingRule) {
+        // Update existing rule
+        const { error } = await supabase
+          .from('automation_rules')
+          .update({
+            name: newRule.name,
+            description: newRule.description,
+            trigger_type: newRule.triggerType,
+            trigger_value: newRule.triggerValue,
+            actions: actionsArray
+          })
+          .eq('id', editingRule.id);
+
+        if (error) throw error;
+        toast.success('Règle mise à jour');
+      } else {
+        // Create new rule
+        const { error } = await supabase
+          .from('automation_rules')
+          .insert({
+            shop_id: shopId,
+            name: newRule.name,
+            description: newRule.description,
+            trigger_type: newRule.triggerType,
+            trigger_value: newRule.triggerValue,
+            actions: actionsArray,
+            status: 'active'
+          });
+
+        if (error) throw error;
+        toast.success('Règle créée avec succès');
+      }
+
+      await loadRules();
+      resetForm();
+      setIsCreateDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating/updating rule:', error);
+      toast.error('Erreur lors de l\'enregistrement de la règle');
+    }
+  };
+
+  const startEditRule = (rule: AutomationRule) => {
+    setEditingRule(rule);
+    setNewRule({
+      name: rule.name,
+      description: rule.description,
+      triggerType: rule.trigger_type,
+      triggerValue: rule.trigger_value,
+      actions: rule.actions.join(', ')
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const resetForm = () => {
     setNewRule({
       name: '',
       description: '',
@@ -181,13 +243,17 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
       triggerValue: '',
       actions: ''
     });
-    setIsCreateDialogOpen(false);
+    setEditingRule(null);
   };
 
   const activeRules = rules.filter(r => r.status === 'active').length;
-  const totalSuccess = rules.reduce((sum, r) => sum + r.success, 0);
-  const totalRuns = rules.reduce((sum, r) => sum + r.total, 0);
+  const totalSuccess = rules.reduce((sum, r) => sum + r.success_count, 0);
+  const totalRuns = rules.reduce((sum, r) => sum + r.total_runs, 0);
   const successRate = totalRuns > 0 ? (totalSuccess / totalRuns) * 100 : 0;
+
+  if (loading) {
+    return <LoadingState text="Chargement des automatisations..." />;
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -250,7 +316,10 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
               <Zap className="w-5 h-5 mr-2 text-primary" />
               Règles d'Automatisation SEO
             </CardTitle>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+              setIsCreateDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-primary to-primary-glow">
                   <Plus className="w-4 h-4 mr-2" />
@@ -259,7 +328,9 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Créer une règle d'automatisation</DialogTitle>
+                  <DialogTitle>
+                    {editingRule ? 'Modifier la règle' : 'Créer une règle d\'automatisation'}
+                  </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -299,12 +370,29 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
 
                   <div>
                     <Label htmlFor="triggerValue">Valeur du déclencheur</Label>
-                    <Input
-                      id="triggerValue"
-                      value={newRule.triggerValue}
-                      onChange={(e) => setNewRule(prev => ({ ...prev, triggerValue: e.target.value }))}
-                      placeholder="Ex: daily, new_product, position_drop_3"
-                    />
+                    {newRule.triggerType === 'schedule' ? (
+                      <Select value={newRule.triggerValue} onValueChange={(value) => setNewRule(prev => ({ ...prev, triggerValue: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choisir une fréquence" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Quotidien</SelectItem>
+                          <SelectItem value="weekly">Hebdomadaire</SelectItem>
+                          <SelectItem value="monthly">Mensuel</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="triggerValue"
+                        value={newRule.triggerValue}
+                        onChange={(e) => setNewRule(prev => ({ ...prev, triggerValue: e.target.value }))}
+                        placeholder={
+                          newRule.triggerType === 'event' 
+                            ? "Ex: new_product, image_upload" 
+                            : "Ex: position_drop_5, score_below_70"
+                        }
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -318,8 +406,8 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
                     />
                   </div>
 
-                  <Button onClick={createRule} className="w-full">
-                    Créer la règle
+                  <Button onClick={createOrUpdateRule} className="w-full">
+                    {editingRule ? 'Mettre à jour' : 'Créer la règle'}
                   </Button>
                 </div>
               </DialogContent>
@@ -329,75 +417,99 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
       </Card>
 
       {/* Rules List */}
-      <div className="space-y-4">
-        {rules.map((rule) => (
-          <Card key={rule.id} className="card-elevated">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="font-semibold text-foreground">{rule.name}</h3>
-                    <Badge className={getStatusColor(rule.status)}>
-                      {getStatusIcon(rule.status)}
-                      <span className="ml-1 capitalize">{rule.status}</span>
-                    </Badge>
-                    <Badge variant="outline">{rule.frequency}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {rule.description}
-                  </p>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {rule.actions.map((action, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {action}
+      {rules.length === 0 ? (
+        <Card className="card-elevated">
+          <CardContent className="p-12 text-center">
+            <Zap className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-medium mb-2">Aucune automatisation</h3>
+            <p className="text-muted-foreground mb-4">
+              Créez votre première règle d'automatisation pour optimiser votre SEO automatiquement.
+            </p>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Créer une règle
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {rules.map((rule) => (
+            <Card key={rule.id} className="card-elevated">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="font-semibold text-foreground">{rule.name}</h3>
+                      <Badge className={getStatusColor(rule.status)}>
+                        {getStatusIcon(rule.status)}
+                        <span className="ml-1 capitalize">{rule.status}</span>
                       </Badge>
-                    ))}
+                      <Badge variant="outline">{rule.frequency}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {rule.description}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {rule.actions.map((action, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {action}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={rule.status === 'active'}
+                      onCheckedChange={() => toggleRuleStatus(rule.id, rule.status)}
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => startEditRule(rule)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => deleteRule(rule.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={rule.status === 'active'}
-                    onCheckedChange={() => toggleRuleStatus(rule.id)}
-                  />
-                  <Button variant="ghost" size="sm">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => deleteRule(rule.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <CheckCircle className="w-3 h-3 text-success mr-1" />
-                    <span>{rule.success}/{rule.total} succès</span>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-3 h-3 text-success mr-1" />
+                      <span>{rule.success_count}/{rule.total_runs} succès</span>
+                    </div>
+                    {rule.last_run && (
+                      <div className="flex items-center">
+                        <Clock className="w-3 h-3 text-muted-foreground mr-1" />
+                        <span>Dernière: {new Date(rule.last_run).toLocaleDateString()}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center">
-                    <Clock className="w-3 h-3 text-muted-foreground mr-1" />
-                    <span>Dernière: {new Date(rule.lastRun).toLocaleDateString()}</span>
-                  </div>
+                  
+                  {rule.total_runs > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-24">
+                        <Progress value={(rule.success_count / rule.total_runs) * 100} className="h-1" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round((rule.success_count / rule.total_runs) * 100)}%
+                      </span>
+                    </div>
+                  )}
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  <div className="w-24">
-                    <Progress value={(rule.success / rule.total) * 100} className="h-1" />
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {rule.total > 0 ? Math.round((rule.success / rule.total) * 100) : 0}%
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
