@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_rules: {
+        Row: {
+          actions: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          last_run: string | null
+          name: string
+          shop_id: string
+          status: string
+          success_count: number | null
+          total_runs: number | null
+          trigger_type: string
+          trigger_value: string
+          updated_at: string
+        }
+        Insert: {
+          actions?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          last_run?: string | null
+          name: string
+          shop_id: string
+          status?: string
+          success_count?: number | null
+          total_runs?: number | null
+          trigger_type: string
+          trigger_value: string
+          updated_at?: string
+        }
+        Update: {
+          actions?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          last_run?: string | null
+          name?: string
+          shop_id?: string
+          status?: string
+          success_count?: number | null
+          total_runs?: number | null
+          trigger_type?: string
+          trigger_value?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           content: string | null
@@ -340,6 +396,62 @@ export type Database = {
           wp_username?: string | null
         }
         Relationships: []
+      }
+      tracked_keywords: {
+        Row: {
+          competition: string | null
+          cpc: number | null
+          created_at: string
+          current_rank: number | null
+          difficulty: number | null
+          id: string
+          keyword: string
+          opportunities: number | null
+          shop_id: string
+          target_rank: number | null
+          trend: string | null
+          updated_at: string
+          volume: number | null
+        }
+        Insert: {
+          competition?: string | null
+          cpc?: number | null
+          created_at?: string
+          current_rank?: number | null
+          difficulty?: number | null
+          id?: string
+          keyword: string
+          opportunities?: number | null
+          shop_id: string
+          target_rank?: number | null
+          trend?: string | null
+          updated_at?: string
+          volume?: number | null
+        }
+        Update: {
+          competition?: string | null
+          cpc?: number | null
+          created_at?: string
+          current_rank?: number | null
+          difficulty?: number | null
+          id?: string
+          keyword?: string
+          opportunities?: number | null
+          shop_id?: string
+          target_rank?: number | null
+          trend?: string | null
+          updated_at?: string
+          volume?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_keywords_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

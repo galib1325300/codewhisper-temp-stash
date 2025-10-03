@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Wand2, 
-  Target, 
   TrendingUp, 
   CheckCircle, 
   AlertCircle,
   Loader2,
   Sparkles,
-  Search,
+  FileText,
   Image as ImageIcon,
-  FileText
+  Link2,
+  Layers
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import LoadingState from '../ui/loading-state';
 
 interface SEOOptimizerProps {
   productId?: string;
@@ -31,6 +33,27 @@ interface OptimizationTask {
   impact: 'low' | 'medium' | 'high';
   progress: number;
   result?: string;
+  issueType: string;
+  affectedCount: number;
+  icon: React.ReactNode;
+}
+
+interface DiagnosticIssue {
+  type: string;
+  severity: string;
+  category: string;
+  description: string;
+  affectedItems: Array<{
+    id: string;
+    name: string;
+    type: string;
+  }>;
+}
+
+interface Diagnostic {
+  id: string;
+  score: number;
+  issues: DiagnosticIssue[] | any;
 }
 
 const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
@@ -38,42 +61,96 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
   shopId,
   className = ''
 }) => {
-  const [tasks, setTasks] = useState<OptimizationTask[]>([
-    {
-      id: 'meta-optimization',
-      title: 'Optimisation des méta-données',
-      description: 'Génération automatique de titres et descriptions SEO optimisées',
-      status: 'pending',
-      impact: 'high',
-      progress: 0
-    },
-    {
-      id: 'keyword-analysis',
-      title: 'Analyse des mots-clés',
-      description: 'Identification des mots-clés pertinents et analyse de la concurrence',
-      status: 'pending',
-      impact: 'high',
-      progress: 0
-    },
-    {
-      id: 'content-optimization',
-      title: 'Optimisation du contenu',
-      description: 'Amélioration de la structure et de la densité des mots-clés',
-      status: 'pending',
-      impact: 'medium',
-      progress: 0
-    },
-    {
-      id: 'image-optimization',
-      title: 'Optimisation des images',
-      description: 'Génération d\'attributs alt et compression automatique',
-      status: 'pending',
-      impact: 'medium',
-      progress: 0
-    }
-  ]);
-
+  const [tasks, setTasks] = useState<OptimizationTask[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
+  const [initialScore, setInitialScore] = useState(0);
+  const [finalScore, setFinalScore] = useState(0);
+
+  useEffect(() => {
+    if (shopId) {
+      loadDiagnostic();
+    }
+  }, [shopId]);
+
+  const loadDiagnostic = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('seo_diagnostics')
+        .select('*')
+        .eq('shop_id', shopId)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setDiagnostic(data);
+        setInitialScore(data.score || 0);
+        setFinalScore(data.score || 0);
+        generateTasks(data);
+      }
+    } catch (error) {
+      console.error('Error loading diagnostic:', error);
+      toast.error('Erreur lors du chargement du diagnostic');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateTasks = (diag: Diagnostic) => {
+    const taskMap = new Map<string, OptimizationTask>();
+
+    diag.issues?.forEach((issue) => {
+      const count = issue.affectedItems?.length || 0;
+      if (count === 0) return;
+
+      const issueKey = issue.type;
+      if (!taskMap.has(issueKey)) {
+        taskMap.set(issueKey, {
+          id: issueKey,
+          title: getTaskTitle(issue.type),
+          description: issue.description,
+          status: 'pending',
+          impact: issue.severity === 'error' ? 'high' : issue.severity === 'warning' ? 'medium' : 'low',
+          progress: 0,
+          issueType: issue.type,
+          affectedCount: count,
+          icon: getTaskIcon(issue.type)
+        });
+      }
+    });
+
+    setTasks(Array.from(taskMap.values()));
+  };
+
+  const getTaskTitle = (type: string): string => {
+    const titles: Record<string, string> = {
+      'Images': 'Optimisation des images',
+      'Contenu': 'Génération de descriptions structurées',
+      'SEO': 'Optimisation des méta-descriptions',
+      'Structure': 'Amélioration de la structure HTML',
+      'Maillage interne': 'Ajout de liens internes',
+      'Génération IA': 'Génération de contenu IA complet'
+    };
+    return titles[type] || `Optimisation ${type}`;
+  };
+
+  const getTaskIcon = (type: string): React.ReactNode => {
+    const icons: Record<string, React.ReactNode> = {
+      'Images': <ImageIcon className="w-4 h-4" />,
+      'Contenu': <FileText className="w-4 h-4" />,
+      'SEO': <Sparkles className="w-4 h-4" />,
+      'Structure': <Layers className="w-4 h-4" />,
+      'Maillage interne': <Link2 className="w-4 h-4" />,
+      'Génération IA': <Wand2 className="w-4 h-4" />
+    };
+    return icons[type] || <FileText className="w-4 h-4" />;
+  };
 
   const getImpactColor = (impact: string) => {
     switch (impact) {
@@ -94,54 +171,89 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
   };
 
   const runOptimization = async () => {
-    setIsRunning(true);
+    if (!diagnostic || !shopId) return;
     
+    setIsRunning(true);
+    let totalFixed = 0;
+
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       
-      // Marquer la tâche comme en cours
       setTasks(prev => prev.map(t => 
         t.id === task.id 
           ? { ...t, status: 'running', progress: 0 }
           : t
       ));
 
-      // Simuler le progrès
-      for (let progress = 0; progress <= 100; progress += 20) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+      try {
+        // Get affected items for this issue type
+        const issue = diagnostic.issues?.find(iss => iss.type === task.issueType);
+        const affectedItems = issue?.affectedItems?.map(item => item.id) || [];
+
+        // Call resolve-seo-issues edge function
+        const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
+          body: {
+            shopId,
+            diagnosticId: diagnostic.id,
+            issueType: task.issueType,
+            affectedItems
+          }
+        });
+
+        if (error) throw error;
+
+        totalFixed += affectedItems.length;
+
         setTasks(prev => prev.map(t => 
           t.id === task.id 
-            ? { ...t, progress }
+            ? { 
+                ...t, 
+                status: 'completed', 
+                progress: 100, 
+                result: `${affectedItems.length} éléments optimisés avec succès`
+              }
+            : t
+        ));
+      } catch (error) {
+        console.error(`Error resolving ${task.issueType}:`, error);
+        setTasks(prev => prev.map(t => 
+          t.id === task.id 
+            ? { ...t, status: 'error', result: 'Erreur lors de l\'optimisation' }
             : t
         ));
       }
 
-      // Marquer comme terminé avec résultat
-      const results = {
-        'meta-optimization': 'Titre optimisé : "Chaussures de sport premium - Confort et style" | Description : "Découvrez notre collection de chaussures de sport haut de gamme. Confort optimal, design moderne et durabilité exceptionnelle."',
-        'keyword-analysis': 'Mots-clés identifiés : "chaussures sport", "baskets premium", "confort", "style" | Score de difficulté : Moyen (45/100)',
-        'content-optimization': 'Densité des mots-clés optimisée : 2.5% | Structure H1-H6 améliorée | 3 suggestions d\'amélioration appliquées',
-        'image-optimization': '5 images optimisées | Attributs alt générés | Taille réduite de 35% | WebP converti'
-      };
-
-      setTasks(prev => prev.map(t => 
-        t.id === task.id 
-          ? { 
-              ...t, 
-              status: 'completed', 
-              progress: 100, 
-              result: results[t.id as keyof typeof results] 
-            }
-          : t
-      ));
+      // Simulate progress for better UX
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    // Reload diagnostic to get updated score
+    await loadDiagnostic();
+    
     setIsRunning(false);
-    toast.success('Optimisation SEO terminée avec succès !');
+    toast.success(`Optimisation terminée ! ${totalFixed} éléments optimisés.`);
   };
 
   const completedTasks = tasks.filter(t => t.status === 'completed').length;
-  const totalProgress = (completedTasks / tasks.length) * 100;
+  const totalProgress = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+
+  if (loading) {
+    return <LoadingState text="Chargement de l'optimiseur..." />;
+  }
+
+  if (!diagnostic || tasks.length === 0) {
+    return (
+      <Card className="card-elevated">
+        <CardContent className="p-12 text-center">
+          <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-medium mb-2">Aucune optimisation disponible</h3>
+          <p className="text-muted-foreground">
+            Lancez d'abord un diagnostic SEO pour identifier les opportunités d'optimisation.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -174,7 +286,7 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
             </div>
             <Button 
               onClick={runOptimization}
-              disabled={isRunning}
+              disabled={isRunning || completedTasks === tasks.length}
               className="bg-gradient-to-r from-primary to-primary-glow"
             >
               {isRunning ? (
@@ -202,10 +314,7 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start space-x-3">
                   <div className="p-2 rounded-lg bg-accent">
-                    {task.id === 'meta-optimization' && <FileText className="w-4 h-4" />}
-                    {task.id === 'keyword-analysis' && <Search className="w-4 h-4" />}
-                    {task.id === 'content-optimization' && <Target className="w-4 h-4" />}
-                    {task.id === 'image-optimization' && <ImageIcon className="w-4 h-4" />}
+                    {task.icon}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
@@ -214,6 +323,9 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
                       {task.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {task.affectedCount} élément{task.affectedCount > 1 ? 's' : ''} concerné{task.affectedCount > 1 ? 's' : ''}
                     </p>
                     {task.result && (
                       <div className="mt-3 p-3 bg-accent/50 rounded-lg">
@@ -252,22 +364,24 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
           <CardHeader>
             <CardTitle className="flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-success" />
-              Prédiction d'amélioration SEO
+              Résultats de l'optimisation
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-gradient-to-br from-success/10 to-success/5 rounded-lg">
-                <div className="text-2xl font-bold text-success mb-1">+25%</div>
-                <div className="text-sm text-muted-foreground">Trafic organique estimé</div>
+                <div className="text-2xl font-bold text-success mb-1">
+                  {finalScore - initialScore > 0 ? '+' : ''}{finalScore - initialScore}
+                </div>
+                <div className="text-sm text-muted-foreground">Points de score SEO</div>
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-info/10 to-info/5 rounded-lg">
-                <div className="text-2xl font-bold text-info mb-1">85/100</div>
-                <div className="text-sm text-muted-foreground">Score SEO projeté</div>
+                <div className="text-2xl font-bold text-info mb-1">{finalScore}/100</div>
+                <div className="text-sm text-muted-foreground">Score SEO actuel</div>
               </div>
               <div className="text-center p-4 bg-gradient-to-br from-warning/10 to-warning/5 rounded-lg">
-                <div className="text-2xl font-bold text-warning mb-1">+15</div>
-                <div className="text-sm text-muted-foreground">Positions moyennes</div>
+                <div className="text-2xl font-bold text-warning mb-1">{completedTasks}</div>
+                <div className="text-sm text-muted-foreground">Tâches complétées</div>
               </div>
             </div>
           </CardContent>

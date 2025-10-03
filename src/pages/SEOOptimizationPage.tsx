@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import ShopNavigation from '../components/ShopNavigation';
@@ -14,10 +14,82 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import LoadingState from '../components/ui/loading-state';
 
 const SEOOptimizationPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('optimizer');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    score: 0,
+    keywordsCount: 0,
+    automationsCount: 0,
+    optimizationsCount: 0
+  });
+
+  useEffect(() => {
+    if (id) {
+      loadStats();
+    }
+  }, [id]);
+
+  const loadStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Get latest diagnostic
+      const { data: diagnostic } = await supabase
+        .from('seo_diagnostics')
+        .select('score, total_issues')
+        .eq('shop_id', id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Count tracked keywords
+      const { count: keywordsCount } = await supabase
+        .from('tracked_keywords')
+        .select('*', { count: 'exact', head: true })
+        .eq('shop_id', id);
+
+      // Count automation rules
+      const { count: automationsCount } = await supabase
+        .from('automation_rules')
+        .select('*', { count: 'exact', head: true })
+        .eq('shop_id', id)
+        .eq('status', 'active');
+
+      setStats({
+        score: diagnostic?.score || 0,
+        keywordsCount: keywordsCount || 0,
+        automationsCount: automationsCount || 0,
+        optimizationsCount: diagnostic?.total_issues ? Math.max(0, 100 - diagnostic.total_issues) : 0
+      });
+    } catch (error) {
+      console.error('Error loading SEO stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-success';
+    if (score >= 60) return 'text-warning';
+    return 'text-destructive';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-7xl mx-auto px-4 py-8">
+          <ShopNavigation shopName="Optimisation SEO" />
+          <LoadingState text="Chargement des statistiques SEO..." />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,7 +117,9 @@ const SEOOptimizationPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Score SEO</p>
-                    <p className="text-2xl font-bold text-success">78/100</p>
+                    <p className={`text-2xl font-bold ${getScoreColor(stats.score)}`}>
+                      {stats.score}/100
+                    </p>
                   </div>
                   <TrendingUp className="w-5 h-5 text-success" />
                 </div>
@@ -57,7 +131,7 @@ const SEOOptimizationPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Mots-clés suivis</p>
-                    <p className="text-2xl font-bold text-primary">124</p>
+                    <p className="text-2xl font-bold text-primary">{stats.keywordsCount}</p>
                   </div>
                   <Search className="w-5 h-5 text-primary" />
                 </div>
@@ -69,7 +143,7 @@ const SEOOptimizationPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Automatisations</p>
-                    <p className="text-2xl font-bold text-info">8</p>
+                    <p className="text-2xl font-bold text-info">{stats.automationsCount}</p>
                   </div>
                   <Zap className="w-5 h-5 text-info" />
                 </div>
@@ -81,7 +155,7 @@ const SEOOptimizationPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Optimisations</p>
-                    <p className="text-2xl font-bold text-warning">42</p>
+                    <p className="text-2xl font-bold text-warning">{stats.optimizationsCount}</p>
                   </div>
                   <Target className="w-5 h-5 text-warning" />
                 </div>
