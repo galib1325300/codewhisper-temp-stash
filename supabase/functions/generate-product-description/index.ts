@@ -33,6 +33,13 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const authHeader = req.headers.get('Authorization') || undefined;
+    const supabaseForUpdate = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: authHeader ? { Authorization: authHeader } : {} }
+    });
+    if (!authHeader) {
+      console.warn('No Authorization header provided; triggers using auth.uid() may fail.');
+    }
 
     // Get product details
     const { data: product, error: productError } = await supabase
@@ -179,8 +186,8 @@ Retourne UNIQUEMENT le HTML de la description, sans balises <html>, <body> ou co
     // Get old value before update
     const oldValue = product[updateField] || null;
 
-    // Update product with generated description
-    const { error: updateError } = await supabase
+    // Update product with generated description (impersonate user via Authorization header)
+    const { error: updateError } = await supabaseForUpdate
       .from('products')
       .update({ [updateField]: generatedText })
       .eq('id', productId);
@@ -193,21 +200,6 @@ Retourne UNIQUEMENT le HTML de la description, sans balises <html>, <body> ou co
       );
     }
 
-    // Manually insert into product_modifications
-    const { error: modError } = await supabase
-      .from('product_modifications')
-      .insert({
-        product_id: productId,
-        field_name: updateField,
-        old_value: oldValue,
-        new_value: generatedText,
-        modified_by: userId
-      });
-
-    if (modError) {
-      console.error('Error recording modification:', modError);
-      // Don't fail the whole operation if modification tracking fails
-    }
 
     console.log('Description generated successfully');
     return new Response(
