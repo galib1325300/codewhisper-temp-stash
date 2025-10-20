@@ -1,1 +1,34 @@
 project_id = "anvjrqgajwvqsceobhtk"
+
+[functions.sync-woocommerce-products]
+verify_jwt = false
+
+[functions.sync-woocommerce-categories]
+verify_jwt = false
+
+[functions.get-woocommerce-stats]
+verify_jwt = false
+
+[functions.test-woocommerce-connection]
+verify_jwt = false
+
+[functions.generate-product-seo]
+verify_jwt = false
+
+[functions.generate-blog-post]
+verify_jwt = false
+
+[functions.run-seo-diagnostic]
+verify_jwt = false
+
+[functions.resolve-seo-issues]
+verify_jwt = false
+
+[functions.get-wordpress-analytics]
+verify_jwt = false
+
+[functions.get-wordpress-basic-analytics]
+verify_jwt = false
+
+[functions.get-wordpress-jetpack-analytics]
+verify_jwt = false
