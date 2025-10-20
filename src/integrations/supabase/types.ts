@@ -14,16 +14,430 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      automation_rules: {
+        Row: {
+          actions: Json
+          created_at: string | null
+          description: string | null
+          id: string
+          last_run: string | null
+          name: string
+          shop_id: string
+          status: string | null
+          successful_runs: number | null
+          total_runs: number | null
+          trigger_type: string
+          trigger_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          actions: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_run?: string | null
+          name: string
+          shop_id: string
+          status?: string | null
+          successful_runs?: number | null
+          total_runs?: number | null
+          trigger_type: string
+          trigger_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_run?: string | null
+          name?: string
+          shop_id?: string
+          status?: string | null
+          successful_runs?: number | null
+          total_runs?: number | null
+          trigger_type?: string
+          trigger_value?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_posts: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          excerpt: string | null
+          external_id: string | null
+          featured_image: string | null
+          focus_keyword: string | null
+          id: string
+          meta_description: string | null
+          meta_title: string | null
+          published_at: string | null
+          shop_id: string
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          external_id?: string | null
+          featured_image?: string | null
+          focus_keyword?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          shop_id: string
+          slug: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          external_id?: string | null
+          featured_image?: string | null
+          focus_keyword?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          shop_id?: string
+          slug?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          categories: Json | null
+          created_at: string | null
+          description: string | null
+          external_id: string | null
+          featured: boolean | null
+          focus_keyword: string | null
+          id: string
+          images: Json | null
+          meta_description: string | null
+          meta_title: string | null
+          name: string
+          price: number | null
+          sale_price: number | null
+          shop_id: string
+          short_description: string | null
+          sku: string | null
+          slug: string
+          stock_quantity: number | null
+          stock_status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          categories?: Json | null
+          created_at?: string | null
+          description?: string | null
+          external_id?: string | null
+          featured?: boolean | null
+          focus_keyword?: string | null
+          id?: string
+          images?: Json | null
+          meta_description?: string | null
+          meta_title?: string | null
+          name: string
+          price?: number | null
+          sale_price?: number | null
+          shop_id: string
+          short_description?: string | null
+          sku?: string | null
+          slug: string
+          stock_quantity?: number | null
+          stock_status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          categories?: Json | null
+          created_at?: string | null
+          description?: string | null
+          external_id?: string | null
+          featured?: boolean | null
+          focus_keyword?: string | null
+          id?: string
+          images?: Json | null
+          meta_description?: string | null
+          meta_title?: string | null
+          name?: string
+          price?: number | null
+          sale_price?: number | null
+          shop_id?: string
+          short_description?: string | null
+          sku?: string | null
+          slug?: string
+          stock_quantity?: number | null
+          stock_status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          openai_api_key: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          openai_api_key?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          openai_api_key?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      seo_diagnostics: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          issues: Json | null
+          item_id: string
+          item_type: string
+          recommendations: Json | null
+          score: number | null
+          shop_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          issues?: Json | null
+          item_id: string
+          item_type: string
+          recommendations?: Json | null
+          score?: number | null
+          shop_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          issues?: Json | null
+          item_id?: string
+          item_type?: string
+          recommendations?: Json | null
+          score?: number | null
+          shop_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seo_diagnostics_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shops: {
+        Row: {
+          analytics_enabled: boolean | null
+          collections_slug: string | null
+          consumer_key: string | null
+          consumer_secret: string | null
+          created_at: string | null
+          id: string
+          jetpack_access_token: string | null
+          language: string | null
+          name: string
+          openai_api_key: string | null
+          shopify_access_token: string | null
+          status: string | null
+          type: string
+          updated_at: string | null
+          url: string
+          user_id: string
+          wp_password: string | null
+          wp_username: string | null
+        }
+        Insert: {
+          analytics_enabled?: boolean | null
+          collections_slug?: string | null
+          consumer_key?: string | null
+          consumer_secret?: string | null
+          created_at?: string | null
+          id?: string
+          jetpack_access_token?: string | null
+          language?: string | null
+          name: string
+          openai_api_key?: string | null
+          shopify_access_token?: string | null
+          status?: string | null
+          type: string
+          updated_at?: string | null
+          url: string
+          user_id: string
+          wp_password?: string | null
+          wp_username?: string | null
+        }
+        Update: {
+          analytics_enabled?: boolean | null
+          collections_slug?: string | null
+          consumer_key?: string | null
+          consumer_secret?: string | null
+          created_at?: string | null
+          id?: string
+          jetpack_access_token?: string | null
+          language?: string | null
+          name?: string
+          openai_api_key?: string | null
+          shopify_access_token?: string | null
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+          url?: string
+          user_id?: string
+          wp_password?: string | null
+          wp_username?: string | null
+        }
+        Relationships: []
+      }
+      tracked_keywords: {
+        Row: {
+          competition: string | null
+          created_at: string | null
+          current_position: number | null
+          id: string
+          keyword: string
+          last_checked_at: string | null
+          previous_position: number | null
+          search_volume: number | null
+          shop_id: string
+          target_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          competition?: string | null
+          created_at?: string | null
+          current_position?: number | null
+          id?: string
+          keyword: string
+          last_checked_at?: string | null
+          previous_position?: number | null
+          search_volume?: number | null
+          shop_id: string
+          target_url: string
+          updated_at?: string | null
+        }
+        Update: {
+          competition?: string | null
+          created_at?: string | null
+          current_position?: number | null
+          id?: string
+          keyword?: string
+          last_checked_at?: string | null
+          previous_position?: number | null
+          search_volume?: number | null
+          shop_id?: string
+          target_url?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_keywords_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +564,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

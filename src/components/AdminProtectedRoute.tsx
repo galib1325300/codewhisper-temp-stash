@@ -11,8 +11,11 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
   const { user, isAdmin, isLoading, isRoleLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !isRoleLoading && (!user || !isAdmin)) {
-      navigate('/auth');
+    // Only redirect once loading is complete
+    if (!isLoading && !isRoleLoading) {
+      if (!user || !isAdmin) {
+        navigate('/auth', { replace: true });
+      }
     }
   }, [user, isAdmin, isLoading, isRoleLoading, navigate]);
 

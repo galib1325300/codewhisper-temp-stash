@@ -19,16 +19,17 @@ export default function AuthPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, isLoading, isRoleLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (user) {
-      const from = location.state?.from?.pathname || '/admin';
+    // Only redirect if user exists and auth/role checks are complete
+    if (user && !isLoading && !isRoleLoading) {
+      const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
     }
-  }, [user, navigate, location]);
+  }, [user, isLoading, isRoleLoading, navigate, location]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
