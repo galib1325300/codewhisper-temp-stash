@@ -25,10 +25,19 @@ interface Product {
   categories: any[];
 }
 
+interface ProductModification {
+  id: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  modified_at: string;
+}
+
 export default function ShopProductDetailsPage() {
   const { id, productId } = useParams();
   const [shop, setShop] = useState<Shop | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
+  const [modifications, setModifications] = useState<ProductModification[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -58,6 +67,18 @@ export default function ShopProductDetailsPage() {
 
       if (error) throw error;
       setProduct(productData as any);
+
+      // Load modification history
+      const { data: modsData, error: modsError } = await supabase
+        .from('product_modifications')
+        .select('*')
+        .eq('product_id', productId)
+        .order('modified_at', { ascending: false })
+        .limit(20);
+
+      if (!modsError && modsData) {
+        setModifications(modsData as ProductModification[]);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Erreur lors du chargement du produit');
@@ -533,7 +554,49 @@ export default function ShopProductDetailsPage() {
 
               <div className="mb-8">
                 <h2 className="text-2xl font-bold mb-4">Historique des modifications</h2>
-                <p className="text-muted-foreground">Aucune modification à afficher</p>
+                {modifications.length === 0 ? (
+                  <p className="text-muted-foreground">Aucune modification à afficher</p>
+                ) : (
+                  <div className="space-y-3">
+                    {modifications.map((mod) => {
+                      const fieldLabels: Record<string, string> = {
+                        name: 'Nom du produit',
+                        short_description: 'Description courte',
+                        description: 'Description longue',
+                        images: 'Images'
+                      };
+                      
+                      return (
+                        <div key={mod.id} className="border-l-2 border-primary pl-4 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium">{fieldLabels[mod.field_name] || mod.field_name}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(mod.modified_at).toLocaleString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          {mod.old_value && mod.field_name !== 'images' && (
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">Ancienne valeur: </span>
+                              <span className="line-through text-destructive">{mod.old_value.substring(0, 100)}{mod.old_value.length > 100 ? '...' : ''}</span>
+                            </div>
+                          )}
+                          {mod.new_value && (
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">Nouvelle valeur: </span>
+                              <span className="text-foreground font-medium">{mod.new_value.substring(0, 100)}{mod.new_value.length > 100 ? '...' : ''}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="pt-6 border-t">
