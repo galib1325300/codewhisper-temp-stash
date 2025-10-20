@@ -13,6 +13,8 @@ import EmptyState from '../components/ui/empty-state';
 import StatusBadge from '../components/ui/status-badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import BulkActionsModal from '../components/products/BulkActionsModal';
 
 export default function ShopProductsPage() {
   const { id } = useParams();
@@ -22,6 +24,8 @@ export default function ShopProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -89,6 +93,30 @@ export default function ShopProductsPage() {
     product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleSelectProduct = (productId: string) => {
+    const newSelected = new Set(selectedProducts);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelectedProducts(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.size === filteredProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
+  const handleBulkAction = (action: string, language: string, preserveInternalLinks: boolean) => {
+    console.log('Executing bulk action:', { action, language, preserveInternalLinks, products: Array.from(selectedProducts) });
+    toast.success(`Action "${action}" en cours pour ${selectedProducts.size} produit(s)`);
+    setSelectedProducts(new Set());
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -120,7 +148,17 @@ export default function ShopProductsPage() {
             <div className="card-elevated">
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-foreground">Produits</h2>
+                  <div className="flex items-center space-x-4">
+                    <h2 className="text-lg font-semibold text-foreground">Produits</h2>
+                    {selectedProducts.size > 0 && (
+                      <Button 
+                        onClick={() => setShowBulkModal(true)}
+                        variant="primary"
+                      >
+                        Actions ({selectedProducts.size})
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <Search className="w-5 h-5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
@@ -180,9 +218,24 @@ export default function ShopProductsPage() {
                   />
                 ) : (
                   <div className="space-y-4">
+                    {filteredProducts.length > 0 && (
+                      <div className="flex items-center space-x-2 pb-4 border-b border-border">
+                        <Checkbox 
+                          checked={selectedProducts.size === filteredProducts.length}
+                          onCheckedChange={handleSelectAll}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          Sélectionner tout
+                        </span>
+                      </div>
+                    )}
                     {filteredProducts.map((product) => (
                       <div key={product.id} className="card-interactive p-4">
                         <div className="flex items-center space-x-4">
+                          <Checkbox 
+                            checked={selectedProducts.has(product.id)}
+                            onCheckedChange={() => handleSelectProduct(product.id)}
+                          />
                           <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                             {product.images && product.images.length > 0 ? (
                               <img 
@@ -245,6 +298,13 @@ export default function ShopProductsPage() {
           </div>
         </main>
       </div>
+
+      <BulkActionsModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        selectedCount={selectedProducts.size}
+        onExecute={handleBulkAction}
+      />
     </div>
   );
 }
