@@ -268,13 +268,19 @@ export default function ShopProductsPage() {
                         </span>
                       </div>
                     )}
-                    {filteredProducts.map((product) => (
-                      <div key={product.id} className="card-interactive p-4">
+                     {filteredProducts.map((product) => (
+                      <div 
+                        key={product.id} 
+                        className="card-interactive p-4 cursor-pointer" 
+                        onClick={() => window.location.href = `/admin/shops/${id}/products/${product.id}`}
+                      >
                         <div className="flex items-center space-x-4">
-                          <Checkbox 
-                            checked={selectedProducts.has(product.id)}
-                            onCheckedChange={() => handleSelectProduct(product.id)}
-                          />
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox 
+                              checked={selectedProducts.has(product.id)}
+                              onCheckedChange={() => handleSelectProduct(product.id)}
+                            />
+                          </div>
                           <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                             {product.images && product.images.length > 0 ? (
                               <img 
@@ -319,11 +325,17 @@ export default function ShopProductsPage() {
                             </p>
                           </div>
                           
-                          <div className="flex items-center space-x-2">
-                            <Button variant="secondary">
-                              <Edit className="w-4 h-4" />
+                          <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                            <Button 
+                              variant="secondary"
+                              onClick={() => window.location.href = `/admin/shops/${id}/products/${product.id}`}
+                            >
+                              <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="secondary">
+                            <Button 
+                              variant="secondary"
+                              onClick={() => window.open(`${shop.url}/produit/${product.slug}`, '_blank')}
+                            >
                               <ExternalLink className="w-4 h-4" />
                             </Button>
                           </div>
