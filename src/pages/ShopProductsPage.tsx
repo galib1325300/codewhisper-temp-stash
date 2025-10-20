@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
@@ -7,13 +7,14 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { WooCommerceService } from '../utils/woocommerce';
 import { Shop } from '../utils/types';
-import { Search, Eye, RefreshCw, Package, ExternalLink, Edit } from 'lucide-react';
+import { Search, Eye, RefreshCw, Package, ExternalLink, Edit, Filter } from 'lucide-react';
 import LoadingState from '../components/ui/loading-state';
 import EmptyState from '../components/ui/empty-state';
 import StatusBadge from '../components/ui/status-badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BulkActionsModal from '../components/products/BulkActionsModal';
 
 export default function ShopProductsPage() {
@@ -26,6 +27,7 @@ export default function ShopProductsPage() {
   const [syncing, setSyncing] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
     const loadShop = async () => {
@@ -88,10 +90,31 @@ export default function ShopProductsPage() {
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Extract unique categories from all products
+  const categories = useMemo(() => {
+    const categorySet = new Set<string>();
+    products.forEach(product => {
+      if (product.categories && Array.isArray(product.categories)) {
+        product.categories.forEach((cat: any) => {
+          if (cat.name) categorySet.add(cat.name);
+        });
+      }
+    });
+    return Array.from(categorySet).sort();
+  }, [products]);
+
+  const filteredProducts = products.filter(product => {
+    // Search filter
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Category filter
+    const matchesCategory = selectedCategory === 'all' || 
+      (product.categories && Array.isArray(product.categories) && 
+       product.categories.some((cat: any) => cat.name === selectedCategory));
+    
+    return matchesSearch && matchesCategory;
+  });
 
   const handleSelectProduct = (productId: string) => {
     const newSelected = new Set(selectedProducts);
@@ -170,6 +193,22 @@ export default function ShopProductsPage() {
                         className="pl-10 pr-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-colors"
                       />
                     </div>
+                    
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-[200px] bg-background">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Filtrer par collection" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        <SelectItem value="all">Toutes les collections</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
                     <Button 
                       onClick={handleSyncProducts}
                       disabled={syncing || !shop.consumerKey || !shop.consumerSecret}
