@@ -5,11 +5,12 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import { getShopById } from '../utils/shops';
 import { Shop } from '../utils/types';
-import { ArrowLeft, Eye, Edit, Sparkles, Link2, ImagePlus, Trash2, AlertCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Eye, Edit, Sparkles, Link2, ImagePlus, Trash2, AlertCircle, ExternalLink, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingState from '@/components/ui/loading-state';
@@ -33,6 +34,10 @@ export default function ShopProductDetailsPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingShortDesc, setEditingShortDesc] = useState(false);
   const [editingLongDesc, setEditingLongDesc] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [tempTitle, setTempTitle] = useState('');
+  const [tempShortDesc, setTempShortDesc] = useState('');
+  const [tempLongDesc, setTempLongDesc] = useState('');
 
   useEffect(() => {
     loadData();
@@ -72,12 +77,112 @@ export default function ShopProductDetailsPage() {
     toast.success('Modifications annulées');
   };
 
+  const handleSaveTitle = async () => {
+    if (!tempTitle.trim()) {
+      toast.error('Le titre ne peut pas être vide');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ name: tempTitle })
+      .eq('id', productId);
+
+    if (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      return;
+    }
+
+    setProduct({ ...product!, name: tempTitle });
+    setEditingTitle(false);
+    setHasChanges(true);
+    toast.success('Titre mis à jour');
+  };
+
+  const handleSaveShortDesc = async () => {
+    const { error } = await supabase
+      .from('products')
+      .update({ short_description: tempShortDesc })
+      .eq('id', productId);
+
+    if (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      return;
+    }
+
+    setProduct({ ...product!, short_description: tempShortDesc });
+    setEditingShortDesc(false);
+    setHasChanges(true);
+    toast.success('Description courte mise à jour');
+  };
+
+  const handleSaveLongDesc = async () => {
+    const { error } = await supabase
+      .from('products')
+      .update({ description: tempLongDesc })
+      .eq('id', productId);
+
+    if (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      return;
+    }
+
+    setProduct({ ...product!, description: tempLongDesc });
+    setEditingLongDesc(false);
+    setHasChanges(true);
+    toast.success('Description longue mise à jour');
+  };
+
   const handleGenerateShortDesc = async () => {
+    setGenerating(true);
     toast.info('Génération de la description courte...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-product-description', {
+        body: { productId, type: 'short' }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setProduct({ ...product!, short_description: data.description });
+        setHasChanges(true);
+        toast.success('Description courte générée avec succès');
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération');
+      }
+    } catch (error: any) {
+      console.error('Error generating short description:', error);
+      toast.error(error.message || 'Erreur lors de la génération');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleGenerateLongDesc = async () => {
+    setGenerating(true);
     toast.info('Génération de la description longue...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-product-description', {
+        body: { productId, type: 'long' }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setProduct({ ...product!, description: data.description });
+        setHasChanges(true);
+        toast.success('Description longue générée avec succès');
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération');
+      }
+    } catch (error: any) {
+      console.error('Error generating long description:', error);
+      toast.error(error.message || 'Erreur lors de la génération');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleAddInternalLinks = async () => {
@@ -208,40 +313,96 @@ export default function ShopProductDetailsPage() {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <div className="flex items-start justify-between mb-4">
-                    <h1 className="text-3xl font-bold">{product.name}</h1>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditingTitle(!editingTitle)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Éditer
-                      </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={productUrl} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Aperçu
-                        </a>
-                      </Button>
-                    </div>
+                  <div className="mb-4">
+                    {editingTitle ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={tempTitle}
+                          onChange={(e) => setTempTitle(e.target.value)}
+                          placeholder="Nom du produit"
+                          className="text-2xl font-bold"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveTitle}>
+                            <Save className="w-4 h-4 mr-2" />
+                            Enregistrer
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingTitle(false);
+                            setTempTitle(product.name);
+                          }}>
+                            <X className="w-4 h-4 mr-2" />
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between">
+                        <h1 className="text-3xl font-bold">{product.name}</h1>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingTitle(true);
+                            setTempTitle(product.name);
+                          }}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Éditer
+                          </Button>
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={productUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Aperçu
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Description courte</h3>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => setEditingShortDesc(!editingShortDesc)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={handleGenerateShortDesc}>
-                          <Sparkles className="w-4 h-4" />
-                        </Button>
+                        {!editingShortDesc && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setEditingShortDesc(true);
+                              setTempShortDesc(product.short_description || '');
+                            }}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={handleGenerateShortDesc}
+                              disabled={generating}
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                     {editingShortDesc ? (
-                      <Textarea
-                        value={product.short_description || ''}
-                        className="min-h-[100px]"
-                        onChange={(e) => setProduct({ ...product, short_description: e.target.value })}
-                      />
+                      <div className="space-y-2">
+                        <Textarea
+                          value={tempShortDesc}
+                          className="min-h-[100px]"
+                          onChange={(e) => setTempShortDesc(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveShortDesc}>
+                            <Save className="w-4 h-4 mr-2" />
+                            Enregistrer
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingShortDesc(false);
+                            setTempShortDesc(product.short_description || '');
+                          }}>
+                            <X className="w-4 h-4 mr-2" />
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <p className="text-muted-foreground">{product.short_description || 'Aucune description courte'}</p>
                     )}
@@ -253,26 +414,53 @@ export default function ShopProductDetailsPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold">Description longue</h2>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setEditingLongDesc(!editingLongDesc)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Éditer
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleGenerateLongDesc}>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Générer
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleAddInternalLinks}>
-                      <Link2 className="w-4 h-4 mr-2" />
-                      Ajouter le maillage interne
-                    </Button>
+                    {!editingLongDesc && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          setEditingLongDesc(true);
+                          setTempLongDesc(product.description || '');
+                        }}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Éditer
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleGenerateLongDesc}
+                          disabled={generating}
+                        >
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Générer
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleAddInternalLinks}>
+                          <Link2 className="w-4 h-4 mr-2" />
+                          Ajouter le maillage interne
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
                 {editingLongDesc ? (
-                  <Textarea
-                    value={product.description || ''}
-                    className="min-h-[300px]"
-                    onChange={(e) => setProduct({ ...product, description: e.target.value })}
-                  />
+                  <div className="space-y-2">
+                    <Textarea
+                      value={tempLongDesc}
+                      className="min-h-[300px]"
+                      onChange={(e) => setTempLongDesc(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveLongDesc}>
+                        <Save className="w-4 h-4 mr-2" />
+                        Enregistrer
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setEditingLongDesc(false);
+                        setTempLongDesc(product.description || '');
+                      }}>
+                        <X className="w-4 h-4 mr-2" />
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <div 
                     className="prose max-w-none"
