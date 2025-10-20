@@ -260,7 +260,10 @@ export default function ShopProductDetailsPage() {
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-alt-texts', {
-        body: { productId }
+        body: { 
+          productId,
+          userId: user?.id 
+        }
       });
 
       if (error) throw error;

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productId } = await req.json();
+    const { productId, userId } = await req.json();
 
     if (!productId) {
       return new Response(
@@ -21,10 +21,26 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User ID is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const authHeader = req.headers.get('Authorization') || undefined;
+    const supabaseForUpdate = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: authHeader ? { Authorization: authHeader } : {} }
+    });
+    
+    if (!authHeader) {
+      console.warn('No Authorization header provided; triggers using auth.uid() may fail.');
+    }
 
     // Récupérer le produit
     const { data: product, error: productError } = await supabase
@@ -133,8 +149,8 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
       }
     }
 
-    // Mettre à jour le produit avec les nouveaux textes alt
-    const { error: updateError } = await supabase
+    // Mettre à jour le produit avec les nouveaux textes alt (impersonate user)
+    const { error: updateError } = await supabaseForUpdate
       .from('products')
       .update({ images: updatedImages })
       .eq('id', productId);
