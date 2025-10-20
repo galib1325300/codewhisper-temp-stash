@@ -90,46 +90,44 @@ Retourne UNIQUEMENT le texte de la description, sans guillemets ni formatage sup
       prompt = `Tu es un expert en rédaction SEO pour le e-commerce.
 Génère une description longue et détaillée pour ce produit : "${productName}".
 
-STRUCTURE OBLIGATOIRE (en HTML strict) :
+FORMAT EXACT ATTENDU — LE PREMIER CARACTÈRE DOIT ÊTRE "<" du premier <h2> :
 
-1. COMMENCER IMMÉDIATEMENT PAR UN TITRE H2 (AUCUN TEXTE AVANT) — EXACTEMENT 3 SECTIONS H2 :
-   <h2>Premier titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (varier les mots)</p>
-   
-   <h2>Deuxième titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (diversifier)</p>
-   
-   <h2>Troisième titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (éviter répétitions)</p>
+<h2>Premier titre descriptif et engageant</h2>
+<p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (varier les mots)</p>
 
-2. UNE SEULE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
-   <h3>Détails du produit</h3>
-   <ul>
-      <li>Caractéristique technique 1 (dimensions, poids, matériaux, etc.)</li>
-      <li>Caractéristique technique 2</li>
-      <li>Caractéristique technique 3</li>
-      <li>Autres caractéristiques importantes</li>
-   </ul>
+<h2>Deuxième titre descriptif et engageant</h2>
+<p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (diversifier)</p>
 
-RÈGLES CRITIQUES :
-- INTERDICTION stricte d'écrire un paragraphe d'introduction ou tout texte avant le premier <h2>
-- OBLIGATOIRE : exactement 3 titres H2 puis 1 seul titre H3 (le H3 vient après les H2)
-- NE PAS utiliser d'autres niveaux de titres (pas de H1/H4/H5/H6)
-- Dans chaque paragraphe : mettre en gras 2-3 mots-clés sémantiques DIFFÉRENTS et VARIÉS
-- Maximum 3 mots en gras par paragraphe pour éviter la sur-optimisation
+<h2>Troisième titre descriptif et engageant</h2>
+<p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (éviter répétitions)</p>
+
+<h3>Détails du produit</h3>
+<ul>
+   <li>Caractéristique technique 1 (dimensions, poids, matériaux, etc.)</li>
+   <li>Caractéristique technique 2</li>
+   <li>Caractéristique technique 3</li>
+   <li>Autres caractéristiques importantes</li>
+</ul>
+
+RÈGLES ABSOLUMENT CRITIQUES - NON NÉGOCIABLES :
+1. LE TOUT PREMIER CARACTÈRE de ta réponse DOIT être "<" (l'ouverture du premier <h2>)
+2. ZÉRO paragraphe, ZÉRO texte, ZÉRO introduction avant le premier <h2>
+3. EXACTEMENT 3 titres H2 (ni plus, ni moins)
+4. UN SEUL titre H3 après les 3 H2
+5. Chaque H2 doit être suivi d'un seul paragraphe <p>
+6. Dans chaque paragraphe : 2-3 mots-clés DIFFÉRENTS en <strong>
 
 AUTRES CONSIGNES :
 - Total : 400-600 mots
 - Inclure naturellement le nom du produit dans les titres H2
-- Optimiser pour le SEO avec des mots-clés pertinents et variés
-- Conserver et intégrer TOUTES les caractéristiques techniques existantes (${currentDescription ? 'telles que les dimensions, matériaux, etc.' : ''})
-- Être persuasif et professionnel
+- Optimiser pour le SEO avec mots-clés variés
+- Conserver les caractéristiques techniques existantes (${currentDescription ? 'dimensions, matériaux, etc.' : ''})
 - Langue : ${language}
-- Utiliser UNIQUEMENT du HTML valide (<h2>, <h3>, <p>, <ul>, <li>, <strong>)
+- HTML valide uniquement : <h2>, <h3>, <p>, <ul>, <li>, <strong>
 
-${currentDescription ? `\nDescription/caractéristiques actuelles à préserver et intégrer : ${currentDescription.substring(0, 500)}` : ''}
+${currentDescription ? `\nCaractéristiques actuelles à intégrer : ${currentDescription.substring(0, 500)}` : ''}
 
-Retourne UNIQUEMENT le HTML de la description, sans balises <html>, <body> ou code markdown.`;
+Retourne UNIQUEMENT le HTML pur, le premier caractère DOIT être "<".`;
       updateField = 'description';
     }
 
