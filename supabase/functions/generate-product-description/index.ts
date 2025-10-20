@@ -94,7 +94,7 @@ STRUCTURE OBLIGATOIRE (en HTML) :
 
 1. UN PARAGRAPHE D'INTRODUCTION (2-3 phrases engageantes qui présentent le produit)
 
-2. EXACTEMENT 4 SECTIONS AVEC TITRES H2 (PAS de H3 ici, UNIQUEMENT des H2) :
+2. EXACTEMENT 3 SECTIONS AVEC TITRES H2 (PAS de H3 ici, UNIQUEMENT des H2) :
    <h2>Premier titre descriptif et engageant</h2>
    <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (pas toujours le même mot)</p>
    
@@ -103,9 +103,6 @@ STRUCTURE OBLIGATOIRE (en HTML) :
    
    <h2>Troisième titre descriptif et engageant</h2>
    <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (diversifier)</p>
-   
-   <h2>Quatrième titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (éviter répétitions)</p>
 
 3. UNE SEULE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
    <h3>Détails du produit</h3>
@@ -117,7 +114,7 @@ STRUCTURE OBLIGATOIRE (en HTML) :
    </ul>
 
 RÈGLES CRITIQUES :
-- OBLIGATOIRE : Exactement 4 titres H2 et 1 seul titre H3 à la fin
+- OBLIGATOIRE : Exactement 3 titres H2 et 1 seul titre H3 à la fin
 - NE PAS utiliser de H3 avant le H3 final "Détails du produit"
 - Dans chaque paragraphe : mettre en gras 2-3 mots-clés sémantiques DIFFÉRENTS et VARIÉS
 - INTERDICTION de mettre toujours le même mot en gras (exemple : ne pas répéter "${productName}" en gras à chaque fois)
