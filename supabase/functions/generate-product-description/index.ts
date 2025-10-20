@@ -90,21 +90,19 @@ Retourne UNIQUEMENT le texte de la description, sans guillemets ni formatage sup
       prompt = `Tu es un expert en rédaction SEO pour le e-commerce.
 Génère une description longue et détaillée pour ce produit : "${productName}".
 
-STRUCTURE OBLIGATOIRE (en HTML) :
+STRUCTURE OBLIGATOIRE (en HTML strict) :
 
-1. UN PARAGRAPHE D'INTRODUCTION (2-3 phrases engageantes qui présentent le produit)
-
-2. EXACTEMENT 3 SECTIONS AVEC TITRES H2 (PAS de H3 ici, UNIQUEMENT des H2) :
+1. COMMENCER IMMÉDIATEMENT PAR UN TITRE H2 (AUCUN TEXTE AVANT) — EXACTEMENT 3 SECTIONS H2 :
    <h2>Premier titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (pas toujours le même mot)</p>
-   
-   <h2>Deuxième titre descriptif et engageant</h2>
    <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (varier les mots)</p>
    
-   <h2>Troisième titre descriptif et engageant</h2>
+   <h2>Deuxième titre descriptif et engageant</h2>
    <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (diversifier)</p>
+   
+   <h2>Troisième titre descriptif et engageant</h2>
+   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (éviter répétitions)</p>
 
-3. UNE SEULE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
+2. UNE SEULE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
    <h3>Détails du produit</h3>
    <ul>
       <li>Caractéristique technique 1 (dimensions, poids, matériaux, etc.)</li>
@@ -114,12 +112,11 @@ STRUCTURE OBLIGATOIRE (en HTML) :
    </ul>
 
 RÈGLES CRITIQUES :
-- OBLIGATOIRE : Exactement 3 titres H2 et 1 seul titre H3 à la fin
-- NE PAS utiliser de H3 avant le H3 final "Détails du produit"
+- INTERDICTION stricte d'écrire un paragraphe d'introduction ou tout texte avant le premier <h2>
+- OBLIGATOIRE : exactement 3 titres H2 puis 1 seul titre H3 (le H3 vient après les H2)
+- NE PAS utiliser d'autres niveaux de titres (pas de H1/H4/H5/H6)
 - Dans chaque paragraphe : mettre en gras 2-3 mots-clés sémantiques DIFFÉRENTS et VARIÉS
-- INTERDICTION de mettre toujours le même mot en gras (exemple : ne pas répéter "${productName}" en gras à chaque fois)
-- Diversifier les mots-clés en gras : synonymes, termes techniques, bénéfices, caractéristiques
-- Maximum 3 mots en gras par paragraphe pour éviter le sur-optimisation
+- Maximum 3 mots en gras par paragraphe pour éviter la sur-optimisation
 
 AUTRES CONSIGNES :
 - Total : 400-600 mots
