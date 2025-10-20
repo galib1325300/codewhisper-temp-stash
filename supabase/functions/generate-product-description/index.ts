@@ -80,32 +80,40 @@ STRUCTURE OBLIGATOIRE (en HTML) :
 
 1. UN PARAGRAPHE D'INTRODUCTION (2-3 phrases engageantes qui présentent le produit)
 
-2. EXACTEMENT 4 SECTIONS AVEC TITRES H2 (avec leurs paragraphes détaillés) :
+2. EXACTEMENT 4 SECTIONS AVEC TITRES H2 (PAS de H3 ici, UNIQUEMENT des H2) :
    <h2>Premier titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases sur un aspect du produit</p>
+   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (pas toujours le même mot)</p>
    
    <h2>Deuxième titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases sur un autre aspect</p>
+   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (varier les mots)</p>
    
    <h2>Troisième titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases sur un autre aspect</p>
+   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (diversifier)</p>
    
    <h2>Quatrième titre descriptif et engageant</h2>
-   <p>Paragraphe détaillé de 3-4 phrases sur un dernier aspect</p>
+   <p>Paragraphe détaillé de 3-4 phrases. Mettre 2-3 mots-clés sémantiques différents en <strong>mot-clé</strong> (éviter répétitions)</p>
 
-3. UNE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
+3. UNE SEULE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
    <h3>Détails du produit</h3>
    <ul>
-     <li>Caractéristique technique 1 (dimensions, poids, matériaux, etc.)</li>
-     <li>Caractéristique technique 2</li>
-     <li>Caractéristique technique 3</li>
-     <li>Autres caractéristiques importantes</li>
+      <li>Caractéristique technique 1 (dimensions, poids, matériaux, etc.)</li>
+      <li>Caractéristique technique 2</li>
+      <li>Caractéristique technique 3</li>
+      <li>Autres caractéristiques importantes</li>
    </ul>
 
-CONSIGNES IMPORTANTES :
+RÈGLES CRITIQUES :
+- OBLIGATOIRE : Exactement 4 titres H2 et 1 seul titre H3 à la fin
+- NE PAS utiliser de H3 avant le H3 final "Détails du produit"
+- Dans chaque paragraphe : mettre en gras 2-3 mots-clés sémantiques DIFFÉRENTS et VARIÉS
+- INTERDICTION de mettre toujours le même mot en gras (exemple : ne pas répéter "${productName}" en gras à chaque fois)
+- Diversifier les mots-clés en gras : synonymes, termes techniques, bénéfices, caractéristiques
+- Maximum 3 mots en gras par paragraphe pour éviter le sur-optimisation
+
+AUTRES CONSIGNES :
 - Total : 400-600 mots
 - Inclure naturellement le nom du produit dans les titres H2
-- Optimiser pour le SEO avec des mots-clés pertinents
+- Optimiser pour le SEO avec des mots-clés pertinents et variés
 - Conserver et intégrer TOUTES les caractéristiques techniques existantes (${currentDescription ? 'telles que les dimensions, matériaux, etc.' : ''})
 - Être persuasif et professionnel
 - Langue : ${language}
