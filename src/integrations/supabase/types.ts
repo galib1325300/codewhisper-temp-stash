@@ -145,15 +145,19 @@ export type Database = {
           meta_description: string | null
           meta_title: string | null
           name: string
+          on_sale: boolean | null
           price: number | null
+          regular_price: number | null
           sale_price: number | null
           shop_id: string
           short_description: string | null
           sku: string | null
           slug: string
+          status: string | null
           stock_quantity: number | null
           stock_status: string | null
           updated_at: string | null
+          woocommerce_id: string | null
         }
         Insert: {
           categories?: Json | null
@@ -167,15 +171,19 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           name: string
+          on_sale?: boolean | null
           price?: number | null
+          regular_price?: number | null
           sale_price?: number | null
           shop_id: string
           short_description?: string | null
           sku?: string | null
           slug: string
+          status?: string | null
           stock_quantity?: number | null
           stock_status?: string | null
           updated_at?: string | null
+          woocommerce_id?: string | null
         }
         Update: {
           categories?: Json | null
@@ -189,15 +197,19 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           name?: string
+          on_sale?: boolean | null
           price?: number | null
+          regular_price?: number | null
           sale_price?: number | null
           shop_id?: string
           short_description?: string | null
           sku?: string | null
           slug?: string
+          status?: string | null
           stock_quantity?: number | null
           stock_status?: string | null
           updated_at?: string | null
+          woocommerce_id?: string | null
         }
         Relationships: [
           {
