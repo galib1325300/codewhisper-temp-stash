@@ -243,7 +243,9 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string | null
+          errors_count: number | null
           id: string
+          info_count: number | null
           issues: Json | null
           item_id: string
           item_type: string
@@ -251,12 +253,17 @@ export type Database = {
           score: number | null
           shop_id: string
           status: string | null
+          summary: string | null
+          total_issues: number | null
           updated_at: string | null
+          warnings_count: number | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string | null
+          errors_count?: number | null
           id?: string
+          info_count?: number | null
           issues?: Json | null
           item_id: string
           item_type: string
@@ -264,12 +271,17 @@ export type Database = {
           score?: number | null
           shop_id: string
           status?: string | null
+          summary?: string | null
+          total_issues?: number | null
           updated_at?: string | null
+          warnings_count?: number | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string | null
+          errors_count?: number | null
           id?: string
+          info_count?: number | null
           issues?: Json | null
           item_id?: string
           item_type?: string
@@ -277,7 +289,10 @@ export type Database = {
           score?: number | null
           shop_id?: string
           status?: string | null
+          summary?: string | null
+          total_issues?: number | null
           updated_at?: string | null
+          warnings_count?: number | null
         }
         Relationships: [
           {
@@ -355,42 +370,63 @@ export type Database = {
       tracked_keywords: {
         Row: {
           competition: string | null
+          cpc: number | null
           created_at: string | null
           current_position: number | null
+          current_rank: number | null
+          difficulty: string | null
           id: string
           keyword: string
           last_checked_at: string | null
+          opportunities: Json | null
           previous_position: number | null
           search_volume: number | null
           shop_id: string
+          target_rank: number | null
           target_url: string
+          trend: string | null
           updated_at: string | null
+          volume: number | null
         }
         Insert: {
           competition?: string | null
+          cpc?: number | null
           created_at?: string | null
           current_position?: number | null
+          current_rank?: number | null
+          difficulty?: string | null
           id?: string
           keyword: string
           last_checked_at?: string | null
+          opportunities?: Json | null
           previous_position?: number | null
           search_volume?: number | null
           shop_id: string
+          target_rank?: number | null
           target_url: string
+          trend?: string | null
           updated_at?: string | null
+          volume?: number | null
         }
         Update: {
           competition?: string | null
+          cpc?: number | null
           created_at?: string | null
           current_position?: number | null
+          current_rank?: number | null
+          difficulty?: string | null
           id?: string
           keyword?: string
           last_checked_at?: string | null
+          opportunities?: Json | null
           previous_position?: number | null
           search_volume?: number | null
           shop_id?: string
+          target_rank?: number | null
           target_url?: string
+          trend?: string | null
           updated_at?: string | null
+          volume?: number | null
         }
         Relationships: [
           {
