@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.generate-product-seo]
 verify_jwt = false
 
+[functions.generate-alt-texts]
+verify_jwt = false
+
 [functions.generate-product-description]
 verify_jwt = false
 

@@ -76,18 +76,42 @@ Retourne UNIQUEMENT le texte de la description, sans guillemets ni formatage sup
       prompt = `Tu es un expert en rédaction SEO pour le e-commerce.
 Génère une description longue et détaillée pour ce produit : "${productName}".
 
-La description doit :
-- Faire entre 300-500 mots
-- Commencer par un titre H2 accrocheur
-- Inclure des sous-titres H3 pour structurer le contenu
-- Utiliser des listes à puces pour les caractéristiques
-- Inclure naturellement le nom du produit 2-3 fois
-- Être optimisée pour le SEO (mots-clés naturels, longue traîne)
-- Avoir un ton convaincant et professionnel
-- Être en langue ${language}
-- Utiliser du HTML valide (<h2>, <h3>, <p>, <ul>, <li>, <strong>)
+STRUCTURE OBLIGATOIRE (en HTML) :
 
-${currentDescription ? `Description actuelle à améliorer : ${currentDescription}` : ''}
+1. UN PARAGRAPHE D'INTRODUCTION (2-3 phrases engageantes qui présentent le produit)
+
+2. EXACTEMENT 4 SECTIONS AVEC TITRES H2 (avec leurs paragraphes détaillés) :
+   <h2>Premier titre descriptif et engageant</h2>
+   <p>Paragraphe détaillé de 3-4 phrases sur un aspect du produit</p>
+   
+   <h2>Deuxième titre descriptif et engageant</h2>
+   <p>Paragraphe détaillé de 3-4 phrases sur un autre aspect</p>
+   
+   <h2>Troisième titre descriptif et engageant</h2>
+   <p>Paragraphe détaillé de 3-4 phrases sur un autre aspect</p>
+   
+   <h2>Quatrième titre descriptif et engageant</h2>
+   <p>Paragraphe détaillé de 3-4 phrases sur un dernier aspect</p>
+
+3. UNE SECTION H3 "Détails du produit" ou "Caractéristiques" avec liste à puces :
+   <h3>Détails du produit</h3>
+   <ul>
+     <li>Caractéristique technique 1 (dimensions, poids, matériaux, etc.)</li>
+     <li>Caractéristique technique 2</li>
+     <li>Caractéristique technique 3</li>
+     <li>Autres caractéristiques importantes</li>
+   </ul>
+
+CONSIGNES IMPORTANTES :
+- Total : 400-600 mots
+- Inclure naturellement le nom du produit dans les titres H2
+- Optimiser pour le SEO avec des mots-clés pertinents
+- Conserver et intégrer TOUTES les caractéristiques techniques existantes (${currentDescription ? 'telles que les dimensions, matériaux, etc.' : ''})
+- Être persuasif et professionnel
+- Langue : ${language}
+- Utiliser UNIQUEMENT du HTML valide (<h2>, <h3>, <p>, <ul>, <li>, <strong>)
+
+${currentDescription ? `\nDescription/caractéristiques actuelles à préserver et intégrer : ${currentDescription.substring(0, 500)}` : ''}
 
 Retourne UNIQUEMENT le HTML de la description, sans balises <html>, <body> ou code markdown.`;
       updateField = 'description';

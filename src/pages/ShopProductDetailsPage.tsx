@@ -216,7 +216,29 @@ export default function ShopProductDetailsPage() {
   };
 
   const handleGenerateAltImages = async () => {
+    setGenerating(true);
     toast.info('Génération des textes alt en cours...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-alt-texts', {
+        body: { productId }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setProduct({ ...product!, images: data.images });
+        setHasChanges(true);
+        toast.success('Textes alt générés avec succès');
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération');
+      }
+    } catch (error: any) {
+      console.error('Error generating alt texts:', error);
+      toast.error(error.message || 'Erreur lors de la génération');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleImproveImageQuality = async () => {
@@ -473,11 +495,21 @@ export default function ShopProductDetailsPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold">Images</h2>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleGenerateAltImages}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleGenerateAltImages}
+                      disabled={generating}
+                    >
                       <ImagePlus className="w-4 h-4 mr-2" />
                       Générer les alt images
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleImproveImageQuality}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleImproveImageQuality}
+                      disabled={generating}
+                    >
                       <Sparkles className="w-4 h-4 mr-2" />
                       Améliorer la qualité
                     </Button>
