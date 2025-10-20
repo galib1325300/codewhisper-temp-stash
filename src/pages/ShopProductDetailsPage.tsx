@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingState from '@/components/ui/loading-state';
+import { WooCommerceService } from '../utils/woocommerce';
 
 interface Product {
   id: string;
@@ -88,8 +89,23 @@ export default function ShopProductDetailsPage() {
   };
 
   const handlePublish = async () => {
+    if (!id || !productId) return;
+    
     toast.info('Publication en cours...');
-    setHasChanges(false);
+    
+    try {
+      const result = await WooCommerceService.updateProduct(id, productId);
+      
+      if (result.success) {
+        setHasChanges(false);
+        toast.success('Produit publié avec succès sur votre site WooCommerce');
+      } else {
+        toast.error(result.error || 'Erreur lors de la publication');
+      }
+    } catch (error) {
+      console.error('Error publishing product:', error);
+      toast.error('Erreur lors de la publication du produit');
+    }
   };
 
   const handleDiscardChanges = () => {

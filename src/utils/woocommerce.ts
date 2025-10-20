@@ -93,4 +93,24 @@ export class WooCommerceService {
       };
     }
   }
+
+  static async updateProduct(shopId: string, productId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('update-woocommerce-product', {
+        body: { shopId, productId }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erreur lors de la mise à jour du produit' 
+      };
+    }
+  }
 }
