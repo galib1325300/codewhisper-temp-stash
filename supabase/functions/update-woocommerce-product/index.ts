@@ -100,11 +100,11 @@ Deno.serve(async (req) => {
       short_description: product.short_description || '',
     };
 
-    // Only include optional fields if they exist
-    if (product.regular_price !== null) {
+    // Only include optional fields if they exist and are greater than 0
+    if (product.regular_price && product.regular_price > 0) {
       updateData.regular_price = product.regular_price.toString();
     }
-    if (product.sale_price !== null) {
+    if (product.sale_price && product.sale_price > 0) {
       updateData.sale_price = product.sale_price.toString();
     }
     if (product.sku) {
