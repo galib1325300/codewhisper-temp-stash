@@ -24,10 +24,11 @@ export default function AuthPage() {
   const location = useLocation();
 
   useEffect(() => {
-    // Only redirect if user exists and auth/role checks are complete
+    // Redirect when user is authenticated and loading finished
     if (user && !isLoading && !isRoleLoading) {
-      const from = location.state?.from?.pathname || '/';
-      navigate(from, { replace: true });
+      const from = location.state?.from?.pathname as string | undefined;
+      const target = from && from !== '/' && from !== '/auth' ? from : '/admin';
+      navigate(target, { replace: true });
     }
   }, [user, isLoading, isRoleLoading, navigate, location]);
 

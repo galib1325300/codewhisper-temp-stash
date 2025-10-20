@@ -24,7 +24,7 @@ import ShopScrapingPage from './pages/ShopScrapingPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SEOOptimizationPage from './pages/SEOOptimizationPage';
 import MultiStoreOverview from './pages/MultiStoreOverview';
-import AdminProtectedRoute from './components/AdminProtectedRoute';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
@@ -36,29 +36,29 @@ export default function App() {
             <Route path="/auth" element={<AuthPage />} />
             
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
-            <Route path="/admin/scraping" element={<AdminProtectedRoute><ScrapingPage /></AdminProtectedRoute>} />
-            <Route path="/admin/files" element={<AdminProtectedRoute><FilesPage /></AdminProtectedRoute>} />
-            <Route path="/admin/account" element={<AdminProtectedRoute><AccountPage /></AdminProtectedRoute>} />
-            <Route path="/admin/subscribe" element={<AdminProtectedRoute><SubscriptionPage /></AdminProtectedRoute>} />
-            <Route path="/admin/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
-            <Route path="/admin/multi-store" element={<AdminProtectedRoute><MultiStoreOverview /></AdminProtectedRoute>} />
-            <Route path="/admin/team" element={<AdminProtectedRoute><div>Team Management Coming Soon</div></AdminProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/scraping" element={<ProtectedRoute><ScrapingPage /></ProtectedRoute>} />
+            <Route path="/admin/files" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+            <Route path="/admin/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/admin/subscribe" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/admin/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+            <Route path="/admin/multi-store" element={<ProtectedRoute><MultiStoreOverview /></ProtectedRoute>} />
+            <Route path="/admin/team" element={<ProtectedRoute><div>Team Management Coming Soon</div></ProtectedRoute>} />
             
             {/* Shop Routes */}
-            <Route path="/admin/shops/new" element={<AdminProtectedRoute><NewShopPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id" element={<AdminProtectedRoute><ShopDashboardPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/products" element={<AdminProtectedRoute><ShopProductsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/products/:productId" element={<AdminProtectedRoute><ShopProductDetailsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/collections" element={<AdminProtectedRoute><ShopCollectionsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/blog" element={<AdminProtectedRoute><ShopBlogPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/diagnostics" element={<AdminProtectedRoute><ShopDiagnosticsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/diagnostics/:diagnosticId" element={<AdminProtectedRoute><ShopDiagnosticDetailPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/settings" element={<AdminProtectedRoute><ShopSettingsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/scraping" element={<AdminProtectedRoute><ShopScrapingPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/analytics" element={<AdminProtectedRoute><AnalyticsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/seo-optimization" element={<AdminProtectedRoute><SEOOptimizationPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops/:id/history" element={<AdminProtectedRoute><HistoryPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops/new" element={<ProtectedRoute><NewShopPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id" element={<ProtectedRoute><ShopDashboardPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/products" element={<ProtectedRoute><ShopProductsPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/products/:productId" element={<ProtectedRoute><ShopProductDetailsPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/collections" element={<ProtectedRoute><ShopCollectionsPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/blog" element={<ProtectedRoute><ShopBlogPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/diagnostics" element={<ProtectedRoute><ShopDiagnosticsPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/diagnostics/:diagnosticId" element={<ProtectedRoute><ShopDiagnosticDetailPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/settings" element={<ProtectedRoute><ShopSettingsPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/scraping" element={<ProtectedRoute><ShopScrapingPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/seo-optimization" element={<ProtectedRoute><SEOOptimizationPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
             
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

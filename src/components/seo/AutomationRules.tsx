@@ -36,7 +36,7 @@ interface AutomationRule {
   actions: string[];
   status: 'active' | 'paused' | 'error';
   last_run: string | null;
-  success_count: number;
+  successful_runs: number;
   total_runs: number;
   frequency: string;
 }
@@ -88,7 +88,7 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
         actions: Array.isArray(rule.actions) ? rule.actions.map(a => String(a)) : [],
         status: rule.status as 'active' | 'paused' | 'error',
         last_run: rule.last_run,
-        success_count: rule.success_count || 0,
+        successful_runs: rule.successful_runs || 0,
         total_runs: rule.total_runs || 0,
         frequency: getFrequencyLabel(rule.trigger_type, rule.trigger_value)
       }));
@@ -247,7 +247,7 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
   };
 
   const activeRules = rules.filter(r => r.status === 'active').length;
-  const totalSuccess = rules.reduce((sum, r) => sum + r.success_count, 0);
+  const totalSuccess = rules.reduce((sum, r) => sum + r.successful_runs, 0);
   const totalRuns = rules.reduce((sum, r) => sum + r.total_runs, 0);
   const successRate = totalRuns > 0 ? (totalSuccess / totalRuns) * 100 : 0;
 
@@ -484,7 +484,7 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center">
                       <CheckCircle className="w-3 h-3 text-success mr-1" />
-                      <span>{rule.success_count}/{rule.total_runs} succès</span>
+                      <span>{rule.successful_runs}/{rule.total_runs} succès</span>
                     </div>
                     {rule.last_run && (
                       <div className="flex items-center">
@@ -497,10 +497,10 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
                   {rule.total_runs > 0 && (
                     <div className="flex items-center space-x-2">
                       <div className="w-24">
-                        <Progress value={(rule.success_count / rule.total_runs) * 100} className="h-1" />
+                        <Progress value={(rule.successful_runs / rule.total_runs) * 100} className="h-1" />
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {Math.round((rule.success_count / rule.total_runs) * 100)}%
+                        {Math.round((rule.successful_runs / rule.total_runs) * 100)}%
                       </span>
                     </div>
                   )}

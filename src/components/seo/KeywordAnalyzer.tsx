@@ -74,11 +74,11 @@ const KeywordAnalyzer: React.FC<KeywordAnalyzerProps> = ({
         id: kw.id,
         keyword: kw.keyword,
         volume: kw.volume || 0,
-        difficulty: kw.difficulty || 0,
+        difficulty: Number(kw.difficulty) || 0,
         cpc: parseFloat(kw.cpc?.toString() || '0'),
         trend: (kw.trend || 'stable') as 'up' | 'down' | 'stable',
         competition: (kw.competition || 'medium') as 'low' | 'medium' | 'high',
-        opportunities: kw.opportunities || 0,
+        opportunities: (kw.opportunities as any) || 0,
         current_rank: kw.current_rank || undefined,
         target_rank: kw.target_rank || undefined
       }));
@@ -144,20 +144,20 @@ const KeywordAnalyzer: React.FC<KeywordAnalyzerProps> = ({
           const difficulty = Math.min(Math.floor(frequency * 5), 100);
           const competition = difficulty < 30 ? 'low' : difficulty < 60 ? 'medium' : 'high';
 
-          await supabase
-            .from('tracked_keywords')
-            .insert({
-              shop_id: shopId,
-              keyword,
-              volume,
-              difficulty,
-              cpc: Math.random() * 3,
-              competition,
-              opportunities: Math.floor(Math.random() * 15) + 5,
-              trend: ['up', 'stable', 'down'][Math.floor(Math.random() * 3)],
-              current_rank: Math.floor(Math.random() * 50) + 1,
-              target_rank: Math.floor(Math.random() * 10) + 1
-            });
+      await supabase
+        .from('tracked_keywords')
+        .insert({
+          shop_id: shopId,
+          keyword,
+          volume,
+          difficulty,
+          cpc: Math.random() * 3,
+          competition,
+          opportunities: Math.floor(Math.random() * 15) + 5 as any,
+          trend: ['up', 'stable', 'down'][Math.floor(Math.random() * 3)],
+          current_rank: Math.floor(Math.random() * 50) + 1,
+          target_rank: Math.floor(Math.random() * 10) + 1
+        } as any);
         }
       }
 
@@ -188,20 +188,20 @@ const KeywordAnalyzer: React.FC<KeywordAnalyzerProps> = ({
         return;
       }
 
-      const { error } = await supabase
-        .from('tracked_keywords')
-        .insert({
-          shop_id: shopId,
-          keyword: newKeyword.toLowerCase(),
-          volume: Math.floor(Math.random() * 20000),
-          difficulty: Math.floor(Math.random() * 100),
-          cpc: Math.random() * 5,
-          competition: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-          opportunities: Math.floor(Math.random() * 20),
-          trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)],
-          current_rank: Math.floor(Math.random() * 50) + 1,
-          target_rank: Math.floor(Math.random() * 10) + 1
-        });
+  const { error } = await supabase
+    .from('tracked_keywords')
+    .insert({
+      shop_id: shopId,
+      keyword: newKeyword.toLowerCase(),
+      volume: Math.floor(Math.random() * 20000),
+      difficulty: Math.floor(Math.random() * 100),
+      cpc: Math.random() * 5,
+      competition: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+      opportunities: Math.floor(Math.random() * 20) as any,
+      trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)],
+      current_rank: Math.floor(Math.random() * 50) + 1,
+      target_rank: Math.floor(Math.random() * 10) + 1
+    } as any);
 
       if (error) throw error;
 
