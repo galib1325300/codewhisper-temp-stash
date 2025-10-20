@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingState from '@/components/ui/loading-state';
 import { WooCommerceService } from '../utils/woocommerce';
+import { useAuth } from '../hooks/useAuth';
 
 interface Product {
   id: string;
@@ -36,6 +37,7 @@ interface ProductModification {
 
 export default function ShopProductDetailsPage() {
   const { id, productId } = useParams();
+  const { user } = useAuth();
   const [shop, setShop] = useState<Shop | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [modifications, setModifications] = useState<ProductModification[]>([]);
@@ -176,7 +178,7 @@ export default function ShopProductDetailsPage() {
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-product-description', {
-        body: { productId, type: 'short' }
+        body: { productId, type: 'short', userId: user?.id }
       });
 
       if (error) throw error;
@@ -202,7 +204,7 @@ export default function ShopProductDetailsPage() {
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-product-description', {
-        body: { productId, type: 'long' }
+        body: { productId, type: 'long', userId: user?.id }
       });
 
       if (error) throw error;

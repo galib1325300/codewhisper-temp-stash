@@ -13,12 +13,19 @@ serve(async (req) => {
   }
 
   try {
-    const { productId, type } = await req.json();
+    const { productId, type, userId } = await req.json();
     console.log('Generating description for product:', productId, 'Type:', type);
 
     if (!productId || !type) {
       return new Response(
         JSON.stringify({ error: 'Missing productId or type' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing userId' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -169,6 +176,9 @@ Retourne UNIQUEMENT le HTML de la description, sans balises <html>, <body> ou co
     const generatedText = aiData.choices[0].message.content.trim();
     console.log('Generated text:', generatedText.substring(0, 100) + '...');
 
+    // Get old value before update
+    const oldValue = product[updateField] || null;
+
     // Update product with generated description
     const { error: updateError } = await supabase
       .from('products')
@@ -181,6 +191,22 @@ Retourne UNIQUEMENT le HTML de la description, sans balises <html>, <body> ou co
         JSON.stringify({ error: 'Failed to update product' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
+    }
+
+    // Manually insert into product_modifications
+    const { error: modError } = await supabase
+      .from('product_modifications')
+      .insert({
+        product_id: productId,
+        field_name: updateField,
+        old_value: oldValue,
+        new_value: generatedText,
+        modified_by: userId
+      });
+
+    if (modError) {
+      console.error('Error recording modification:', modError);
+      // Don't fail the whole operation if modification tracking fails
     }
 
     console.log('Description generated successfully');
