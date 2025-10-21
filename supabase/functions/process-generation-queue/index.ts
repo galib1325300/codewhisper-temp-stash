@@ -287,8 +287,8 @@ async function processTranslation(supabase: any, job: any): Promise<boolean> {
     const result = await supabase.functions.invoke('translate-product', {
       body: { 
         productId: job.product_id, 
-        language: job.language,
-        preserveInternalLinks: job.preserve_internal_links 
+        targetLanguage: job.language,
+        applyTranslation: true
       }
     });
     
