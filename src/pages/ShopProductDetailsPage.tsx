@@ -5,7 +5,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import { getShopById } from '../utils/shops';
 import { Shop } from '../utils/types';
-import { ArrowLeft, Eye, Edit, Sparkles, Link2, ImagePlus, Trash2, AlertCircle, ExternalLink, Save, X } from 'lucide-react';
+import { ArrowLeft, Eye, Edit, Sparkles, Link2, ImagePlus, Trash2, AlertCircle, ExternalLink, Save, X, Languages, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import LoadingState from '@/components/ui/loading-state';
 import { WooCommerceService } from '../utils/woocommerce';
 import { useAuth } from '../hooks/useAuth';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Product {
   id: string;
@@ -25,6 +27,8 @@ interface Product {
   images: any[];
   slug: string;
   categories: any[];
+  meta_title?: string;
+  meta_description?: string;
 }
 
 interface ProductModification {
@@ -46,10 +50,20 @@ export default function ShopProductDetailsPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingShortDesc, setEditingShortDesc] = useState(false);
   const [editingLongDesc, setEditingLongDesc] = useState(false);
+  const [editingMetaDesc, setEditingMetaDesc] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [tempTitle, setTempTitle] = useState('');
   const [tempShortDesc, setTempShortDesc] = useState('');
   const [tempLongDesc, setTempLongDesc] = useState('');
+  const [tempMetaDesc, setTempMetaDesc] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [totalHistoryPages, setTotalHistoryPages] = useState(1);
+  const [translationDialogOpen, setTranslationDialogOpen] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState('en');
+  const [translationPreview, setTranslationPreview] = useState<any>(null);
+  const [translating, setTranslating] = useState(false);
+  
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     loadData();
@@ -71,16 +85,19 @@ export default function ShopProductDetailsPage() {
       if (error) throw error;
       setProduct(productData as any);
 
-      // Load modification history
-      const { data: modsData, error: modsError } = await supabase
+      // Load modification history with pagination
+      const { data: modsData, error: modsError, count } = await supabase
         .from('product_modifications')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('product_id', productId)
         .order('modified_at', { ascending: false })
-        .limit(20);
+        .range((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE - 1);
 
       if (!modsError && modsData) {
         setModifications(modsData as ProductModification[]);
+        if (count) {
+          setTotalHistoryPages(Math.ceil(count / ITEMS_PER_PAGE));
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -283,6 +300,93 @@ export default function ShopProductDetailsPage() {
     }
   };
 
+  const handleGenerateMetaDesc = async () => {
+    setGenerating(true);
+    toast.info('Génération de la méta-description...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-meta-description', {
+        body: { productId, userId: user?.id }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setProduct({ ...product!, meta_description: data.metaDescription });
+        setHasChanges(true);
+        toast.success('Méta-description générée avec succès');
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération');
+      }
+    } catch (error: any) {
+      console.error('Error generating meta description:', error);
+      toast.error(error.message || 'Erreur lors de la génération');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSaveMetaDesc = async () => {
+    if (tempMetaDesc.length > 160) {
+      toast.error('La méta-description doit faire moins de 160 caractères');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ meta_description: tempMetaDesc })
+      .eq('id', productId);
+
+    if (error) {
+      toast.error('Erreur lors de la sauvegarde');
+      return;
+    }
+
+    setProduct({ ...product!, meta_description: tempMetaDesc });
+    setEditingMetaDesc(false);
+    setHasChanges(true);
+    toast.success('Méta-description mise à jour');
+  };
+
+  const handleTranslate = async (apply = false) => {
+    setTranslating(true);
+    toast.info(`Traduction en cours vers ${targetLanguage}...`);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('translate-product', {
+        body: { productId, targetLanguage, applyTranslation: apply }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        if (apply) {
+          setProduct({
+            ...product!,
+            name: data.translation.name,
+            short_description: data.translation.short_description,
+            description: data.translation.description,
+            meta_title: data.translation.meta_title,
+            meta_description: data.translation.meta_description
+          });
+          setHasChanges(true);
+          setTranslationDialogOpen(false);
+          toast.success('Traduction appliquée avec succès');
+        } else {
+          setTranslationPreview(data.translation);
+          toast.success('Aperçu de la traduction disponible');
+        }
+      } else {
+        toast.error(data.error || 'Erreur lors de la traduction');
+      }
+    } catch (error: any) {
+      console.error('Error translating product:', error);
+      toast.error(error.message || 'Erreur lors de la traduction');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const handleImproveImageQuality = async () => {
     toast.info('Amélioration de la qualité des images...');
   };
@@ -419,6 +523,143 @@ export default function ShopProductDetailsPage() {
                           </Button>
                         </div>
                       </div>
+                    )}
+                  </div>
+
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold">Traduction</h3>
+                      <Dialog open={translationDialogOpen} onOpenChange={setTranslationDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Languages className="w-4 h-4 mr-2" />
+                            Traduire le produit
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Traduire le produit</DialogTitle>
+                            <DialogDescription>
+                              Sélectionnez la langue cible et prévisualisez la traduction avant de l'appliquer.
+                            </DialogDescription>
+                          </DialogHeader>
+                          
+                          <div className="space-y-4 mt-4">
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">Langue cible</label>
+                              <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="en">🇬🇧 Anglais</SelectItem>
+                                  <SelectItem value="es">🇪🇸 Espagnol</SelectItem>
+                                  <SelectItem value="de">🇩🇪 Allemand</SelectItem>
+                                  <SelectItem value="it">🇮🇹 Italien</SelectItem>
+                                  <SelectItem value="pt">🇵🇹 Portugais</SelectItem>
+                                  <SelectItem value="nl">🇳🇱 Néerlandais</SelectItem>
+                                  <SelectItem value="pl">🇵🇱 Polonais</SelectItem>
+                                  <SelectItem value="ru">🇷🇺 Russe</SelectItem>
+                                  <SelectItem value="ja">🇯🇵 Japonais</SelectItem>
+                                  <SelectItem value="zh">🇨🇳 Chinois</SelectItem>
+                                  <SelectItem value="ar">🇸🇦 Arabe</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button onClick={() => handleTranslate(false)} disabled={translating}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Prévisualiser
+                              </Button>
+                              <Button onClick={() => handleTranslate(true)} disabled={translating || !translationPreview}>
+                                <Save className="w-4 h-4 mr-2" />
+                                Appliquer la traduction
+                              </Button>
+                            </div>
+
+                            {translationPreview && (
+                              <div className="space-y-4 border-t pt-4">
+                                <div>
+                                  <label className="text-sm font-medium">Titre traduit</label>
+                                  <p className="text-sm mt-1">{translationPreview.name}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium">Description courte traduite</label>
+                                  <p className="text-sm mt-1">{translationPreview.short_description}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium">Méta-description traduite</label>
+                                  <p className="text-sm mt-1">{translationPreview.meta_description}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium">Description longue traduite (extrait)</label>
+                                  <div 
+                                    className="text-sm mt-1 prose prose-sm max-w-none" 
+                                    dangerouslySetInnerHTML={{ __html: translationPreview.description?.substring(0, 500) + '...' }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Méta-description SEO</h3>
+                      <div className="flex gap-2">
+                        {!editingMetaDesc && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setEditingMetaDesc(true);
+                              setTempMetaDesc(product.meta_description || '');
+                            }}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={handleGenerateMetaDesc}
+                              disabled={generating}
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {editingMetaDesc ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={tempMetaDesc}
+                          className="min-h-[80px]"
+                          onChange={(e) => setTempMetaDesc(e.target.value)}
+                          maxLength={160}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {tempMetaDesc.length}/160 caractères
+                        </p>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveMetaDesc}>
+                            <Save className="w-4 h-4 mr-2" />
+                            Enregistrer
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingMetaDesc(false);
+                            setTempMetaDesc(product.meta_description || '');
+                          }}>
+                            <X className="w-4 h-4 mr-2" />
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        {product.meta_description || 'Aucune méta-description (important pour le SEO Google)'}
+                      </p>
                     )}
                   </div>
 
@@ -578,45 +819,74 @@ export default function ShopProductDetailsPage() {
                 {modifications.length === 0 ? (
                   <p className="text-muted-foreground">Aucune modification à afficher</p>
                 ) : (
-                  <div className="space-y-3">
-                    {modifications.map((mod) => {
-                      const fieldLabels: Record<string, string> = {
-                        name: 'Nom du produit',
-                        short_description: 'Description courte',
-                        description: 'Description longue',
-                        images: 'Images'
-                      };
-                      
-                      return (
-                        <div key={mod.id} className="border-l-2 border-primary pl-4 py-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium">{fieldLabels[mod.field_name] || mod.field_name}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {new Date(mod.modified_at).toLocaleString('fr-FR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
+                  <>
+                    <div className="space-y-3">
+                      {modifications.map((mod) => {
+                        const fieldLabels: Record<string, string> = {
+                          name: 'Nom du produit',
+                          short_description: 'Description courte',
+                          description: 'Description longue',
+                          images: 'Images',
+                          meta_description: 'Méta-description'
+                        };
+                        
+                        return (
+                          <div key={mod.id} className="border-l-2 border-primary pl-4 py-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium">{fieldLabels[mod.field_name] || mod.field_name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {new Date(mod.modified_at).toLocaleString('fr-FR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            {mod.old_value && mod.field_name !== 'images' && (
+                              <div className="text-sm">
+                                <span className="text-muted-foreground">Ancienne valeur: </span>
+                                <span className="line-through text-destructive">{mod.old_value.substring(0, 100)}{mod.old_value.length > 100 ? '...' : ''}</span>
+                              </div>
+                            )}
+                            {mod.new_value && (
+                              <div className="text-sm">
+                                <span className="text-muted-foreground">Nouvelle valeur: </span>
+                                <span className="text-foreground font-medium">{mod.new_value.substring(0, 100)}{mod.new_value.length > 100 ? '...' : ''}</span>
+                              </div>
+                            )}
                           </div>
-                          {mod.old_value && mod.field_name !== 'images' && (
-                            <div className="text-sm">
-                              <span className="text-muted-foreground">Ancienne valeur: </span>
-                              <span className="line-through text-destructive">{mod.old_value.substring(0, 100)}{mod.old_value.length > 100 ? '...' : ''}</span>
-                            </div>
-                          )}
-                          {mod.new_value && (
-                            <div className="text-sm">
-                              <span className="text-muted-foreground">Nouvelle valeur: </span>
-                              <span className="text-foreground font-medium">{mod.new_value.substring(0, 100)}{mod.new_value.length > 100 ? '...' : ''}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {totalHistoryPages > 1 && (
+                      <div className="flex items-center justify-center gap-2 mt-6">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                          disabled={historyPage === 1}
+                        >
+                          <ChevronLeft className="w-4 h-4 mr-1" />
+                          Précédent
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {historyPage} sur {totalHistoryPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryPage(p => Math.min(totalHistoryPages, p + 1))}
+                          disabled={historyPage === totalHistoryPages}
+                        >
+                          Suivant
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

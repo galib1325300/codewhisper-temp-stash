@@ -21,6 +21,12 @@ verify_jwt = false
 [functions.generate-product-description]
 verify_jwt = false
 
+[functions.generate-meta-description]
+verify_jwt = false
+
+[functions.translate-product]
+verify_jwt = false
+
 [functions.generate-blog-post]
 verify_jwt = false
 
