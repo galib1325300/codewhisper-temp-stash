@@ -200,7 +200,7 @@ export type Database = {
           field_name: string
           id: string
           modified_at: string
-          modified_by: string
+          modified_by: string | null
           new_value: string | null
           old_value: string | null
           product_id: string
@@ -209,7 +209,7 @@ export type Database = {
           field_name: string
           id?: string
           modified_at?: string
-          modified_by: string
+          modified_by?: string | null
           new_value?: string | null
           old_value?: string | null
           product_id: string
@@ -218,7 +218,7 @@ export type Database = {
           field_name?: string
           id?: string
           modified_at?: string
-          modified_by?: string
+          modified_by?: string | null
           new_value?: string | null
           old_value?: string | null
           product_id?: string
