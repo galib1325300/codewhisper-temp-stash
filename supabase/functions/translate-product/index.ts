@@ -56,6 +56,7 @@ serve(async (req) => {
     }
 
     const languageNames: Record<string, string> = {
+      'fr': 'français',
       'en': 'anglais',
       'es': 'espagnol',
       'de': 'allemand',

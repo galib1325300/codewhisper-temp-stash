@@ -567,6 +567,7 @@ export default function ShopProductDetailsPage() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="fr">🇫🇷 Français</SelectItem>
                                   <SelectItem value="en">🇬🇧 Anglais</SelectItem>
                                   <SelectItem value="es">🇪🇸 Espagnol</SelectItem>
                                   <SelectItem value="de">🇩🇪 Allemand</SelectItem>
