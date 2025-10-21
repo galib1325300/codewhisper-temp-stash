@@ -24,20 +24,20 @@ export default function ShopNavigation({ shopName }: ShopNavigationProps) {
 
   return (
     <div className="mb-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-foreground mb-6">
         {shopName}
       </h1>
-      <nav className="flex space-x-4 bg-gray-100 p-1 rounded-lg">
+      <nav className="flex space-x-4 bg-muted p-1 rounded-lg overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
           return (
             <Link
               key={tab.name}
               to={tab.path}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                 isActive
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  ? 'bg-card text-primary shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               }`}
             >
               {tab.name}
