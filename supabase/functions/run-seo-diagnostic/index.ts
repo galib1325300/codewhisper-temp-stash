@@ -36,12 +36,15 @@ serve(async (req) => {
       .from('seo_diagnostics')
       .insert({
         shop_id: shopId,
+        item_type: 'shop',
+        item_id: shopId,
         status: 'running'
       })
       .select()
       .single()
 
     if (createError || !diagnostic) {
+      console.error('Create diagnostic error', createError)
       throw new Error('Failed to create diagnostic record')
     }
 
@@ -312,7 +315,7 @@ serve(async (req) => {
         info_count: infoCount,
         issues,
         recommendations,
-        summary,
+        summary: JSON.stringify(summary),
         updated_at: new Date().toISOString()
       })
       .eq('id', diagnostic.id)
