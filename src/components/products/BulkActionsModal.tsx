@@ -28,6 +28,7 @@ export default function BulkActionsModal({
     { id: 'complete', label: 'Générer les fiches produits complètes', credits: 60 },
     { id: 'long_descriptions', label: 'Générer les descriptions longues uniquement', credits: 20 },
     { id: 'short_descriptions', label: 'Générer les descriptions courtes', credits: 10 },
+    { id: 'meta_descriptions', label: 'Générer les méta descriptions', credits: 10 },
     { id: 'alt_images', label: 'Générer les alt images', credits: 15 },
     { id: 'internal_linking', label: 'Ajouter le maillage interne', credits: 15 },
     { id: 'improve_images', label: 'Améliorer la qualité des images', credits: 30, disabled: true, badge: 'Bientôt disponible' },

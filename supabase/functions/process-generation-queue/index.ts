@@ -67,6 +67,9 @@ serve(async (req) => {
                 case 'short_descriptions':
                   success = await processDescription(supabase, job, 'short');
                   break;
+                case 'meta_descriptions':
+                  success = await processMetaDescription(supabase, job);
+                  break;
                 case 'alt_images':
                   success = await processAltImages(supabase, job);
                   break;
@@ -186,6 +189,20 @@ async function processComplete(supabase: any, job: any): Promise<boolean> {
       throw new Error(`Alt texts error: ${altResult.error.message || JSON.stringify(altResult.error)}`);
     }
 
+    // Add internal links
+    const linksResult = await userSupabase.functions.invoke('add-internal-links', {
+      body: { 
+        productId: job.product_id, 
+        shopId: job.shop_id,
+        preserveExisting: job.preserve_internal_links 
+      }
+    });
+    
+    if (linksResult.error) {
+      console.error('Error adding internal links:', linksResult.error);
+      throw new Error(`Internal links error: ${linksResult.error.message || JSON.stringify(linksResult.error)}`);
+    }
+
     return true;
   } catch (error) {
     console.error('Error in processComplete:', error);
@@ -206,6 +223,23 @@ async function processDescription(supabase: any, job: any, type: string): Promis
     return true;
   } catch (error) {
     console.error('Error in processDescription:', error);
+    throw error;
+  }
+}
+
+async function processMetaDescription(supabase: any, job: any): Promise<boolean> {
+  try {
+    const result = await supabase.functions.invoke('generate-meta-description', {
+      body: { productId: job.product_id, userId: job.created_by }
+    });
+    
+    if (result.error) {
+      console.error('Error generating meta description:', result.error);
+      throw new Error(`Meta description error: ${result.error.message || JSON.stringify(result.error)}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Error in processMetaDescription:', error);
     throw error;
   }
 }
