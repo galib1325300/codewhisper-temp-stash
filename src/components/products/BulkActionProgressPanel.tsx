@@ -132,8 +132,9 @@ export function BulkActionProgressPanel({ shopId }: BulkActionProgressPanelProps
 
   return (
     <Card className="p-4">
-      <div className="space-y-4">
-        <div>
+      <div className="flex items-center gap-6">
+        {/* Title and progress */}
+        <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium">Génération en cours</h3>
             <span className="text-xs text-muted-foreground">
@@ -143,42 +144,40 @@ export function BulkActionProgressPanel({ shopId }: BulkActionProgressPanelProps
           <Progress value={progressPercentage} className="h-2" />
         </div>
 
-        <div className="grid grid-cols-4 gap-2 text-xs">
+        {/* Stats grid */}
+        <div className="flex gap-6 text-xs">
           <div className="text-center">
             <div className="font-semibold text-muted-foreground">{stats.pending}</div>
-            <div className="text-muted-foreground">En attente</div>
+            <div className="text-muted-foreground whitespace-nowrap">En attente</div>
           </div>
           <div className="text-center">
             <div className="font-semibold text-info">{stats.processing}</div>
-            <div className="text-muted-foreground">En cours</div>
+            <div className="text-muted-foreground whitespace-nowrap">En cours</div>
           </div>
           <div className="text-center">
             <div className="font-semibold text-success">{stats.completed}</div>
-            <div className="text-muted-foreground">Réussis</div>
+            <div className="text-muted-foreground whitespace-nowrap">Réussis</div>
           </div>
           <div className="text-center">
             <div className="font-semibold text-error">{stats.failed}</div>
-            <div className="text-muted-foreground">Échecs</div>
+            <div className="text-muted-foreground whitespace-nowrap">Échecs</div>
           </div>
         </div>
 
+        {/* Recent jobs - horizontal scroll */}
         {jobs.length > 0 && (
-          <ScrollArea className="h-[200px]">
-            <div className="space-y-2">
-              {jobs.slice(0, 10).map((job) => (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between p-2 rounded-lg border bg-card text-xs"
-                >
-                  <div className="flex items-center gap-2 flex-1">
-                    {getStatusIcon(job.status)}
-                    <span className="font-medium">{getActionLabel(job.action)}</span>
-                  </div>
-                  {getStatusBadge(job.status)}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="flex gap-2 overflow-x-auto max-w-md">
+            {jobs.slice(0, 5).map((job) => (
+              <div
+                key={job.id}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-card text-xs whitespace-nowrap"
+              >
+                {getStatusIcon(job.status)}
+                <span className="font-medium">{getActionLabel(job.action)}</span>
+                {getStatusBadge(job.status)}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </Card>

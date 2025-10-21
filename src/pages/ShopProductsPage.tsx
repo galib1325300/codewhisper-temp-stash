@@ -253,13 +253,12 @@ export default function ShopProductsPage() {
           <div className="max-w-7xl mx-auto">
             <ShopNavigation shopName={shop.name} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
-              <div className="lg:col-span-1 space-y-4">
-                <BulkActionProgressPanel shopId={shop.id} />
-              </div>
+            {/* Progress panel as horizontal bar below navigation */}
+            <div className="mt-6">
+              <BulkActionProgressPanel shopId={shop.id} />
+            </div>
 
-              <div className="lg:col-span-3">
-                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden mt-6">
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -444,8 +443,6 @@ export default function ShopProductsPage() {
                     ))}
                   </div>
                 )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
