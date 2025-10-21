@@ -5,6 +5,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface BulkActionsModalProps {
   isOpen: boolean;
@@ -24,13 +25,12 @@ export default function BulkActionsModal({
   const [preserveInternalLinks, setPreserveInternalLinks] = useState(false);
 
   const actions = [
-    { id: 'complete', label: 'Générer les fiches produits complètes', credits: 50 },
+    { id: 'complete', label: 'Générer les fiches produits complètes', credits: 60 },
     { id: 'long_descriptions', label: 'Générer les descriptions longues uniquement', credits: 20 },
     { id: 'short_descriptions', label: 'Générer les descriptions courtes', credits: 10 },
-    { id: 'alt_images', label: 'Générer les alt images', credits: 5 },
+    { id: 'alt_images', label: 'Générer les alt images', credits: 15 },
     { id: 'internal_linking', label: 'Ajouter le maillage interne', credits: 15 },
-    { id: 'improve_images', label: 'Améliorer la qualité des images', credits: 30 },
-    { id: 'new_content', label: 'Générer du nouveau contenu', credits: 40 },
+    { id: 'improve_images', label: 'Améliorer la qualité des images', credits: 30, disabled: true, badge: 'Bientôt disponible' },
     { id: 'translate', label: 'Traduire le contenu existant', credits: 25 },
   ];
 
@@ -73,12 +73,21 @@ export default function BulkActionsModal({
               <div className="space-y-3">
                 {actions.map((action) => (
                   <div key={action.id} className="flex items-center space-x-2">
-                    <RadioGroupItem value={action.id} id={action.id} />
+                    <RadioGroupItem 
+                      value={action.id} 
+                      id={action.id} 
+                      disabled={action.disabled}
+                    />
                     <Label 
                       htmlFor={action.id} 
-                      className="font-normal cursor-pointer flex-1"
+                      className={`font-normal cursor-pointer flex-1 flex items-center gap-2 ${action.disabled ? 'opacity-50' : ''}`}
                     >
                       {action.label}
+                      {action.badge && (
+                        <Badge variant="outline" className="text-xs">
+                          {action.badge}
+                        </Badge>
+                      )}
                     </Label>
                   </div>
                 ))}

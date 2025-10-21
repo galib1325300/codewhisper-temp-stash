@@ -132,6 +132,69 @@ export type Database = {
           },
         ]
       }
+      product_generation_jobs: {
+        Row: {
+          action: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          error_message: string | null
+          id: string
+          language: string | null
+          preserve_internal_links: boolean | null
+          product_id: string
+          shop_id: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          id?: string
+          language?: string | null
+          preserve_internal_links?: boolean | null
+          product_id: string
+          shop_id: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          id?: string
+          language?: string | null
+          preserve_internal_links?: boolean | null
+          product_id?: string
+          shop_id?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_generation_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_generation_jobs_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_modifications: {
         Row: {
           field_name: string

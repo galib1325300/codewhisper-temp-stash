@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BulkActionsModal from '../components/products/BulkActionsModal';
+import { BulkActionProgressPanel } from '../components/products/BulkActionProgressPanel';
 
 export default function ShopProductsPage() {
   const { id } = useParams();
@@ -28,6 +29,7 @@ export default function ShopProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [productJobs, setProductJobs] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     const loadShop = async () => {
@@ -50,6 +52,57 @@ export default function ShopProductsPage() {
 
     loadShop();
   }, [id]);
+
+  useEffect(() => {
+    if (!shop) return;
+
+    // Load product jobs
+    loadProductJobs();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('product-jobs-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'product_generation_jobs',
+          filter: `shop_id=eq.${shop.id}`,
+        },
+        () => {
+          loadProductJobs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shop]);
+
+  const loadProductJobs = async () => {
+    if (!shop) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('product_generation_jobs')
+        .select('*')
+        .eq('shop_id', shop.id)
+        .in('status', ['pending', 'processing'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const jobsMap = new Map();
+      data?.forEach(job => {
+        jobsMap.set(job.product_id, job);
+      });
+      setProductJobs(jobsMap);
+    } catch (error) {
+      console.error('Error loading product jobs:', error);
+    }
+  };
 
   const loadProducts = async (shopId: string) => {
     setProductsLoading(true);
@@ -134,10 +187,42 @@ export default function ShopProductsPage() {
     }
   };
 
-  const handleBulkAction = (action: string, language: string, preserveInternalLinks: boolean) => {
-    console.log('Executing bulk action:', { action, language, preserveInternalLinks, products: Array.from(selectedProducts) });
-    toast.success(`Action "${action}" en cours pour ${selectedProducts.size} produit(s)`);
-    setSelectedProducts(new Set());
+  const handleBulkAction = async (action: string, language: string, preserveInternalLinks: boolean) => {
+    if (!shop) return;
+
+    try {
+      const productIds = Array.from(selectedProducts);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create jobs for each selected product
+      const jobsToInsert = productIds.map(productId => ({
+        shop_id: shop.id,
+        product_id: productId,
+        action,
+        language,
+        preserve_internal_links: preserveInternalLinks,
+        status: 'pending',
+        created_by: user?.id
+      }));
+
+      const { error } = await supabase
+        .from('product_generation_jobs')
+        .insert(jobsToInsert);
+
+      if (error) throw error;
+
+      toast.success(`${productIds.length} produit(s) ajouté(s) à la file de génération`);
+      setSelectedProducts(new Set());
+
+      // Trigger the queue processor
+      supabase.functions.invoke('process-generation-queue')
+        .then(() => console.log('Queue processing started'))
+        .catch(err => console.error('Error starting queue:', err));
+
+    } catch (error) {
+      console.error('Error creating bulk jobs:', error);
+      toast.error('Erreur lors de la création des tâches');
+    }
   };
 
   if (loading) {
@@ -164,11 +249,17 @@ export default function ShopProductsPage() {
       <AdminNavbar />
       <div className="flex">
         <AdminSidebar />
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-8 overflow-auto">
           <div className="max-w-7xl mx-auto">
             <ShopNavigation shopName={shop.name} />
             
-            <div className="card-elevated">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
+              <div className="lg:col-span-1 space-y-4">
+                <BulkActionProgressPanel shopId={shop.id} />
+              </div>
+
+              <div className="lg:col-span-3">
+                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -274,14 +365,14 @@ export default function ShopProductsPage() {
                         className="card-interactive p-4 cursor-pointer" 
                         onClick={() => window.location.href = `/admin/shops/${id}/products/${product.id}`}
                       >
-                        <div className="flex items-center space-x-4">
+                         <div className="flex items-center space-x-4">
                           <div onClick={(e) => e.stopPropagation()}>
                             <Checkbox 
                               checked={selectedProducts.has(product.id)}
                               onCheckedChange={() => handleSelectProduct(product.id)}
                             />
                           </div>
-                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden relative">
                             {product.images && product.images.length > 0 ? (
                               <img 
                                 src={product.images[0].src} 
@@ -297,12 +388,21 @@ export default function ShopProductsPage() {
                             <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
                             <p className="text-sm text-muted-foreground">{product.sku || 'Pas de SKU'}</p>
                             <div className="flex items-center space-x-2 mt-1">
-                              <StatusBadge 
-                                status={product.status === 'publish' ? 'success' : 'warning'}
-                                variant="dot"
-                              >
-                                {product.status === 'publish' ? 'Publié' : 'Brouillon'}
-                              </StatusBadge>
+                              {productJobs.has(product.id) ? (
+                                <StatusBadge 
+                                  status={productJobs.get(product.id).status === 'processing' ? 'info' : 'warning'}
+                                  variant="dot"
+                                >
+                                  {productJobs.get(product.id).status === 'processing' ? 'En cours...' : 'En attente'}
+                                </StatusBadge>
+                              ) : (
+                                <StatusBadge 
+                                  status={product.status === 'publish' ? 'success' : 'warning'}
+                                  variant="dot"
+                                >
+                                  {product.status === 'publish' ? 'Publié' : 'Brouillon'}
+                                </StatusBadge>
+                              )}
                               {product.featured && (
                                 <StatusBadge status="info" variant="outline">
                                   En vedette
@@ -344,6 +444,8 @@ export default function ShopProductsPage() {
                     ))}
                   </div>
                 )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
