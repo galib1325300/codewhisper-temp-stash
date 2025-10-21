@@ -43,7 +43,7 @@ serve(async (req) => {
     // Fetch product data
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('name, short_description, description, meta_title, meta_description')
+      .select('name, short_description, description, meta_title, meta_description, images')
       .eq('id', productId)
       .single();
 
@@ -71,6 +71,17 @@ serve(async (req) => {
 
     const targetLangName = languageNames[targetLanguage] || targetLanguage;
 
+    // Extract image alt texts
+    const images = Array.isArray(product.images) ? product.images : [];
+    const imageAlts = images.map((img: any, idx: number) => ({
+      index: idx,
+      alt: img.alt || ''
+    })).filter(img => img.alt);
+
+    const imageAltsSection = imageAlts.length > 0 
+      ? `\n\nTEXTES ALT DES IMAGES:\n${imageAlts.map(img => `Image ${img.index + 1}: ${img.alt}`).join('\n')}`
+      : '';
+
     const prompt = `Tu es un traducteur professionnel spécialisé dans le e-commerce. Tu dois traduire le contenu suivant d'un produit en ${targetLangName}.
 
 CONTENU À TRADUIRE:
@@ -88,7 +99,7 @@ MÉTA-TITRE:
 ${product.meta_title || 'N/A'}
 
 MÉTA-DESCRIPTION:
-${product.meta_description || 'N/A'}
+${product.meta_description || 'N/A'}${imageAltsSection}
 
 RÈGLES STRICTES:
 1. Traduire en ${targetLangName} de manière naturelle et fluide
@@ -97,6 +108,7 @@ RÈGLES STRICTES:
 4. Maintenir le ton professionnel et commercial
 5. Pour la méta-description, respecter la limite de 160 caractères
 6. Ne pas traduire les URL ou slugs dans les liens
+7. Traduire également tous les textes alt des images pour l'accessibilité et le SEO
 
 FORMAT DE RÉPONSE (JSON STRICT):
 {
@@ -104,7 +116,11 @@ FORMAT DE RÉPONSE (JSON STRICT):
   "short_description": "description courte traduite",
   "description": "description longue traduite avec HTML",
   "meta_title": "méta-titre traduit",
-  "meta_description": "méta-description traduite (max 160 chars)"
+  "meta_description": "méta-description traduite (max 160 chars)",
+  "image_alts": [
+    {"index": 0, "alt": "texte alt traduit image 1"},
+    {"index": 1, "alt": "texte alt traduit image 2"}
+  ]
 }
 
 Réponds UNIQUEMENT avec le JSON, sans aucun texte additionnel, sans markdown, sans commentaire.`;
@@ -176,6 +192,19 @@ Réponds UNIQUEMENT avec le JSON, sans aucun texte additionnel, sans markdown, s
 
     // If user wants to apply the translation
     if (applyTranslation) {
+      // Update images with translated alt texts
+      let updatedImages = [...images];
+      if (translation.image_alts && Array.isArray(translation.image_alts)) {
+        translation.image_alts.forEach((translatedAlt: any) => {
+          if (updatedImages[translatedAlt.index]) {
+            updatedImages[translatedAlt.index] = {
+              ...updatedImages[translatedAlt.index],
+              alt: translatedAlt.alt
+            };
+          }
+        });
+      }
+
       const { error: updateError } = await supabaseForUpdate
         .from('products')
         .update({
@@ -183,7 +212,8 @@ Réponds UNIQUEMENT avec le JSON, sans aucun texte additionnel, sans markdown, s
           short_description: translation.short_description,
           description: translation.description,
           meta_title: translation.meta_title,
-          meta_description: translation.meta_description
+          meta_description: translation.meta_description,
+          images: updatedImages
         })
         .eq('id', productId);
 

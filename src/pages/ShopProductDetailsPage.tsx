@@ -361,17 +361,32 @@ export default function ShopProductDetailsPage() {
 
       if (data.success) {
         if (apply) {
+          // Reconstruct images with translated alt texts
+          let updatedImages = [...(product?.images || [])];
+          if (data.translation.image_alts && Array.isArray(data.translation.image_alts)) {
+            data.translation.image_alts.forEach((translatedAlt: any) => {
+              if (updatedImages[translatedAlt.index]) {
+                updatedImages[translatedAlt.index] = {
+                  ...updatedImages[translatedAlt.index],
+                  alt: translatedAlt.alt
+                };
+              }
+            });
+          }
+
           setProduct({
             ...product!,
             name: data.translation.name,
             short_description: data.translation.short_description,
             description: data.translation.description,
             meta_title: data.translation.meta_title,
-            meta_description: data.translation.meta_description
+            meta_description: data.translation.meta_description,
+            images: updatedImages
           });
           setHasChanges(true);
           setTranslationDialogOpen(false);
-          toast.success('Traduction appliquée avec succès');
+          toast.success('Traduction appliquée avec succès (y compris textes alt images)');
+          loadData(); // Reload to reflect changes
         } else {
           setTranslationPreview(data.translation);
           toast.success('Aperçu de la traduction disponible');
@@ -599,6 +614,18 @@ export default function ShopProductDetailsPage() {
                                     dangerouslySetInnerHTML={{ __html: translationPreview.description?.substring(0, 500) + '...' }}
                                   />
                                 </div>
+                                {translationPreview.image_alts && translationPreview.image_alts.length > 0 && (
+                                  <div>
+                                    <label className="text-sm font-medium">Textes alt des images traduits</label>
+                                    <div className="text-sm mt-1 space-y-1">
+                                      {translationPreview.image_alts.map((img: any) => (
+                                        <div key={img.index} className="text-muted-foreground">
+                                          Image {img.index + 1}: {img.alt}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
