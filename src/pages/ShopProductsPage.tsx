@@ -53,6 +53,29 @@ export default function ShopProductsPage() {
     loadShop();
   }, [id]);
 
+  const loadProductJobs = async () => {
+    if (!shop) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('product_generation_jobs')
+        .select('*')
+        .eq('shop_id', shop.id)
+        .in('status', ['pending', 'processing'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const jobsMap = new Map();
+      data?.forEach(job => {
+        jobsMap.set(job.product_id, job);
+      });
+      setProductJobs(jobsMap);
+    } catch (error) {
+      console.error('Error loading product jobs:', error);
+    }
+  };
+
   useEffect(() => {
     if (!shop) return;
 
@@ -80,29 +103,6 @@ export default function ShopProductsPage() {
       supabase.removeChannel(channel);
     };
   }, [shop]);
-
-  const loadProductJobs = async () => {
-    if (!shop) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('product_generation_jobs')
-        .select('*')
-        .eq('shop_id', shop.id)
-        .in('status', ['pending', 'processing'])
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const jobsMap = new Map();
-      data?.forEach(job => {
-        jobsMap.set(job.product_id, job);
-      });
-      setProductJobs(jobsMap);
-    } catch (error) {
-      console.error('Error loading product jobs:', error);
-    }
-  };
 
   const loadProducts = async (shopId: string) => {
     setProductsLoading(true);
