@@ -16,102 +16,109 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get pending jobs (limit to 5 concurrent processing)
-    const { data: pendingJobs, error: fetchError } = await supabase
-      .from('product_generation_jobs')
-      .select('*')
-      .eq('status', 'pending')
-      .limit(5);
+    let totalProcessed = 0;
+    let allResults: any[] = [];
 
-    if (fetchError) {
-      console.error('Error fetching pending jobs:', fetchError);
-      return new Response(JSON.stringify({ error: fetchError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Process jobs in batches until no more pending jobs
+    while (true) {
+      // Get pending jobs (limit to 5 concurrent processing per batch)
+      const { data: pendingJobs, error: fetchError } = await supabase
+        .from('product_generation_jobs')
+        .select('*')
+        .eq('status', 'pending')
+        .limit(5);
 
-    if (!pendingJobs || pendingJobs.length === 0) {
-      return new Response(JSON.stringify({ message: 'No pending jobs', processed: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+      if (fetchError) {
+        console.error('Error fetching pending jobs:', fetchError);
+        return new Response(JSON.stringify({ error: fetchError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-    console.log(`Processing ${pendingJobs.length} jobs`);
+      if (!pendingJobs || pendingJobs.length === 0) {
+        break; // No more jobs to process
+      }
 
-    // Process each job
-    const results = await Promise.allSettled(
-      pendingJobs.map(async (job) => {
-        try {
-          // Mark as processing
-          await supabase
-            .from('product_generation_jobs')
-            .update({ status: 'processing', started_at: new Date().toISOString() })
-            .eq('id', job.id);
+      console.log(`Processing batch of ${pendingJobs.length} jobs`);
 
-          // Process based on action type
-          let success = false;
-          let errorMessage = null;
-
+      // Process each job
+      const results = await Promise.allSettled(
+        pendingJobs.map(async (job) => {
           try {
-            switch (job.action) {
-              case 'complete':
-                success = await processComplete(supabase, job);
-                break;
-              case 'long_descriptions':
-                success = await processDescription(supabase, job, 'long');
-                break;
-              case 'short_descriptions':
-                success = await processDescription(supabase, job, 'short');
-                break;
-              case 'alt_images':
-                success = await processAltImages(supabase, job);
-                break;
-              case 'internal_linking':
-                success = await processInternalLinking(supabase, job);
-                break;
-              case 'translate':
-                success = await processTranslation(supabase, job);
-                break;
-              default:
-                errorMessage = `Unknown action: ${job.action}`;
-                success = false;
+            // Mark as processing
+            await supabase
+              .from('product_generation_jobs')
+              .update({ status: 'processing', started_at: new Date().toISOString() })
+              .eq('id', job.id);
+
+            // Process based on action type
+            let success = false;
+            let errorMessage = null;
+
+            try {
+              switch (job.action) {
+                case 'complete':
+                  success = await processComplete(supabase, job);
+                  break;
+                case 'long_descriptions':
+                  success = await processDescription(supabase, job, 'long');
+                  break;
+                case 'short_descriptions':
+                  success = await processDescription(supabase, job, 'short');
+                  break;
+                case 'alt_images':
+                  success = await processAltImages(supabase, job);
+                  break;
+                case 'internal_linking':
+                  success = await processInternalLinking(supabase, job);
+                  break;
+                case 'translate':
+                  success = await processTranslation(supabase, job);
+                  break;
+                default:
+                  errorMessage = `Unknown action: ${job.action}`;
+                  success = false;
+              }
+            } catch (error) {
+              console.error(`Error executing action ${job.action}:`, error);
+              errorMessage = error.message || String(error);
+              success = false;
             }
+
+            // Update job status
+            await supabase
+              .from('product_generation_jobs')
+              .update({
+                status: success ? 'completed' : 'failed',
+                completed_at: new Date().toISOString(),
+                error_message: success ? null : errorMessage
+              })
+              .eq('id', job.id);
+
+            return { jobId: job.id, success };
           } catch (error) {
-            console.error(`Error executing action ${job.action}:`, error);
-            errorMessage = error.message || String(error);
-            success = false;
+            console.error(`Error processing job ${job.id}:`, error);
+            await supabase
+              .from('product_generation_jobs')
+              .update({
+                status: 'failed',
+                completed_at: new Date().toISOString(),
+                error_message: error.message
+              })
+              .eq('id', job.id);
+            return { jobId: job.id, success: false, error: error.message };
           }
+        })
+      );
 
-          // Update job status
-          await supabase
-            .from('product_generation_jobs')
-            .update({
-              status: success ? 'completed' : 'failed',
-              completed_at: new Date().toISOString(),
-              error_message: success ? null : errorMessage
-            })
-            .eq('id', job.id);
-
-          return { jobId: job.id, success };
-        } catch (error) {
-          console.error(`Error processing job ${job.id}:`, error);
-          await supabase
-            .from('product_generation_jobs')
-            .update({
-              status: 'failed',
-              completed_at: new Date().toISOString(),
-              error_message: error.message
-            })
-            .eq('id', job.id);
-          return { jobId: job.id, success: false, error: error.message };
-        }
-      })
-    );
+      totalProcessed += pendingJobs.length;
+      allResults = allResults.concat(results.map(r => r.status === 'fulfilled' ? r.value : { error: r.reason }));
+    }
 
     return new Response(JSON.stringify({
-      processed: pendingJobs.length,
-      results: results.map(r => r.status === 'fulfilled' ? r.value : { error: r.reason })
+      processed: totalProcessed,
+      results: allResults
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
