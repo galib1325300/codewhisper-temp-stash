@@ -384,6 +384,146 @@ serve(async (req) => {
           action_available: false
         })
       }
+
+      // 11. Title tags too long or too short
+      const productsWithBadTitles = products.filter(product => 
+        !product.name || product.name.length < 30 || product.name.length > 60
+      )
+
+      if (productsWithBadTitles.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'SEO',
+          title: 'Titres inadéquats',
+          description: `Les titres doivent faire entre 30-60 caractères pour un SEO optimal.`,
+          recommendation: 'Créez des titres accrocheurs entre 30-60 caractères contenant vos mots-clés',
+          affected_items: productsWithBadTitles.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: false
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'SEO',
+          title: 'Titres optimisés',
+          description: `Tous les titres ont la longueur optimale.`,
+          recommendation: 'Continuez à créer des titres entre 30-60 caractères',
+          resource_type: 'product',
+          action_available: false
+        })
+      }
+
+      // 12. Missing product images
+      const productsWithoutImages = products.filter(product => 
+        !product.images || product.images.length === 0
+      )
+
+      if (productsWithoutImages.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Images',
+          title: 'Images manquantes',
+          description: `Ajoutez au moins 3 images de qualité pour chaque produit.`,
+          recommendation: 'Ajoutez plusieurs images de qualité montrant le produit sous différents angles',
+          affected_items: productsWithoutImages.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: false
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Images',
+          title: 'Images présentes',
+          description: `Tous les produits ont des images.`,
+          recommendation: 'Continuez à ajouter des images de qualité',
+          resource_type: 'product',
+          action_available: false
+        })
+      }
+
+      // 13. Short descriptions
+      const productsWithShortDescription = products.filter(product => 
+        !product.description || product.description.length < 300
+      )
+
+      if (productsWithShortDescription.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Contenu',
+          title: 'Descriptions trop courtes',
+          description: `Les descriptions doivent contenir au moins 300 caractères (idéalement 400-600 mots).`,
+          recommendation: 'Enrichissez vos descriptions avec au moins 300 caractères de contenu pertinent',
+          affected_items: productsWithShortDescription.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Contenu',
+          title: 'Descriptions complètes',
+          description: `Toutes les descriptions ont une longueur suffisante.`,
+          recommendation: 'Continuez à créer des descriptions détaillées',
+          resource_type: 'product',
+          action_available: false
+        })
+      }
+
+      // 14. Missing product prices
+      const productsWithoutPrice = products.filter(product => 
+        !product.price || product.price <= 0
+      )
+
+      if (productsWithoutPrice.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Configuration',
+          title: 'Prix manquants',
+          description: `Tous les produits doivent avoir un prix défini.`,
+          recommendation: 'Configurez un prix pour tous vos produits',
+          affected_items: productsWithoutPrice.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: false
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Configuration',
+          title: 'Prix configurés',
+          description: `Tous les produits ont un prix défini.`,
+          recommendation: 'Maintenez vos prix à jour',
+          resource_type: 'product',
+          action_available: false
+        })
+      }
+
+      // 15. Missing product categories
+      const productsWithoutCategory = products.filter(product => 
+        !product.categories || product.categories.length === 0
+      )
+
+      if (productsWithoutCategory.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Organisation',
+          title: 'Catégories manquantes',
+          description: `Organisez vos produits dans des catégories pour améliorer la navigation.`,
+          recommendation: 'Assignez chaque produit à au moins une catégorie pertinente',
+          affected_items: productsWithoutCategory.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: false
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Organisation',
+          title: 'Produits catégorisés',
+          description: `Tous les produits sont organisés dans des catégories.`,
+          recommendation: 'Continuez à bien organiser vos produits',
+          resource_type: 'product',
+          action_available: false
+        })
+      }
     } else if (totalProducts === 0) {
       // No products at all
       issues.push({
@@ -575,23 +715,29 @@ serve(async (req) => {
     const priorityOrder = { error: 0, warning: 1, info: 2, success: 3 };
     issues.sort((a, b) => priorityOrder[a.type] - priorityOrder[b.type]);
 
-    // Calculate score
+    // Calculate score - only count actual problems, not success
     let score = 100
     const errorCount = issues.filter(i => i.type === 'error').length
     const warningCount = issues.filter(i => i.type === 'warning').length
     const infoCount = issues.filter(i => i.type === 'info').length
     const successCount = issues.filter(i => i.type === 'success').length
+    
+    // Total issues = only problems (error + warning + info), NOT success
+    const totalIssues = errorCount + warningCount + infoCount
 
     score -= errorCount * 15
     score -= warningCount * 8  
     score -= infoCount * 3
     score = Math.max(0, score)
 
+    console.log(`Score calculation: ${errorCount} errors, ${warningCount} warnings, ${infoCount} info, ${successCount} success → Score: ${score}/100`)
+
     const summary = {
-      total_issues: issues.length,
+      total_issues: totalIssues,
       errors: errorCount,
       warnings: warningCount,
       info: infoCount,
+      success: successCount,
       products_analyzed: products?.length || 0,
       collections_analyzed: collections?.length || 0,
       blog_posts_analyzed: blogPosts?.length || 0
@@ -618,7 +764,7 @@ serve(async (req) => {
       .update({
         status: 'completed',
         score,
-        total_issues: issues.length,
+        total_issues: totalIssues,
         errors_count: errorCount,
         warnings_count: warningCount,
         info_count: infoCount,
