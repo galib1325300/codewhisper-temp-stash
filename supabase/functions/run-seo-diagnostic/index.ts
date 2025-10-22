@@ -106,11 +106,13 @@ serve(async (req) => {
       throw new Error('Shop not found')
     }
 
-    // Fetch products, collections, and blog posts
+    // Fetch products, collections, and blog posts (exclude deleted/trash products)
     const { data: products } = await supabase
       .from('products')
       .select('*')
       .eq('shop_id', shopId)
+      .not('status', 'in', '("trash","draft")')
+      .is('status', null).or('status', 'neq', 'trash')
 
     const { data: collections } = await supabase
       .from('collections')

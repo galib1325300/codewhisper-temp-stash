@@ -416,14 +416,15 @@ export default function DiagnosticDetail() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filteredIssues.map((issue, filteredIdx) => {
-                // Find the original index using category + title as unique identifier
+                // Use composite key: category|title|resource_type for uniqueness
+                const issueKey = `${issue.category}|${issue.title}|${issue.resource_type || 'general'}`;
                 const originalIndex = diagnostic.issues.findIndex((i: any) => 
-                  i.category === issue.category && i.title === issue.title
+                  `${i.category}|${i.title}|${i.resource_type || 'general'}` === issueKey
                 );
                 
                 return (
                   <IssueActions
-                    key={`${issue.category}-${issue.title}-${filteredIdx}`}
+                    key={issueKey}
                     issue={issue}
                     shopId={shopId || ''}
                     diagnosticId={diagnosticId || ''}

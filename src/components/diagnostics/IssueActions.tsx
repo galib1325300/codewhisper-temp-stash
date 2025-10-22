@@ -172,46 +172,46 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
   return (
     <Card className={`border ${getIssueColor(issue.type)}`}>
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              {getIssueIcon(issue.type)}
-              {issue.type === 'success' && issue.score_improvement && (
-                <Badge variant="outline" className="border-green-600 text-green-600 bg-green-50">
-                  +{issue.score_improvement} points SEO
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                {getIssueIcon(issue.type)}
+                {issue.type === 'success' && issue.score_improvement && (
+                  <Badge variant="outline" className="border-green-600 text-green-600 bg-green-50">
+                    +{issue.score_improvement} points SEO
+                  </Badge>
+                )}
+              </div>
+              <div>
+                <CardTitle className="text-lg">{issue.title}</CardTitle>
+                <Badge variant="outline" className="mt-1">
+                  {issue.category}
                 </Badge>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              {issueIndex !== undefined && (
+                <Link to={`/admin/shops/${shopId}/diagnostics/${diagnosticId}/issues/${issueIndex}`}>
+                  <Button variant="outline" size="sm">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Détails
+                  </Button>
+                </Link>
+              )}
+              {issue.action_available && !resolved && enrichedItems.length > 0 && (
+                <IssueItemSelector
+                  items={enrichedItems.filter(item => !resolvedItems.includes(item.id))}
+                  selectedItems={selectedItems}
+                  onSelectionChange={setSelectedItems}
+                  issueTitle={issue.title}
+                  issueType={issue.category}
+                  actionButtonText={getActionText()}
+                  onAction={handleAutoResolve}
+                  isLoading={resolving}
+                />
               )}
             </div>
-            <div>
-              <CardTitle className="text-lg">{issue.title}</CardTitle>
-              <Badge variant="outline" className="mt-1">
-                {issue.category}
-              </Badge>
-            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {issueIndex !== undefined && (
-              <Link to={`/admin/shops/${shopId}/diagnostics/${diagnosticId}/issues/${issueIndex}`}>
-                <Button variant="outline" size="sm">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Détails
-                </Button>
-              </Link>
-            )}
-            {issue.action_available && !resolved && enrichedItems.length > 0 && (
-              <IssueItemSelector
-                items={enrichedItems.filter(item => !resolvedItems.includes(item.id))}
-                selectedItems={selectedItems}
-                onSelectionChange={setSelectedItems}
-                issueTitle={issue.title}
-                issueType={issue.category}
-                actionButtonText={getActionText()}
-                onAction={handleAutoResolve}
-                isLoading={resolving}
-              />
-            )}
-          </div>
-        </div>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">{issue.description}</p>

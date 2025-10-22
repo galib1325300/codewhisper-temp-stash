@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, AlertTriangle, AlertCircle, Info, ExternalLink, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import AdminNavbar from '@/components/AdminNavbar';
 import AdminSidebar from '@/components/AdminSidebar';
 import ShopNavigation from '@/components/ShopNavigation';

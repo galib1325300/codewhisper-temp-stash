@@ -48,7 +48,7 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product } = await supabase
                 .from('products')
-                .select('images, name')
+                .select('images, name, woocommerce_id')
                 .eq('id', item.id)
                 .single()
 
@@ -62,6 +62,16 @@ serve(async (req) => {
                   .from('products')
                   .update({ images: updatedImages })
                   .eq('id', item.id)
+                
+                // Sync to WooCommerce
+                if (!updateResult.error && product.woocommerce_id) {
+                  const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
+                    body: { shopId, productId: item.id }
+                  });
+                  if (syncResult.error) {
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  }
+                }
               }
             }
             break;
@@ -71,7 +81,7 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product } = await supabase
                 .from('products')
-                .select('description, name, price')
+                .select('description, name, price, woocommerce_id')
                 .eq('id', item.id)
                 .single()
 
@@ -81,6 +91,16 @@ serve(async (req) => {
                   .from('products')
                   .update({ description: enhancedDescription })
                   .eq('id', item.id)
+                
+                // Sync to WooCommerce
+                if (!updateResult.error && product.woocommerce_id) {
+                  const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
+                    body: { shopId, productId: item.id }
+                  });
+                  if (syncResult.error) {
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  }
+                }
               }
             }
             break;
@@ -90,7 +110,7 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product } = await supabase
                 .from('products')
-                .select('name, description, categories')
+                .select('name, description, categories, woocommerce_id')
                 .eq('id', item.id)
                 .single()
 
@@ -100,6 +120,16 @@ serve(async (req) => {
                   .from('products')
                   .update({ short_description: metaDescription })
                   .eq('id', item.id)
+                
+                // Sync to WooCommerce
+                if (!updateResult.error && product.woocommerce_id) {
+                  const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
+                    body: { shopId, productId: item.id }
+                  });
+                  if (syncResult.error) {
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  }
+                }
               }
             }
             break;
@@ -109,7 +139,7 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product } = await supabase
                 .from('products')
-                .select('description, name')
+                .select('description, name, woocommerce_id')
                 .eq('id', item.id)
                 .single()
 
@@ -119,6 +149,16 @@ serve(async (req) => {
                   .from('products')
                   .update({ description: structuredDescription })
                   .eq('id', item.id)
+                
+                // Sync to WooCommerce
+                if (!updateResult.error && product.woocommerce_id) {
+                  const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
+                    body: { shopId, productId: item.id }
+                  });
+                  if (syncResult.error) {
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  }
+                }
               }
             }
             break;
@@ -128,7 +168,7 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product } = await supabase
                 .from('products')
-                .select('description, name, categories')
+                .select('description, name, categories, woocommerce_id')
                 .eq('id', item.id)
                 .single()
 
@@ -138,6 +178,16 @@ serve(async (req) => {
                   .from('products')
                   .update({ description: enhancedDescription })
                   .eq('id', item.id)
+                
+                // Sync to WooCommerce
+                if (!updateResult.error && product.woocommerce_id) {
+                  const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
+                    body: { shopId, productId: item.id }
+                  });
+                  if (syncResult.error) {
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  }
+                }
               }
             }
             break;
@@ -150,13 +200,14 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product, error: fetchError } = await supabase
                 .from('products')
-                .select('description, name, categories')
+                .select('description, name, categories, woocommerce_id')
                 .eq('id', item.id)
                 .single()
               
               console.log('Product fetched:', {
                 hasDescription: !!product?.description,
                 descriptionLength: product?.description?.length || 0,
+                hasWooId: !!product?.woocommerce_id,
                 fetchError: fetchError?.message
               });
 
@@ -169,7 +220,21 @@ serve(async (req) => {
                   .update({ description: boldDescription })
                   .eq('id', item.id)
                 
-                console.log('Update result:', { error: updateResult.error?.message, success: !updateResult.error });
+                console.log('DB Update result:', { error: updateResult.error?.message, success: !updateResult.error });
+                
+                // Sync to WooCommerce
+                if (!updateResult.error && product.woocommerce_id) {
+                  console.log('Syncing to WooCommerce for product:', item.id);
+                  const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
+                    body: { shopId, productId: item.id }
+                  });
+                  console.log('WooCommerce sync result:', { error: syncResult.error?.message, success: !syncResult.error });
+                  if (syncResult.error) {
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  }
+                } else if (!product.woocommerce_id) {
+                  console.log('No woocommerce_id found for product:', item.id);
+                }
               }
             }
             break;
