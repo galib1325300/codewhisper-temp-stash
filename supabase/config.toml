@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.sync-woocommerce-categories]
 verify_jwt = false
 
+[functions.sync-woocommerce-collections]
+verify_jwt = false
+
 [functions.get-woocommerce-stats]
 verify_jwt = false
 
@@ -52,4 +55,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.update-woocommerce-product]
+verify_jwt = false
+
+[functions.get-shopify-analytics]
 verify_jwt = false

@@ -6,14 +6,17 @@ import ShopNavigation from '../components/ShopNavigation';
 import DiagnosticsList from '../components/diagnostics/DiagnosticsList';
 import { getShopById } from '../utils/shops';
 import { Shop } from '../utils/types';
-import { Settings } from 'lucide-react';
+import { Settings, Database } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function ShopDiagnosticsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -40,6 +43,33 @@ export default function ShopDiagnosticsPage() {
   const handleConfigureConnection = () => {
     if (shop) {
       navigate(`/admin/shops/${shop.id}/settings`);
+    }
+  };
+
+  const handleSyncCollections = async () => {
+    if (!shop) return;
+    
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-woocommerce-collections', {
+        body: { shopId: shop.id }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`${data.synced} collections synchronisées avec succès !`);
+        if (data.errors > 0) {
+          toast.warning(`${data.errors} erreurs lors de la synchronisation`);
+        }
+      } else {
+        toast.error(data?.error || 'Erreur lors de la synchronisation');
+      }
+    } catch (error) {
+      console.error('Error syncing collections:', error);
+      toast.error('Erreur lors de la synchronisation des collections');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -72,11 +102,24 @@ export default function ShopDiagnosticsPage() {
             <ShopNavigation shopName={shop.name} />
             
             <div className="bg-card rounded-lg shadow-sm border border-border">
-              <div className="p-6 border-b border-border">
-                <h2 className="text-lg font-semibold text-foreground">Diagnostics SEO</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Analysez votre boutique pour identifier les problèmes SEO et améliorer votre référencement
-                </p>
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Diagnostics SEO</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Analysez votre boutique pour identifier les problèmes SEO et améliorer votre référencement
+                  </p>
+                </div>
+                {isShopConnected() && (
+                  <Button 
+                    onClick={handleSyncCollections}
+                    disabled={syncing}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Database className="w-4 h-4 mr-2" />
+                    {syncing ? 'Synchronisation...' : 'Sync Collections'}
+                  </Button>
+                )}
               </div>
 
               <div className="p-6">
