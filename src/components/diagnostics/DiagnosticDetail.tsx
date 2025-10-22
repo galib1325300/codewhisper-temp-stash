@@ -289,6 +289,23 @@ export default function DiagnosticDetail() {
         </Card>
       </div>
 
+      {/* Recommendations */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recommandations générales</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {diagnostic.recommendations.map((rec, index) => (
+              <li key={index} className="flex items-start space-x-2">
+                <span className="text-primary">•</span>
+                <span className="text-sm">{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
       {/* Filters */}
       <Tabs defaultValue="all" onValueChange={setActiveFilter}>
         <TabsList>
@@ -328,23 +345,6 @@ export default function DiagnosticDetail() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recommandations générales</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {diagnostic.recommendations.map((rec, index) => (
-              <li key={index} className="flex items-start space-x-2">
-                <span className="text-primary">•</span>
-                <span className="text-sm">{rec}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
 
       {/* Export Section */}
       <DiagnosticExport 
