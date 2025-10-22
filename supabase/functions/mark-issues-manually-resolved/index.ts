@@ -19,7 +19,8 @@ serve(async (req) => {
 
     const { diagnosticId, issueIndex, itemIds } = await req.json();
 
-    console.log('Marking issues as manually resolved:', { diagnosticId, issueIndex, itemIds });
+    console.log('=== MARK ISSUES MANUALLY RESOLVED ===');
+    console.log('Request body:', JSON.stringify({ diagnosticId, issueIndex, itemIds }, null, 2));
 
     // Get the current diagnostic
     const { data: diagnostic, error: fetchError } = await supabase
@@ -38,6 +39,12 @@ serve(async (req) => {
 
     // Parse issues
     let issues = Array.isArray(diagnostic.issues) ? diagnostic.issues : [];
+
+    console.log('Diagnostic found:', {
+      id: diagnostic.id,
+      issuesCount: issues.length,
+      requestedIssueIndex: issueIndex
+    });
 
     if (issueIndex < 0 || issueIndex >= issues.length) {
       return new Response(
@@ -113,6 +120,8 @@ serve(async (req) => {
     });
 
     const newScore = Math.min(100, Math.round((earnedPoints / MAX_SCORE) * 100));
+
+    console.log('Successfully updated diagnostic with new score:', newScore);
 
     // Update the diagnostic in the database
     const { error: updateError } = await supabase

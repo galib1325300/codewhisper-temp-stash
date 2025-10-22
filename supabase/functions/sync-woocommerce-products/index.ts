@@ -73,6 +73,7 @@ serve(async (req) => {
       const response = await wooCommerceRequest(shop.url, "products", auth, {
         page: page.toString(),
         per_page: perPage.toString(),
+        status: 'publish', // Only fetch published products
       });
       
       if (response.data && response.data.length > 0) {

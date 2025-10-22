@@ -110,15 +110,20 @@ export default function ShopDiagnosticsPage() {
                   </p>
                 </div>
                 {isShopConnected() && (
-                  <Button 
-                    onClick={handleSyncCollections}
-                    disabled={syncing}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Database className="w-4 h-4 mr-2" />
-                    {syncing ? 'Synchronisation...' : 'Sync Collections'}
-                  </Button>
+                  <div className="flex flex-col items-end gap-2">
+                    <Button 
+                      onClick={handleSyncCollections}
+                      disabled={syncing}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Database className="w-4 h-4 mr-2" />
+                      {syncing ? 'Synchronisation...' : 'Sync Collections'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-right max-w-xs">
+                      💡 Synchronisez vos collections (catégories WooCommerce) pour activer 4 vérifications SEO supplémentaires (+15 points potentiels)
+                    </p>
+                  </div>
                 )}
               </div>
 

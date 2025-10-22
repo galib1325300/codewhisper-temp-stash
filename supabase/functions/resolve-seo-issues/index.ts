@@ -144,19 +144,32 @@ serve(async (req) => {
 
           case 'Mise en forme':
             // Add bold keywords to descriptions
+            console.log('=== PROCESSING MISE EN FORME ===');
+            console.log('Item:', { id: item.id, name: item.name, type: item.type });
+            
             if (item.type === 'product') {
-              const { data: product } = await supabase
+              const { data: product, error: fetchError } = await supabase
                 .from('products')
                 .select('description, name, categories')
                 .eq('id', item.id)
                 .single()
+              
+              console.log('Product fetched:', {
+                hasDescription: !!product?.description,
+                descriptionLength: product?.description?.length || 0,
+                fetchError: fetchError?.message
+              });
 
               if (product?.description) {
                 const boldDescription = addBoldKeywords(product.description, product.name, product.categories)
+                console.log('Enhanced description length:', boldDescription.length);
+                
                 updateResult = await supabase
                   .from('products')
                   .update({ description: boldDescription })
                   .eq('id', item.id)
+                
+                console.log('Update result:', { error: updateResult.error?.message, success: !updateResult.error });
               }
             }
             break;
@@ -350,6 +363,9 @@ function addInternalLinks(description: string, productName: string, categories: 
 
 // Function to add bold keywords to content
 function addBoldKeywords(description: string, productName: string, categories: any[]): string {
+  console.log('=== ADD BOLD KEYWORDS ===');
+  console.log('Input:', { productName, descriptionLength: description.length, categoriesCount: categories?.length || 0 });
+  
   // Check if description already has bold formatting
   if (description.includes('<strong>') || description.includes('<b>')) {
     console.log('Description already has bold formatting');
@@ -380,6 +396,7 @@ function addBoldKeywords(description: string, productName: string, categories: a
   const uniqueKeywords = [...new Set(keywords)];
   
   // Replace first occurrence of each keyword with bold version (case-insensitive)
+  let boldCount = 0;
   uniqueKeywords.forEach(keyword => {
     // Create case-insensitive regex that matches whole words
     const regex = new RegExp(`\\b(${keyword})\\b`, 'i');
@@ -388,10 +405,11 @@ function addBoldKeywords(description: string, productName: string, categories: a
     if (match) {
       // Only bold the first occurrence to avoid over-bolding
       enhanced = enhanced.replace(regex, '<strong>$1</strong>');
+      boldCount++;
     }
   });
   
-  console.log(`Added bold keywords to product "${productName}"`);
+  console.log(`Added ${boldCount} bold keywords to product "${productName}"`);
   return enhanced;
 }
 

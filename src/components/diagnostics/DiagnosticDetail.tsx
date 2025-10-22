@@ -325,6 +325,26 @@ export default function DiagnosticDetail() {
         </Card>
       </div>
 
+      {/* Blog Posts Info Message */}
+      {diagnostic.issues.filter((i: any) => i.resource_type === 'blog').length === 0 && (
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+          <CardContent className="p-6">
+            <div className="flex items-start space-x-3">
+              <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                  Aucun article de blog détecté
+                </h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Créer du contenu de blog optimisé SEO peut améliorer votre score de jusqu'à 15 points. 
+                  Consultez la section "Blog" pour créer vos premiers articles.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recommendations */}
       {diagnostic.recommendations && diagnostic.recommendations.length > 0 && (
         <Card>
@@ -395,19 +415,21 @@ export default function DiagnosticDetail() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredIssues.map((issue, index) => {
-                // Find the original index in the full issues array
-                const originalIndex = diagnostic.issues.findIndex((i: any) => i === issue);
+              {filteredIssues.map((issue, filteredIdx) => {
+                // Find the original index using category + title as unique identifier
+                const originalIndex = diagnostic.issues.findIndex((i: any) => 
+                  i.category === issue.category && i.title === issue.title
+                );
                 
                 return (
                   <IssueActions
-                    key={index}
+                    key={`${issue.category}-${issue.title}-${filteredIdx}`}
                     issue={issue}
                     shopId={shopId || ''}
                     diagnosticId={diagnosticId || ''}
                     shopUrl={shop?.url}
                     shopType={shop?.type}
-                    issueIndex={originalIndex}
+                    issueIndex={originalIndex >= 0 ? originalIndex : filteredIdx}
                     onIssueResolved={() => {
                       loadDiagnostic();
                     }}
