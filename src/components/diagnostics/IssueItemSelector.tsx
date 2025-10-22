@@ -108,7 +108,7 @@ export default function IssueItemSelector({
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{issueTitle}</DialogTitle>
         </DialogHeader>

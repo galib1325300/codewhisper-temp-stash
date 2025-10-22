@@ -205,6 +205,7 @@ export type Database = {
           processed_items: number | null
           progress: number | null
           shop_id: string
+          skipped_count: number | null
           started_at: string | null
           status: string
           success_count: number | null
@@ -223,6 +224,7 @@ export type Database = {
           processed_items?: number | null
           progress?: number | null
           shop_id: string
+          skipped_count?: number | null
           started_at?: string | null
           status?: string
           success_count?: number | null
@@ -241,6 +243,7 @@ export type Database = {
           processed_items?: number | null
           progress?: number | null
           shop_id?: string
+          skipped_count?: number | null
           started_at?: string | null
           status?: string
           success_count?: number | null

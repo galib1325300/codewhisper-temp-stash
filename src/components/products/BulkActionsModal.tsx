@@ -57,7 +57,7 @@ export default function BulkActionsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Actions en lot</DialogTitle>
           <p className="text-sm text-muted-foreground">

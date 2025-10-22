@@ -188,32 +188,69 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
       try {
         // Get affected items for this issue type
         const issue = diagnostic.issues?.find(iss => iss.type === task.issueType);
-        const affectedItems = issue?.affectedItems?.map(item => item.id) || [];
+        const affectedItems = issue?.affectedItems || [];
 
-        // Call resolve-seo-issues edge function
-        const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
+        // Queue the job
+        const { data: queueResult, error: queueError } = await supabase.functions.invoke('queue-seo-resolution', {
           body: {
             shopId,
             diagnosticId: diagnostic.id,
             issueType: task.issueType,
-            affectedItems
+            affectedItems: affectedItems.map((item: any) => ({
+              id: item.id,
+              type: item.type,
+              name: item.name || item.title
+            }))
           }
         });
 
-        if (error) throw error;
+        if (queueError || !queueResult?.success) {
+          throw new Error(queueError?.message || 'Failed to queue job');
+        }
 
-        totalFixed += affectedItems.length;
+        const jobId = queueResult.jobId;
 
-        setTasks(prev => prev.map(t => 
-          t.id === task.id 
-            ? { 
-                ...t, 
-                status: 'completed', 
-                progress: 100, 
-                result: `${affectedItems.length} éléments optimisés avec succès`
-              }
-            : t
-        ));
+        // Poll for progress
+        await new Promise<void>((resolve, reject) => {
+          const pollInterval = setInterval(async () => {
+            const { data: job } = await supabase
+              .from('generation_jobs')
+              .select('*')
+              .eq('id', jobId)
+              .single();
+
+            if (!job) return;
+
+            // Update progress
+            setTasks(prev => prev.map(t => 
+              t.id === task.id 
+                ? { ...t, progress: job.progress || 0 }
+                : t
+            ));
+
+            if (job.status === 'completed') {
+              clearInterval(pollInterval);
+              totalFixed += job.success_count || 0;
+              setTasks(prev => prev.map(t => 
+                t.id === task.id 
+                  ? { 
+                      ...t, 
+                      status: 'completed', 
+                      progress: 100, 
+                      result: `${job.success_count} éléments optimisés avec succès`
+                    }
+                  : t
+              ));
+              resolve();
+            }
+
+            if (job.status === 'failed') {
+              clearInterval(pollInterval);
+              reject(new Error(job.error_message || 'Job failed'));
+            }
+          }, 3000);
+        });
+
       } catch (error) {
         console.error(`Error resolving ${task.issueType}:`, error);
         setTasks(prev => prev.map(t => 
@@ -223,7 +260,6 @@ const SEOOptimizer: React.FC<SEOOptimizerProps> = ({
         ));
       }
 
-      // Simulate progress for better UX
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 

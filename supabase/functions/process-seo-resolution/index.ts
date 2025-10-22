@@ -59,48 +59,118 @@ Deno.serve(async (req) => {
       const batch = batches[batchIdx];
       console.log(`Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} items)`);
 
-      for (const item of batch) {
-        try {
-          // Process based on issue type
-          if (issueType.toLowerCase() === 'images') {
-            // Call generate-alt-texts for this item
-            const { data: altResult, error: altError } = await supabase.functions.invoke('generate-alt-texts', {
-              body: {
-                productId: item.id,
-                userId: userId
-              }
-            });
-
-            if (altError) {
-              const errorMsg = `Alt text generation failed: ${altError.message}`;
-              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-              console.error(`Failed to process ${item.name}:`, errorMsg);
-            } else if (altResult?.success) {
-              results.success.push({ id: item.id, name: item.name });
-            } else {
-              const errorMsg = altResult?.error || 'Unknown error';
-              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-              console.error(`Failed to process ${item.name}:`, errorMsg);
+    for (const item of batch) {
+      try {
+        // Process based on issue type
+        const issueTypeLower = issueType.toLowerCase();
+        
+        if (issueTypeLower === 'images') {
+          // Call generate-alt-texts for this item
+          const { data: altResult, error: altError } = await supabase.functions.invoke('generate-alt-texts', {
+            body: {
+              productId: item.id,
+              userId: userId
             }
+          });
+
+          if (altError) {
+            const errorMsg = `Alt text generation failed: ${altError.message}`;
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
+          } else if (altResult?.success) {
+            results.success.push({ id: item.id, name: item.name });
           } else {
-            // For other issue types, skip for now
-            results.skipped.push({ id: item.id, name: item.name, message: 'Issue type not yet supported' });
+            const errorMsg = altResult?.error || 'Unknown error';
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
           }
+        } else if (issueTypeLower === 'contenu' || issueTypeLower === 'génération ia') {
+          // Generate both short and long descriptions
+          const { data: shortResult, error: shortError } = await supabase.functions.invoke('generate-product-description', {
+            body: {
+              productId: item.id,
+              type: 'short',
+              userId: userId
+            }
+          });
 
-          // Update progress in DB
-          const processedCount = results.success.length + results.failed.length;
-          const progress = Math.round((processedCount / affectedItems.length) * 100);
+          const { data: longResult, error: longError } = await supabase.functions.invoke('generate-product-description', {
+            body: {
+              productId: item.id,
+              type: 'long',
+              userId: userId
+            }
+          });
 
-          await supabase
-            .from('generation_jobs')
-            .update({
-              processed_items: processedCount,
-              success_count: results.success.length,
-              failed_count: results.failed.length,
-              progress,
-              current_item: item.name
-            })
-            .eq('id', jobId);
+          // Consider success if at least one succeeded
+          if ((shortResult?.success || longResult?.success) && !shortError && !longError) {
+            results.success.push({ id: item.id, name: item.name });
+          } else {
+            const errorMsg = shortError?.message || longError?.message || 'Content generation failed';
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
+          }
+        } else if (issueTypeLower === 'seo') {
+          // Generate meta description
+          const { data: metaResult, error: metaError } = await supabase.functions.invoke('generate-meta-description', {
+            body: {
+              productId: item.id,
+              userId: userId
+            }
+          });
+
+          if (metaError) {
+            const errorMsg = `Meta description generation failed: ${metaError.message}`;
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
+          } else if (metaResult?.success) {
+            results.success.push({ id: item.id, name: item.name });
+          } else {
+            const errorMsg = metaResult?.error || 'Unknown error';
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
+          }
+        } else if (issueTypeLower === 'maillage interne') {
+          // Add internal links
+          const { data: linksResult, error: linksError } = await supabase.functions.invoke('add-internal-links', {
+            body: {
+              productId: item.id,
+              shopId: shopId,
+              preserveExisting: true
+            }
+          });
+
+          if (linksError) {
+            const errorMsg = `Internal links failed: ${linksError.message}`;
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
+          } else if (linksResult?.success) {
+            results.success.push({ id: item.id, name: item.name });
+          } else {
+            const errorMsg = linksResult?.error || 'Unknown error';
+            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+            console.error(`Failed to process ${item.name}:`, errorMsg);
+          }
+        } else {
+          // For other issue types, skip for now
+          results.skipped.push({ id: item.id, name: item.name, message: `Issue type '${issueType}' not yet supported` });
+        }
+
+        // Update progress in DB
+        const processedCount = results.success.length + results.failed.length + results.skipped.length;
+        const progress = Math.round((processedCount / affectedItems.length) * 100);
+
+        await supabase
+          .from('generation_jobs')
+          .update({
+            processed_items: processedCount,
+            success_count: results.success.length,
+            failed_count: results.failed.length,
+            skipped_count: results.skipped.length,
+            progress,
+            current_item: item.name
+          })
+          .eq('id', jobId);
 
           if (processedCount % 5 === 0) {
             console.log(`Progress: ${processedCount}/${affectedItems.length} (${progress}%)`);

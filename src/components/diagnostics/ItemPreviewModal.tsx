@@ -102,7 +102,7 @@ export default function ItemPreviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh]" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Aperçu de l'élément</span>

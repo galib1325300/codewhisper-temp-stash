@@ -11,6 +11,7 @@ import LoadingState from '@/components/ui/loading-state';
 import IssueActions from './IssueActions';
 import DiagnosticProgress from './DiagnosticProgress';
 import DiagnosticExport from './DiagnosticExport';
+import JobHistory from './JobHistory';
 
 interface SEOIssue {
   type: 'error' | 'warning' | 'info' | 'success';
@@ -102,9 +103,16 @@ export default function DiagnosticDetail() {
         .from('seo_diagnostics')
         .select('*')
         .eq('id', diagnosticId)
-        .single();
+        .eq('shop_id', shopId)
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!data) {
+        setDiagnostic(null);
+        setLoading(false);
+        return;
+      }
       
       let issues = Array.isArray(data.issues) ? data.issues : [];
       
@@ -439,6 +447,16 @@ export default function DiagnosticDetail() {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Job History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Historique des traitements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <JobHistory shopId={shopId || ''} />
         </CardContent>
       </Card>
 

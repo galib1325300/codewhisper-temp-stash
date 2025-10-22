@@ -326,7 +326,7 @@ const AutomationRules: React.FC<AutomationRulesProps> = ({
                   Nouvelle règle
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md" aria-describedby={undefined}>
                 <DialogHeader>
                   <DialogTitle>
                     {editingRule ? 'Modifier la règle' : 'Créer une règle d\'automatisation'}

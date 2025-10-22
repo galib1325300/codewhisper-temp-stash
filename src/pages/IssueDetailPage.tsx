@@ -56,9 +56,14 @@ export default function IssueDetailPage() {
         .from('seo_diagnostics')
         .select('*')
         .eq('id', diagnosticId)
-        .single();
+        .eq('shop_id', shopId)
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!diagnostic) {
+        throw new Error('Diagnostic not found');
+      }
 
       // Get the specific issue by index
       const issues = diagnostic.issues || [];
@@ -177,7 +182,8 @@ export default function IssueDetailPage() {
     setResolving(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
+      // Queue the job
+      const { data: queueResult, error: queueError } = await supabase.functions.invoke('queue-seo-resolution', {
         body: {
           shopId,
           diagnosticId,
@@ -190,18 +196,55 @@ export default function IssueDetailPage() {
         }
       });
 
-      if (error) throw error;
-
-      if (data?.success) {
-        toast.success(`${data.results.success} éléments traités avec succès`);
-        navigate(`/admin/shops/${shopId}/diagnostics/${diagnosticId}`);
-      } else {
-        toast.error(data?.error || 'Erreur lors de la résolution');
+      if (queueError || !queueResult?.success) {
+        throw new Error(queueError?.message || 'Failed to queue job');
       }
+
+      const jobId = queueResult.jobId;
+      console.log('Job queued with ID:', jobId);
+
+      // Poll for progress every 3 seconds
+      const pollInterval = setInterval(async () => {
+        const { data: job, error: jobError } = await supabase
+          .from('generation_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single();
+
+        if (jobError || !job) {
+          console.error('Error fetching job status:', jobError);
+          return;
+        }
+
+        console.log('Job status:', job.status, `${job.progress}%`);
+
+        // Job completed
+        if (job.status === 'completed') {
+          clearInterval(pollInterval);
+          
+          toast.success(
+            `✅ ${job.success_count} éléments traités avec succès sur ${job.total_items}`,
+            { duration: 5000 }
+          );
+
+          if (job.failed_count > 0) {
+            toast.warning(`⚠️ ${job.failed_count} éléments en erreur`, { duration: 5000 });
+          }
+
+          navigate(`/admin/shops/${shopId}/diagnostics/${diagnosticId}`);
+        }
+
+        // Job failed
+        if (job.status === 'failed') {
+          clearInterval(pollInterval);
+          toast.error(`Erreur: ${job.error_message}`);
+          setResolving(false);
+        }
+      }, 3000);
+
     } catch (error) {
       console.error('Error resolving issue:', error);
       toast.error('Erreur lors de la résolution du problème');
-    } finally {
       setResolving(false);
     }
   };
