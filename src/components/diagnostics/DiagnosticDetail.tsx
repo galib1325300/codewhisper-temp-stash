@@ -301,7 +301,7 @@ export default function DiagnosticDetail() {
           <TabsTrigger value="blog">Blog</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeFilter} className="space-y-4">
+        <TabsContent value={activeFilter}>
           {filteredIssues.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
@@ -309,20 +309,22 @@ export default function DiagnosticDetail() {
               </CardContent>
             </Card>
           ) : (
-            filteredIssues.map((issue, index) => (
-              <IssueActions
-                key={index}
-                issue={issue}
-                shopId={shopId || ''}
-                diagnosticId={diagnosticId || ''}
-                shopUrl={shop?.url}
-                shopType={shop?.type}
-                onIssueResolved={() => {
-                  // Optionally refresh the diagnostic data
-                  loadDiagnostic();
-                }}
-              />
-            ))
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {filteredIssues.map((issue, index) => (
+                <IssueActions
+                  key={index}
+                  issue={issue}
+                  shopId={shopId || ''}
+                  diagnosticId={diagnosticId || ''}
+                  shopUrl={shop?.url}
+                  shopType={shop?.type}
+                  onIssueResolved={() => {
+                    // Optionally refresh the diagnostic data
+                    loadDiagnostic();
+                  }}
+                />
+              ))}
+            </div>
           )}
         </TabsContent>
       </Tabs>
