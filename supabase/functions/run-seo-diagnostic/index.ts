@@ -78,6 +78,18 @@ serve(async (req) => {
     const { shopId } = await req.json()
     console.log('Running SEO diagnostic for shop:', shopId)
 
+    // Solution 1: Delete all old diagnostics before creating new one
+    console.log('🗑️ Cleaning up old diagnostics for shop:', shopId);
+    const { error: deleteError } = await supabase
+      .from('seo_diagnostics')
+      .delete()
+      .eq('shop_id', shopId);
+
+    if (deleteError) {
+      console.warn('Warning: Could not delete old diagnostics:', deleteError);
+      // Continue anyway
+    }
+
     // Create diagnostic record with running status
     const { data: diagnostic, error: createError } = await supabase
       .from('seo_diagnostics')
@@ -128,6 +140,27 @@ serve(async (req) => {
       .eq('shop_id', shopId);
 
     const blogPosts = blogPostsData || [];
+
+    // Solution 2: Check data freshness
+    const { data: lastSyncProduct } = await supabase
+      .from('products')
+      .select('updated_at')
+      .eq('shop_id', shopId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lastSyncDate = lastSyncProduct?.updated_at ? new Date(lastSyncProduct.updated_at) : null;
+    const now = new Date();
+    const hoursSinceSync = lastSyncDate 
+      ? (now.getTime() - new Date(lastSyncDate).getTime()) / (1000 * 60 * 60)
+      : 999;
+
+    console.log(`⏱️ Last product sync: ${hoursSinceSync.toFixed(1)} hours ago`);
+
+    if (hoursSinceSync > 24) {
+      console.warn('⚠️ Products data may be outdated (>24h). Consider re-syncing before diagnostic.');
+    }
 
     const issues: SEOIssue[] = []
     const totalProducts = products?.length || 0

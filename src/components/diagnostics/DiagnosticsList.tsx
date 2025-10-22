@@ -3,9 +3,21 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, Clock, Eye, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Eye, Play, RefreshCw, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { SEOContentService } from '@/utils/seoContent';
+import { WooCommerceService } from '@/utils/woocommerce';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Diagnostic {
   id: string;
@@ -26,9 +38,13 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [loading, setLoading] = useState(true);
   const [runningDiagnostic, setRunningDiagnostic] = useState(false);
+  const [hoursSinceSync, setHoursSinceSync] = useState<number | null>(null);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [syncingProducts, setSyncingProducts] = useState(false);
 
   useEffect(() => {
     loadDiagnostics();
+    loadSyncStatus();
   }, [shopId]);
 
   const loadDiagnostics = async () => {
@@ -49,6 +65,53 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
     }
   };
 
+  const loadSyncStatus = async () => {
+    try {
+      // Solution 4: Check when products were last synced
+      const { data: lastProduct } = await supabase
+        .from('products')
+        .select('updated_at')
+        .eq('shop_id', shopId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('shop_id', shopId);
+
+      setTotalProducts(count || 0);
+
+      if (lastProduct?.updated_at) {
+        const lastSyncDate = new Date(lastProduct.updated_at);
+        const now = new Date();
+        const hours = (now.getTime() - lastSyncDate.getTime()) / (1000 * 60 * 60);
+        setHoursSinceSync(Math.round(hours * 10) / 10);
+      }
+    } catch (error) {
+      console.error('Error loading sync status:', error);
+    }
+  };
+
+  const handleResyncProducts = async () => {
+    setSyncingProducts(true);
+    try {
+      toast.info('🔄 Synchronisation des produits en cours...');
+      const result = await WooCommerceService.syncProducts(shopId);
+      if (result.success) {
+        toast.success(`✅ ${result.count} produits synchronisés`);
+        loadSyncStatus();
+      } else {
+        toast.error(result.error || 'Erreur lors de la synchronisation');
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la synchronisation');
+    } finally {
+      setSyncingProducts(false);
+    }
+  };
+
   const runNewDiagnostic = async () => {
     setRunningDiagnostic(true);
     try {
@@ -61,6 +124,38 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
       }
     } catch (error) {
       toast.error('Erreur lors du diagnostic');
+    } finally {
+      setRunningDiagnostic(false);
+    }
+  };
+
+  // Solution 5: Full diagnostic with re-sync
+  const handleFullDiagnostic = async () => {
+    setRunningDiagnostic(true);
+    try {
+      // Step 1: Re-sync products
+      toast.info('🔄 Étape 1/2 : Synchronisation des produits...');
+      const syncResult = await WooCommerceService.syncProducts(shopId);
+      
+      if (!syncResult.success) {
+        throw new Error(syncResult.error || 'Échec de la synchronisation');
+      }
+
+      toast.success(`✅ ${syncResult.count} produits synchronisés`);
+      
+      // Step 2: Run diagnostic (which will delete old ones)
+      toast.info('🔍 Étape 2/2 : Analyse SEO en cours...');
+      const diagResult = await SEOContentService.runSEODiagnostic(shopId);
+      
+      if (diagResult.success) {
+        toast.success('✅ Diagnostic complet terminé !');
+        loadDiagnostics();
+        loadSyncStatus();
+      } else {
+        toast.error(diagResult.error || 'Erreur lors du diagnostic');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors du diagnostic complet');
     } finally {
       setRunningDiagnostic(false);
     }
@@ -115,16 +210,82 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Solution 4: Display sync status */}
+      {hoursSinceSync !== null && (
+        <div className={`border rounded-lg p-4 ${hoursSinceSync > 12 ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3">
+              <Info className={`w-5 h-5 mt-0.5 ${hoursSinceSync > 12 ? 'text-yellow-600' : 'text-blue-600'}`} />
+              <div>
+                <p className={`text-sm font-medium ${hoursSinceSync > 12 ? 'text-yellow-900' : 'text-blue-900'}`}>
+                  État de synchronisation
+                </p>
+                <p className={`text-xs mt-1 ${hoursSinceSync > 12 ? 'text-yellow-700' : 'text-blue-700'}`}>
+                  Dernière synchro : <strong>il y a {hoursSinceSync}h</strong>
+                  {hoursSinceSync > 12 && (
+                    <span className="ml-2">⚠️ Données potentiellement obsolètes</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleResyncProducts}
+              disabled={syncingProducts}
+            >
+              {syncingProducts ? (
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3 h-3 mr-1" />
+              )}
+              Re-synchroniser
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold text-foreground">Historique des diagnostics</h2>
-        <Button onClick={runNewDiagnostic} disabled={runningDiagnostic}>
-          {runningDiagnostic ? (
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4 mr-2" />
-          )}
-          {runningDiagnostic ? 'Diagnostic en cours...' : 'Nouveau diagnostic'}
-        </Button>
+        
+        {/* Solution 5: Full diagnostic dialog */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button disabled={runningDiagnostic}>
+              {runningDiagnostic ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              {runningDiagnostic ? 'Diagnostic en cours...' : 'Nouveau diagnostic'}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Lancer un nouveau diagnostic ?</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3">
+                <p>Cette action va :</p>
+                <ul className="list-disc ml-6 space-y-1 text-sm">
+                  <li>Supprimer l'historique des anciens diagnostics</li>
+                  <li>Re-synchroniser tous les produits depuis WooCommerce</li>
+                  <li>Analyser à nouveau tous les éléments (produits, collections, articles)</li>
+                  <li>Générer un nouveau score SEO</li>
+                </ul>
+                {totalProducts > 0 && (
+                  <p className="font-medium mt-3">
+                    ⏱️ Durée estimée : 2-5 minutes pour {totalProducts} produits
+                  </p>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={handleFullDiagnostic}>
+                Lancer le diagnostic complet
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {diagnostics.length === 0 ? (

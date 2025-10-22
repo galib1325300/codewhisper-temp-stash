@@ -53,6 +53,7 @@ serve(async (req) => {
                 .single()
 
               if (product?.images && Array.isArray(product.images)) {
+                const originalImages = product.images;
                 const updatedImages = product.images.map((img: any, index: number) => ({
                   ...img,
                   alt: img.alt || `${product.name} - Image ${index + 1}`
@@ -63,13 +64,18 @@ serve(async (req) => {
                   .update({ images: updatedImages })
                   .eq('id', item.id)
                 
-                // Sync to WooCommerce
+                // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {
                   const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
                     body: { shopId, productId: item.id }
                   });
-                  if (syncResult.error) {
-                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  if (syncResult.error || syncResult.data?.error) {
+                    console.error('❌ WooCommerce sync failed, rolling back DB changes');
+                    await supabase
+                      .from('products')
+                      .update({ images: originalImages })
+                      .eq('id', item.id);
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.data?.error || syncResult.error?.message}`);
                   }
                 }
               }
@@ -86,19 +92,25 @@ serve(async (req) => {
                 .single()
 
               if (product) {
+                const originalDescription = product.description;
                 const enhancedDescription = generateStructuredDescription(product)
                 updateResult = await supabase
                   .from('products')
                   .update({ description: enhancedDescription })
                   .eq('id', item.id)
                 
-                // Sync to WooCommerce
+                // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {
                   const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
                     body: { shopId, productId: item.id }
                   });
-                  if (syncResult.error) {
-                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  if (syncResult.error || syncResult.data?.error) {
+                    console.error('❌ WooCommerce sync failed, rolling back DB changes');
+                    await supabase
+                      .from('products')
+                      .update({ description: originalDescription })
+                      .eq('id', item.id);
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.data?.error || syncResult.error?.message}`);
                   }
                 }
               }
@@ -110,24 +122,30 @@ serve(async (req) => {
             if (item.type === 'product') {
               const { data: product } = await supabase
                 .from('products')
-                .select('name, description, categories, woocommerce_id')
+                .select('name, description, categories, short_description, woocommerce_id')
                 .eq('id', item.id)
                 .single()
 
               if (product) {
+                const originalShortDesc = product.short_description;
                 const metaDescription = generateMetaDescription(product)
                 updateResult = await supabase
                   .from('products')
                   .update({ short_description: metaDescription })
                   .eq('id', item.id)
                 
-                // Sync to WooCommerce
+                // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {
                   const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
                     body: { shopId, productId: item.id }
                   });
-                  if (syncResult.error) {
-                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  if (syncResult.error || syncResult.data?.error) {
+                    console.error('❌ WooCommerce sync failed, rolling back DB changes');
+                    await supabase
+                      .from('products')
+                      .update({ short_description: originalShortDesc })
+                      .eq('id', item.id);
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.data?.error || syncResult.error?.message}`);
                   }
                 }
               }
@@ -144,19 +162,25 @@ serve(async (req) => {
                 .single()
 
               if (product?.description) {
+                const originalDescription = product.description;
                 const structuredDescription = addStructureToDescription(product.description, product.name)
                 updateResult = await supabase
                   .from('products')
                   .update({ description: structuredDescription })
                   .eq('id', item.id)
                 
-                // Sync to WooCommerce
+                // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {
                   const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
                     body: { shopId, productId: item.id }
                   });
-                  if (syncResult.error) {
-                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  if (syncResult.error || syncResult.data?.error) {
+                    console.error('❌ WooCommerce sync failed, rolling back DB changes');
+                    await supabase
+                      .from('products')
+                      .update({ description: originalDescription })
+                      .eq('id', item.id);
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.data?.error || syncResult.error?.message}`);
                   }
                 }
               }
@@ -173,19 +197,25 @@ serve(async (req) => {
                 .single()
 
               if (product?.description) {
+                const originalDescription = product.description;
                 const enhancedDescription = addInternalLinks(product.description, product.name, product.categories)
                 updateResult = await supabase
                   .from('products')
                   .update({ description: enhancedDescription })
                   .eq('id', item.id)
                 
-                // Sync to WooCommerce
+                // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {
                   const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
                     body: { shopId, productId: item.id }
                   });
-                  if (syncResult.error) {
-                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  if (syncResult.error || syncResult.data?.error) {
+                    console.error('❌ WooCommerce sync failed, rolling back DB changes');
+                    await supabase
+                      .from('products')
+                      .update({ description: originalDescription })
+                      .eq('id', item.id);
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.data?.error || syncResult.error?.message}`);
                   }
                 }
               }
@@ -212,6 +242,7 @@ serve(async (req) => {
               });
 
               if (product?.description) {
+                const originalDescription = product.description;
                 const boldDescription = addBoldKeywords(product.description, product.name, product.categories)
                 console.log('Enhanced description length:', boldDescription.length);
                 
@@ -222,15 +253,23 @@ serve(async (req) => {
                 
                 console.log('DB Update result:', { error: updateResult.error?.message, success: !updateResult.error });
                 
-                // Sync to WooCommerce
+                // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {
                   console.log('Syncing to WooCommerce for product:', item.id);
                   const syncResult = await supabase.functions.invoke('update-woocommerce-product', {
                     body: { shopId, productId: item.id }
                   });
-                  console.log('WooCommerce sync result:', { error: syncResult.error?.message, success: !syncResult.error });
-                  if (syncResult.error) {
-                    throw new Error(`Sync WooCommerce failed: ${syncResult.error.message}`);
+                  console.log('WooCommerce sync result:', { 
+                    error: syncResult.error?.message || syncResult.data?.error, 
+                    success: !syncResult.error && !syncResult.data?.error 
+                  });
+                  if (syncResult.error || syncResult.data?.error) {
+                    console.error('❌ WooCommerce sync failed, rolling back DB changes');
+                    await supabase
+                      .from('products')
+                      .update({ description: originalDescription })
+                      .eq('id', item.id);
+                    throw new Error(`Sync WooCommerce failed: ${syncResult.data?.error || syncResult.error?.message}`);
                   }
                 } else if (!product.woocommerce_id) {
                   console.log('No woocommerce_id found for product:', item.id);
