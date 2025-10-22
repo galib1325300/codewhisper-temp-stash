@@ -192,6 +192,78 @@ export type Database = {
           },
         ]
       }
+      generation_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          current_item: string | null
+          diagnostic_id: string | null
+          error_message: string | null
+          failed_count: number | null
+          id: string
+          processed_items: number | null
+          progress: number | null
+          shop_id: string
+          started_at: string | null
+          status: string
+          success_count: number | null
+          total_items: number
+          type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_item?: string | null
+          diagnostic_id?: string | null
+          error_message?: string | null
+          failed_count?: number | null
+          id?: string
+          processed_items?: number | null
+          progress?: number | null
+          shop_id: string
+          started_at?: string | null
+          status?: string
+          success_count?: number | null
+          total_items: number
+          type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_item?: string | null
+          diagnostic_id?: string | null
+          error_message?: string | null
+          failed_count?: number | null
+          id?: string
+          processed_items?: number | null
+          progress?: number | null
+          shop_id?: string
+          started_at?: string | null
+          status?: string
+          success_count?: number | null
+          total_items?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "seo_diagnostics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generation_jobs_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_generation_jobs: {
         Row: {
           action: string

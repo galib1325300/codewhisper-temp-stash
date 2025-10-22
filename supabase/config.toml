@@ -1,5 +1,11 @@
 project_id = "anvjrqgajwvqsceobhtk"
 
+[functions.queue-seo-resolution]
+verify_jwt = false
+
+[functions.process-seo-resolution]
+verify_jwt = false
+
 [functions.sync-woocommerce-products]
 verify_jwt = false
 

@@ -115,25 +115,14 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
     setProgress(0);
     setProcessedCount(0);
     setCurrentItem('');
-    let successCount = 0;
-
+    
     try {
-      // Filter affected items to only process selected ones
       const selectedAffectedItems = issue.affected_items.filter(item => 
         itemIds.includes(item.id)
       );
 
-      // Simulate progress with an interval
-      let estimatedProgress = 0;
-      const progressInterval = setInterval(() => {
-        estimatedProgress += 1;
-        if (estimatedProgress < 95) {
-          setProgress(estimatedProgress);
-        }
-      }, 500); // Increase by 1% every 500ms
-
-      // Call the resolve-seo-issues function
-      const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
+      // 1. Create job (immediate return)
+      const { data: queueResult, error: queueError } = await supabase.functions.invoke('queue-seo-resolution', {
         body: {
           shopId,
           diagnosticId,
@@ -146,60 +135,63 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         }
       });
 
-      clearInterval(progressInterval);
-
-      if (error) {
-        throw new Error(error.message);
+      if (queueError || !queueResult?.success) {
+        throw new Error(queueError?.message || 'Failed to queue job');
       }
 
-      if (data?.success) {
-        setProgress(100);
-        successCount = data.results.success;
-        setProcessedCount(successCount);
-        
-        // Track which items were successfully resolved
-        const successfullyResolvedIds = data.results.details
-          .filter((detail: any) => detail.success)
-          .map((detail: any) => detail.id);
-        
-        setResolvedItems(prev => [...prev, ...successfullyResolvedIds]);
-        
-        // Only mark the entire issue as resolved if ALL items have been processed
-        const remainingItems = issue.affected_items?.filter(item => 
-          !resolvedItems.includes(item.id) && !successfullyResolvedIds.includes(item.id)
-        ) || [];
-        
-        if (remainingItems.length === 0) {
-          setResolved(true);
+      const jobId = queueResult.jobId;
+      console.log('Job queued with ID:', jobId);
+
+      // 2. Poll for progress every 3 seconds
+      const pollInterval = setInterval(async () => {
+        const { data: job, error: jobError } = await supabase
+          .from('generation_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single();
+
+        if (jobError || !job) {
+          console.error('Error fetching job status:', jobError);
+          return;
         }
-        
-        // Always trigger a reload of the diagnostic to get updated data
-        onIssueResolved?.();
-        
-        toast.success(
-          `✅ ${data.results.success} éléments traités avec succès sur ${selectedAffectedItems.length}`,
-          { duration: 5000 }
-        );
-        
-        if (data.results.failed > 0) {
-          toast.warning(
-            `⚠️ ${data.results.failed} éléments en erreur`,
+
+        console.log('Job status:', job.status, `${job.progress}%`);
+
+        setProgress(job.progress);
+        setProcessedCount(job.processed_items);
+        setCurrentItem(job.current_item || '');
+
+        // Job completed
+        if (job.status === 'completed') {
+          clearInterval(pollInterval);
+          setProgress(100);
+          
+          toast.success(
+            `✅ ${job.success_count} éléments traités avec succès sur ${job.total_items}`,
             { duration: 5000 }
           );
+
+          if (job.failed_count > 0) {
+            toast.warning(`⚠️ ${job.failed_count} éléments en erreur`, { duration: 5000 });
+          }
+
+          onIssueResolved?.();
+          setResolving(false);
+          setSelectedItems([]);
         }
-        
-        setSelectedItems([]); // Reset selection
-      } else {
-        toast.error(data?.error || 'Erreur lors de la résolution automatique');
-      }
+
+        // Job failed
+        if (job.status === 'failed') {
+          clearInterval(pollInterval);
+          toast.error(`Erreur: ${job.error_message}`);
+          setResolving(false);
+        }
+      }, 3000); // Poll every 3 seconds
+
     } catch (error) {
       console.error('Error in auto-resolve:', error);
-      toast.error('Erreur lors de la résolution automatique');
-    } finally {
+      toast.error('Erreur lors du lancement du traitement');
       setResolving(false);
-      setProgress(0);
-      setProcessedCount(0);
-      setCurrentItem('');
     }
   };
 
