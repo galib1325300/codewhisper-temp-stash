@@ -89,73 +89,16 @@ serve(async (req) => {
         issues.push({
           type: 'error',
           category: 'Images',
-          title: `${productsWithMissingAltTexts.length} produits avec textes alternatifs d'images manquants`,
-          description: 'Les images sans texte alternatif nuisent à l\'accessibilité et au SEO',
+          title: 'Textes alternatifs d\'images manquants',
+          description: `Ajoutez des textes alternatifs descriptifs à toutes les images.`,
           recommendation: 'Ajoutez des textes alternatifs descriptifs pour toutes les images de produits',
-          affected_items: productsWithMissingAltTexts.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          affected_items: productsWithMissingAltTexts.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
         })
       }
 
-      // 2. Short descriptions (descriptions courtes manquantes)
-      const productsWithShortDescriptions = products.filter(product => 
-        !product.description || product.description.length < 150
-      )
-
-      if (productsWithShortDescriptions.length > 0) {
-        issues.push({
-          type: 'warning',
-          category: 'Contenu',
-          title: `${productsWithShortDescriptions.length} produits avec descriptions insuffisantes`,
-          description: 'Des descriptions trop courtes limitent le potentiel SEO',
-          recommendation: 'Rédigez des descriptions détaillées d\'au moins 150 caractères',
-          affected_items: productsWithShortDescriptions.map(p => ({ id: p.id, name: p.name, type: 'product' })),
-          resource_type: 'product',
-          action_available: true
-        })
-      }
-
-      // 3. Missing structured content (listes à puces manquantes)
-      const productsWithoutStructuredContent = products.filter(product => {
-        const description = product.description || ''
-        const hasLists = description.includes('•') || description.includes('<ul>') || description.includes('<li>') || description.includes('-')
-        const hasHeadings = description.includes('**') || description.includes('<h2>') || description.includes('<h3>')
-        return description.length > 200 && !hasLists && !hasHeadings
-      })
-
-      if (productsWithoutStructuredContent.length > 0) {
-        issues.push({
-          type: 'warning',
-          category: 'Structure',
-          title: `${productsWithoutStructuredContent.length} produits sans structure de contenu`,
-          description: 'Les descriptions sans listes ou titres sont moins lisibles et moins SEO-friendly',
-          recommendation: 'Ajoutez des listes à puces, des titres et une structure claire à vos descriptions',
-          affected_items: productsWithoutStructuredContent.map(p => ({ id: p.id, name: p.name, type: 'product' })),
-          resource_type: 'product',
-          action_available: true
-        })
-      }
-
-      // 4. Missing SEO meta descriptions
-      const productsWithoutMetaDescription = products.filter(product => 
-        !product.short_description || product.short_description.length < 120 || product.short_description.length > 160
-      )
-
-      if (productsWithoutMetaDescription.length > 0) {
-        issues.push({
-          type: 'error',
-          category: 'SEO',
-          title: `${productsWithoutMetaDescription.length} produits avec méta-descriptions manquantes ou inadéquates`,
-          description: 'Les méta-descriptions doivent faire entre 120-160 caractères pour un SEO optimal',
-          recommendation: 'Rédigez des méta-descriptions attractives entre 120-160 caractères',
-          affected_items: productsWithoutMetaDescription.map(p => ({ id: p.id, name: p.name, type: 'product' })),
-          resource_type: 'product',
-          action_available: true
-        })
-      }
-
-      // 5. Products without AI-generated content (pages non générées)
+      // 2. Products without AI-generated content (Non générés)
       const productsWithoutGeneratedContent = products.filter(product => {
         const description = product.description || ''
         const isGenericOrShort = description.length < 100 || 
@@ -166,18 +109,18 @@ serve(async (req) => {
 
       if (productsWithoutGeneratedContent.length > 0) {
         issues.push({
-          type: 'warning',
-          category: 'Génération IA',
-          title: `${productsWithoutGeneratedContent.length} produits sans contenu généré par IA`,
-          description: 'Ces produits n\'ont pas de description optimisée générée automatiquement',
+          type: 'error',
+          category: 'Génération',
+          title: 'Non générés',
+          description: `Ces pages n'ont pas été générées par l'outil.`,
           recommendation: 'Utilisez la génération automatique de contenu pour créer des descriptions riches',
-          affected_items: productsWithoutGeneratedContent.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          affected_items: productsWithoutGeneratedContent.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
         })
       }
 
-      // 6. Missing internal links (liens internes manquants)
+      // 3. Missing internal links (Liens internes manquants)
       const productsWithoutInternalLinks = products.filter(product => {
         const description = product.description || ''
         const hasInternalLinks = description.includes('href=') || description.includes('[') || description.includes('voir aussi') || description.includes('découvrir')
@@ -186,12 +129,155 @@ serve(async (req) => {
 
       if (productsWithoutInternalLinks.length > 0) {
         issues.push({
-          type: 'info',
+          type: 'error',
           category: 'Maillage interne',
-          title: `${productsWithoutInternalLinks.length} produits sans liens internes`,
-          description: 'Le maillage interne améliore le SEO et l\'expérience utilisateur',
+          title: 'Liens internes manquants',
+          description: `Ajoutez des liens vers d'autres pages pertinentes du site.`,
           recommendation: 'Ajoutez des liens vers d\'autres produits ou catégories pertinents',
-          affected_items: productsWithoutInternalLinks.map(p => ({ id: p.id, name: p.name, type: 'product' })),
+          affected_items: productsWithoutInternalLinks.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 4. Missing bold keywords (Mots-clés en gras manquants)
+      const productsWithoutBoldKeywords = products.filter(product => {
+        const description = product.description || ''
+        const hasBold = description.includes('<strong>') || description.includes('<b>') || description.includes('**')
+        return description.length > 200 && !hasBold
+      })
+
+      if (productsWithoutBoldKeywords.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Mise en forme',
+          title: 'Mots-clés en gras manquants',
+          description: `Mettez en gras les mots-clés importants pour améliorer la lisibilité.`,
+          recommendation: 'Mettez en gras les mots-clés importants pour améliorer la lisibilité',
+          affected_items: productsWithoutBoldKeywords.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 5. Misleading links (Liens trompeurs)
+      const productsWithMisleadingLinks = products.filter(product => {
+        const description = product.description || ''
+        const hasGenericLinks = description.includes('cliquez ici') || description.includes('ici') || description.includes('en savoir plus') || description.match(/<a[^>]*>voir<\/a>/i)
+        return hasGenericLinks
+      })
+
+      if (productsWithMisleadingLinks.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'Liens',
+          title: 'Liens trompeurs',
+          description: `Le texte des liens doit clairement indiquer la destination.`,
+          recommendation: 'Utilisez des ancres descriptives au lieu de "cliquez ici" ou "en savoir plus"',
+          affected_items: productsWithMisleadingLinks.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 6. Missing bullet lists (Liste à puces manquante)
+      const productsWithoutBulletLists = products.filter(product => {
+        const description = product.description || ''
+        const hasLists = description.includes('•') || description.includes('<ul>') || description.includes('<li>')
+        return description.length > 200 && !hasLists
+      })
+
+      if (productsWithoutBulletLists.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Structure',
+          title: 'Liste à puces manquante',
+          description: `Utilisez des listes à puces pour améliorer la lisibilité des énumérations.`,
+          recommendation: 'Ajoutez des listes à puces pour structurer le contenu et améliorer la lisibilité',
+          affected_items: productsWithoutBulletLists.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 7. Incorrect slug (Slug incorrect)
+      const productsWithIncorrectSlug = products.filter(product => {
+        const slug = product.slug || ''
+        const name = product.name || ''
+        // Check if slug is too long, contains numbers only, or doesn't match the product name
+        const isTooLong = slug.length > 60
+        const hasNoKeywords = !slug.match(/[a-z]{3,}/gi)
+        const nameWords = name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ')
+        const slugWords = slug.toLowerCase().split('-')
+        const hasMatchingWords = nameWords.some(word => word.length > 3 && slugWords.includes(word))
+        
+        return isTooLong || hasNoKeywords || !hasMatchingWords
+      })
+
+      if (productsWithIncorrectSlug.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'URL',
+          title: 'Slug incorrect',
+          description: `Le slug doit être cohérent avec le titre et contenir des mots-clés pertinents.`,
+          recommendation: 'Créez des slugs courts, descriptifs et contenant les mots-clés principaux',
+          affected_items: productsWithIncorrectSlug.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 8. Missing H2 titles (Titre(s) H2 manquant(s))
+      const productsWithoutH2 = products.filter(product => {
+        const description = product.description || ''
+        const hasH2 = description.includes('<h2>') || description.includes('## ')
+        return description.length > 300 && !hasH2
+      })
+
+      if (productsWithoutH2.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Structure',
+          title: 'Titre(s) H2 manquant(s)',
+          description: `Structurez votre contenu avec au moins 3 sous-titres H2.`,
+          recommendation: 'Ajoutez des sous-titres H2 pour structurer le contenu des descriptions longues',
+          affected_items: productsWithoutH2.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 9. Missing focus keyword (Mot-clé focus manquant)
+      const productsWithoutFocusKeyword = products.filter(product => 
+        !product.focus_keyword || product.focus_keyword.trim() === ''
+      )
+
+      if (productsWithoutFocusKeyword.length > 0) {
+        issues.push({
+          type: 'warning',
+          category: 'SEO',
+          title: 'Mot-clé focus manquant',
+          description: `Définissez un mot-clé principal pour chaque produit.`,
+          recommendation: 'Identifiez et définissez un mot-clé focus pour chaque produit',
+          affected_items: productsWithoutFocusKeyword.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
+          resource_type: 'product',
+          action_available: true
+        })
+      }
+
+      // 10. Short meta descriptions
+      const productsWithShortMetaDescription = products.filter(product => 
+        !product.meta_description || product.meta_description.length < 120 || product.meta_description.length > 160
+      )
+
+      if (productsWithShortMetaDescription.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'SEO',
+          title: 'Méta-description inadéquate',
+          description: `Les méta-descriptions doivent faire entre 120-160 caractères.`,
+          recommendation: 'Rédigez des méta-descriptions attractives entre 120-160 caractères',
+          affected_items: productsWithShortMetaDescription.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
         })
@@ -239,24 +325,125 @@ serve(async (req) => {
 
     // Collections analysis
     if (collections && collections.length > 0) {
-      // Collections without descriptions
+      // 1. Incorrect H2 titles (H2 incorrect)
+      const collectionsWithIncorrectH2 = collections.filter(collection => {
+        const description = collection.description || ''
+        const hasH2 = description.includes('<h2>') || description.includes('## ')
+        const h2Count = (description.match(/<h2>/g) || []).length + (description.match(/## /g) || []).length
+        return description.length > 200 && (!hasH2 || h2Count < 2)
+      })
+
+      if (collectionsWithIncorrectH2.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Structure',
+          title: 'H2 incorrect',
+          description: `Les H2 doivent être pertinents et refléter la structure du contenu.`,
+          recommendation: 'Ajoutez au moins 2 sous-titres H2 pertinents dans la description',
+          affected_items: collectionsWithIncorrectH2.map(c => ({ id: c.id, name: c.name, type: 'collection', slug: c.slug })),
+          resource_type: 'collection',
+          action_available: true
+        })
+      }
+
+      // 2. Missing products (Produits manquants - moins de 15 produits)
+      const collectionsWithFewProducts = await Promise.all(
+        collections.map(async (collection) => {
+          const { count } = await supabase
+            .from('products')
+            .select('id', { count: 'exact', head: true })
+            .eq('shop_id', shopId)
+            .contains('categories', [{ id: collection.external_id }])
+          
+          return { collection, productCount: count || 0 }
+        })
+      )
+
+      const collectionsNeedingMoreProducts = collectionsWithFewProducts.filter(
+        ({ productCount }) => productCount < 15
+      )
+
+      if (collectionsNeedingMoreProducts.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Contenu',
+          title: 'Produits manquants',
+          description: `Ajoutez au moins 15 produits pertinents à la collection.`,
+          recommendation: 'Complétez vos collections avec au moins 15 produits pertinents',
+          affected_items: collectionsNeedingMoreProducts.map(({ collection, productCount }) => ({ 
+            id: collection.id, 
+            name: `${collection.name} (${productCount} produits)`, 
+            type: 'collection',
+            slug: collection.slug 
+          })),
+          resource_type: 'collection',
+          action_available: false
+        })
+      }
+
+      // 3. Missing internal links (Liens internes manquants)
+      const collectionsWithoutInternalLinks = collections.filter(collection => {
+        const description = collection.description || ''
+        const hasInternalLinks = description.includes('href=') || description.includes('[')
+        return description.length > 200 && !hasInternalLinks
+      })
+
+      if (collectionsWithoutInternalLinks.length > 0) {
+        issues.push({
+          type: 'error',
+          category: 'Maillage interne',
+          title: 'Liens internes manquants',
+          description: `Ajoutez des liens vers d'autres pages pertinentes du site.`,
+          recommendation: 'Ajoutez des liens vers d\'autres collections ou catégories pertinentes',
+          affected_items: collectionsWithoutInternalLinks.map(c => ({ id: c.id, name: c.name, type: 'collection', slug: c.slug })),
+          resource_type: 'collection',
+          action_available: true
+        })
+      }
+
+      // 4. Missing descriptions
       const collectionsWithoutDescription = collections.filter(collection => 
-        !collection.description || collection.description.length < 100
+        !collection.description || collection.description.length < 150
       )
 
       if (collectionsWithoutDescription.length > 0) {
         issues.push({
           type: 'warning',
           category: 'Contenu',
-          title: `${collectionsWithoutDescription.length} collections sans description détaillée`,
-          description: 'Les descriptions de collections améliorent leur référencement',
+          title: 'Description manquante ou trop courte',
+          description: `Les descriptions de collections améliorent leur référencement.`,
           recommendation: 'Rédigez des descriptions détaillées pour toutes vos collections',
-          affected_items: collectionsWithoutDescription.map(c => ({ id: c.id, name: c.name, type: 'collection' })),
+          affected_items: collectionsWithoutDescription.map(c => ({ id: c.id, name: c.name, type: 'collection', slug: c.slug })),
           resource_type: 'collection',
           action_available: true
         })
       }
     }
+
+    // Home page checks (Page d'accueil)
+    // Note: This requires scraping the home page to check title and H1
+    if (shop.url) {
+      issues.push({
+        type: 'info',
+        category: 'Page d\'accueil',
+        title: 'Titre à vérifier',
+        description: `Assurez-vous que le titre correspond au contenu de la page et contient les mots-clés pertinents.`,
+        recommendation: 'Vérifiez que le titre de la page d\'accueil contient vos mots-clés principaux',
+        resource_type: 'general',
+        action_available: false
+      })
+    }
+
+    // Product page template check (Page produit - template)
+    issues.push({
+      type: 'info',
+      category: 'Template produit',
+      title: 'H1 à vérifier',
+      description: `Le H1 doit correspondre au titre de la page et contenir les mots-clés principaux.`,
+      recommendation: 'Vérifiez que le template de page produit utilise un H1 correct',
+      resource_type: 'general',
+      action_available: false
+    })
 
     // Configuration checks
     if (!shop.consumer_key || !shop.consumer_secret) {
@@ -293,14 +480,18 @@ serve(async (req) => {
     }
 
     const recommendations = [
-      'Priorisez la correction des erreurs (textes alternatifs, méta-descriptions) avant les avertissements',
-      'Commencez par optimiser vos produits les plus populaires et visités',
-      'Ajoutez des textes alternatifs descriptifs à toutes vos images de produits',
-      'Structurez vos descriptions avec des listes à puces et des sous-titres',
-      'Créez un maillage interne entre vos produits et catégories',
-      'Utilisez la génération automatique pour enrichir le contenu de vos produits',
-      'Optimisez la longueur de vos méta-descriptions (120-160 caractères)',
-      'Ajoutez des images mises en avant pour tous vos articles de blog'
+      'Priorisez la correction des erreurs critiques avant les avertissements',
+      'Ajoutez des textes alternatifs descriptifs à toutes vos images',
+      'Générez du contenu optimisé SEO pour tous vos produits',
+      'Créez un maillage interne entre vos pages avec des liens pertinents',
+      'Mettez en gras les mots-clés importants dans vos descriptions',
+      'Utilisez des ancres descriptives pour tous vos liens',
+      'Structurez vos descriptions avec des listes à puces et sous-titres H2',
+      'Optimisez vos slugs pour qu\'ils soient courts et contiennent des mots-clés',
+      'Définissez un mot-clé focus pour chaque produit',
+      'Rédigez des méta-descriptions attractives entre 120-160 caractères',
+      'Ajoutez au moins 15 produits pertinents dans chaque collection',
+      'Vérifiez que vos H1 et titres de page sont optimisés'
     ]
 
     // Update diagnostic record
