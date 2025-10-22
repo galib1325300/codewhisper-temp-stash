@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
       throw new Error(`Shop not found: ${shopError?.message}`);
     }
 
+    const userId = shop.user_id;
+
     const results = { success: [], failed: [], skipped: [] };
     const batches = chunkArray(affectedItems, 10);
 
@@ -64,20 +66,21 @@ Deno.serve(async (req) => {
             // Call generate-alt-texts for this item
             const { data: altResult, error: altError } = await supabase.functions.invoke('generate-alt-texts', {
               body: {
-                shopId,
                 productId: item.id,
-                generateFor: 'all'
+                userId: userId
               }
             });
 
             if (altError) {
-              throw new Error(`Alt text generation failed: ${altError.message}`);
-            }
-
-            if (altResult?.success) {
+              const errorMsg = `Alt text generation failed: ${altError.message}`;
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`Failed to process ${item.name}:`, errorMsg);
+            } else if (altResult?.success) {
               results.success.push({ id: item.id, name: item.name });
             } else {
-              throw new Error(altResult?.error || 'Unknown error');
+              const errorMsg = altResult?.error || 'Unknown error';
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`Failed to process ${item.name}:`, errorMsg);
             }
           } else {
             // For other issue types, skip for now
