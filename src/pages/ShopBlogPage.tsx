@@ -7,12 +7,14 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { FileText, Plus, Edit, Trash2, Calendar, Search } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function ShopBlogPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [blogPosts, setBlogPosts] = useState<any[]>([]);
@@ -23,6 +25,7 @@ export default function ShopBlogPage() {
     keywords: ''
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [wpCredentialsConfigured, setWpCredentialsConfigured] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -31,6 +34,10 @@ export default function ShopBlogPage() {
       try {
         const shopData = await getShopById(id);
         setShop(shopData);
+        
+        // Vérifier si credentials WordPress configurés
+        const hasWpCredentials = !!(shopData?.wpUsername && shopData?.wpPassword);
+        setWpCredentialsConfigured(hasWpCredentials);
         
         if (shopData) {
           loadBlogPosts();
@@ -128,6 +135,35 @@ export default function ShopBlogPage() {
         <main className="flex-1 p-8">
           <div className="max-w-7xl mx-auto">
             <ShopNavigation shopName={shop.name} />
+            
+            {!wpCredentialsConfigured && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-amber-900 mb-2">
+                      Configuration WordPress requise pour accéder au blog
+                    </h3>
+                    <p className="text-sm text-amber-800 mb-3">
+                      Pour gérer les articles de blog WordPress, vous devez configurer un 
+                      <strong> mot de passe d'application WordPress</strong> dans les paramètres de la boutique.
+                    </p>
+                    <p className="text-sm text-amber-800 mb-3">
+                      Les credentials WooCommerce (Consumer Key/Secret) ne suffisent pas pour accéder 
+                      à l'API WordPress Posts (<code>wp/v2/posts</code>).
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => navigate(`/admin/shops/${id}/settings`)}
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Aller aux paramètres
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="bg-white rounded-lg shadow-sm">
               <div className="p-6 border-b border-gray-200">

@@ -31,6 +31,25 @@ serve(async (req) => {
     const { shopId, diagnosticId, issueType, affectedItems }: ResolutionRequest = await req.json()
     console.log('Resolving SEO issues:', { shopId, diagnosticId, issueType, affectedItems: affectedItems.length })
 
+    // Phase 6: Get shop credentials and check WordPress configuration
+    const { data: shop, error: shopError } = await supabase
+      .from('shops')
+      .select('id, name, url, consumer_key, consumer_secret, wp_username, wp_password')
+      .eq('id', shopId)
+      .single();
+
+    if (shopError || !shop) {
+      throw new Error('Shop not found');
+    }
+
+    // Vérifier credentials WordPress
+    const hasWordPressCredentials = !!(shop.wp_username && shop.wp_password);
+    console.log('WordPress credentials configured:', hasWordPressCredentials);
+
+    if (!hasWordPressCredentials) {
+      console.warn('⚠️ WordPress Application Password not configured. ALT text updates will only affect the database, not the live site.');
+    }
+
     const results = {
       success: 0,
       failed: 0,
@@ -63,6 +82,32 @@ serve(async (req) => {
                   .from('products')
                   .update({ images: updatedImages })
                   .eq('id', item.id)
+                
+                // Phase 5: Update WordPress media ALT if credentials configured
+                if (!updateResult.error && hasWordPressCredentials) {
+                  for (const image of updatedImages) {
+                    if (image.wordpress_media_id) {
+                      console.log(`Updating WordPress media ALT for image ${image.wordpress_media_id}`);
+                      try {
+                        const { error: wpError } = await supabase.functions.invoke('update-wordpress-media-alt', {
+                          body: { 
+                            shopId, 
+                            mediaId: image.wordpress_media_id, 
+                            altText: image.alt 
+                          }
+                        });
+                        
+                        if (wpError) {
+                          console.warn(`Could not update WordPress ALT for media ${image.wordpress_media_id}:`, wpError);
+                          // Continue anyway, we've updated the DB
+                        }
+                      } catch (wpErr) {
+                        console.warn(`Exception updating WordPress ALT:`, wpErr);
+                        // Continue anyway
+                      }
+                    }
+                  }
+                }
                 
                 // Solution 3: Sync to WooCommerce with rollback
                 if (!updateResult.error && product.woocommerce_id) {

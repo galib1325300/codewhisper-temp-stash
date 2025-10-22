@@ -6,7 +6,7 @@ import ShopNavigation from '../components/ShopNavigation';
 import DiagnosticsList from '../components/diagnostics/DiagnosticsList';
 import { getShopById } from '../utils/shops';
 import { Shop } from '../utils/types';
-import { Settings, Database } from 'lucide-react';
+import { Settings, Database, Info } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ export default function ShopDiagnosticsPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [wpCredentialsConfigured, setWpCredentialsConfigured] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -25,6 +26,10 @@ export default function ShopDiagnosticsPage() {
       try {
         const shopData = await getShopById(id);
         setShop(shopData);
+        
+        // Vérifier credentials WordPress
+        const hasWpCredentials = !!(shopData?.wpUsername && shopData?.wpPassword);
+        setWpCredentialsConfigured(hasWpCredentials);
       } catch (error) {
         console.error('Error loading shop:', error);
       } finally {
@@ -128,6 +133,44 @@ export default function ShopDiagnosticsPage() {
               </div>
 
               <div className="p-6">
+                {!wpCredentialsConfigured && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-blue-900 mb-2">
+                          Fonctionnalités limitées - Configuration WordPress recommandée
+                        </h3>
+                        <p className="text-sm text-blue-800 mb-2">
+                          Certaines vérifications SEO nécessitent un accès complet à l'API WordPress :
+                        </p>
+                        <ul className="list-disc ml-6 text-sm text-blue-800 space-y-1 mb-3">
+                          <li>
+                            <strong>Modification des textes alternatifs (ALT) des images</strong> 
+                            - actuellement, seule la base de données est mise à jour
+                          </li>
+                          <li>
+                            <strong>Analyse des articles de blog WordPress</strong> 
+                            - non accessible avec les seuls credentials WooCommerce
+                          </li>
+                        </ul>
+                        <p className="text-sm text-blue-800 mb-3">
+                          Pour activer la synchronisation complète (DB + site), configurez un 
+                          <strong> mot de passe d'application WordPress</strong> dans les paramètres.
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => navigate(`/admin/shops/${id}/settings`)}
+                        >
+                          <Settings className="w-4 h-4 mr-2" />
+                          Configurer WordPress
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {!isShopConnected() ? (
                   <div className="text-center py-12">
                     <div className="text-amber-500 mb-4">

@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import { getShopById, updateShop } from '../utils/shops';
 import { WooCommerceService } from '../utils/woocommerce';
 import { Shop } from '../utils/types';
-import { Trash2, Settings } from 'lucide-react';
+import { Trash2, Settings, Info, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -393,6 +393,122 @@ export default function ShopSettingsPage() {
                             {testing ? 'Test en cours...' : 'Tester la connexion Analytics'}
                           </Button>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
+                    <Settings className="w-5 h-5 mr-2" />
+                    Connexion WordPress (Avancé)
+                  </h3>
+                  
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2">
+                      🔐 Pourquoi configurer un mot de passe d'application WordPress ?
+                    </h4>
+                    <div className="text-sm text-blue-800 space-y-2">
+                      <p>
+                        Les <strong>credentials WooCommerce</strong> (Consumer Key/Secret ci-dessus) permettent 
+                        de gérer les produits et commandes, mais <strong>ne donnent pas accès</strong> à :
+                      </p>
+                      <ul className="list-disc ml-6 space-y-1">
+                        <li><strong>Textes alternatifs (ALT) des images</strong> - nécessite l'API WordPress Media</li>
+                        <li><strong>Articles de blog</strong> - nécessite l'API WordPress Posts</li>
+                        <li><strong>Modifications avancées du contenu</strong> (hors produits WooCommerce)</li>
+                      </ul>
+                      <p className="mt-3">
+                        Pour activer ces fonctionnalités, vous devez générer un <strong>mot de passe d'application</strong> 
+                        depuis votre tableau de bord WordPress.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="wpUsername" className="block text-sm font-medium text-gray-700 mb-2">
+                        Nom d'utilisateur WordPress
+                      </label>
+                      <input
+                        type="text"
+                        id="wpUsername"
+                        name="wpUsername"
+                        value={formData.wpUsername}
+                        onChange={handleInputChange}
+                        placeholder="admin"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Votre nom d'utilisateur WordPress (généralement "admin" ou votre email)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="wpPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                        Mot de passe d'application WordPress
+                      </label>
+                      <input
+                        type="password"
+                        id="wpPassword"
+                        name="wpPassword"
+                        value={formData.wpPassword}
+                        onChange={handleInputChange}
+                        placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Format attendu : <code className="bg-gray-100 px-1 rounded">xxxx xxxx xxxx xxxx xxxx xxxx</code> 
+                        (24 caractères en 6 groupes de 4)
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <h4 className="font-medium text-amber-900 mb-2 flex items-center">
+                        <Info className="w-4 h-4 mr-2" />
+                        Comment générer un mot de passe d'application ?
+                      </h4>
+                      <ol className="list-decimal ml-6 text-sm text-amber-800 space-y-2">
+                        <li>
+                          Connectez-vous à votre tableau de bord WordPress : 
+                          <code className="bg-white px-2 py-1 rounded ml-2">{formData.url}/wp-admin</code>
+                        </li>
+                        <li>
+                          Allez dans <strong>Utilisateurs → Profil</strong>
+                        </li>
+                        <li>
+                          Descendez jusqu'à la section <strong>"Mots de passe d'application"</strong>
+                        </li>
+                        <li>
+                          Entrez un nom (ex: "SEO App") et cliquez sur <strong>"Ajouter"</strong>
+                        </li>
+                        <li>
+                          Copiez le mot de passe généré (format: <code>xxxx xxxx xxxx...</code>) 
+                          et collez-le ci-dessus
+                        </li>
+                      </ol>
+                      <p className="mt-3 text-sm text-amber-700">
+                        ⚠️ <strong>Important</strong> : Ce mot de passe ne s'affiche qu'une seule fois. 
+                        Conservez-le en lieu sûr !
+                      </p>
+                    </div>
+
+                    {formData.wpUsername && formData.wpPassword && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800 flex items-center">
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          ✅ Credentials WordPress configurés - fonctionnalités avancées activées 
+                          (ALT images, blog, etc.)
+                        </p>
+                      </div>
+                    )}
+
+                    {(!formData.wpUsername || !formData.wpPassword) && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800 flex items-center">
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                          ⚠️ Credentials WordPress non configurés - fonctionnalités limitées aux produits WooCommerce
+                        </p>
                       </div>
                     )}
                   </div>
