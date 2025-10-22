@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, AlertTriangle, AlertCircle, Info, Settings } from 'lucide-react';
 import LoadingState from '@/components/ui/loading-state';
 import IssueActions from './IssueActions';
@@ -41,7 +41,8 @@ export default function DiagnosticDetail() {
   const [diagnostic, setDiagnostic] = useState<DiagnosticData | null>(null);
   const [shop, setShop] = useState<{ url: string; type: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [resourceFilter, setResourceFilter] = useState<string>('all');
 
   useEffect(() => {
     if (diagnosticId && shopId) {
@@ -166,11 +167,27 @@ export default function DiagnosticDetail() {
   };
 
   const filterIssues = (issues: any[]) => {
-    if (activeFilter === 'all') return issues;
-    if (activeFilter === 'errors') return issues.filter((i: any) => i.type === 'error');
-    if (activeFilter === 'warnings') return issues.filter((i: any) => i.type === 'warning');
-    if (activeFilter === 'info') return issues.filter((i: any) => i.type === 'info');
-    return issues.filter((i: any) => i.resource_type === activeFilter);
+    let filtered = issues;
+
+    // Filter by status
+    if (statusFilter === 'to-resolve') {
+      filtered = filtered.filter((i: any) => !i.resolved && !i.in_progress);
+    } else if (statusFilter === 'in-progress') {
+      filtered = filtered.filter((i: any) => i.in_progress);
+    } else if (statusFilter === 'resolved') {
+      filtered = filtered.filter((i: any) => i.resolved);
+    }
+
+    // Filter by resource type
+    if (resourceFilter !== 'all') {
+      if (resourceFilter === 'home') {
+        filtered = filtered.filter((i: any) => i.resource_type === 'general' || i.category === 'home');
+      } else {
+        filtered = filtered.filter((i: any) => i.resource_type === resourceFilter);
+      }
+    }
+
+    return filtered;
   };
 
   const formatDate = (dateString: string) => {
@@ -307,24 +324,45 @@ export default function DiagnosticDetail() {
       </Card>
 
       {/* Filters */}
-      <Tabs defaultValue="all" onValueChange={setActiveFilter}>
-        <TabsList>
-          <TabsTrigger value="all">Tous ({diagnostic.total_issues})</TabsTrigger>
-          <TabsTrigger value="errors">Erreurs ({diagnostic.errors_count})</TabsTrigger>
-          <TabsTrigger value="warnings">Avertissements ({diagnostic.warnings_count})</TabsTrigger>
-          <TabsTrigger value="info">Infos ({diagnostic.info_count})</TabsTrigger>
-          <TabsTrigger value="product">Produits</TabsTrigger>
-          <TabsTrigger value="collection">Collections</TabsTrigger>
-          <TabsTrigger value="blog">Blog</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle>Liste des problèmes à résoudre</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrer par statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="to-resolve">À résoudre</SelectItem>
+                  <SelectItem value="in-progress">En cours de résolution</SelectItem>
+                  <SelectItem value="resolved">Résolus</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <Select value={resourceFilter} onValueChange={setResourceFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Toutes les ressources" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les ressources</SelectItem>
+                  <SelectItem value="product">Produits</SelectItem>
+                  <SelectItem value="collection">Collections</SelectItem>
+                  <SelectItem value="blog">Articles</SelectItem>
+                  <SelectItem value="home">Page d'accueil</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-        <TabsContent value={activeFilter}>
           {filteredIssues.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">Aucun problème trouvé dans cette catégorie.</p>
-              </CardContent>
-            </Card>
+            <div className="p-8 text-center">
+              <p className="text-muted-foreground">Aucun problème trouvé avec ces filtres.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filteredIssues.map((issue, index) => (
@@ -336,15 +374,14 @@ export default function DiagnosticDetail() {
                   shopUrl={shop?.url}
                   shopType={shop?.type}
                   onIssueResolved={() => {
-                    // Optionally refresh the diagnostic data
                     loadDiagnostic();
                   }}
                 />
               ))}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Export Section */}
       <DiagnosticExport 
