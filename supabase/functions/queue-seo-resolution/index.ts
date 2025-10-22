@@ -19,6 +19,27 @@ Deno.serve(async (req) => {
 
     console.log('Queueing SEO resolution job:', { shopId, issueType, totalItems: affectedItems.length });
 
+    // Check for existing active jobs for same diagnostic + issue type (anti-collision)
+    const { data: existingJobs, error: checkError } = await supabase
+      .from('generation_jobs')
+      .select('id, status')
+      .eq('diagnostic_id', diagnosticId)
+      .eq('type', issueType.toLowerCase())
+      .in('status', ['pending', 'processing'])
+      .limit(1);
+
+    if (!checkError && existingJobs && existingJobs.length > 0) {
+      console.warn('Job already in progress:', existingJobs[0].id);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Un job similaire est déjà en cours. Veuillez attendre qu\'il se termine.',
+          existingJobId: existingJobs[0].id
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+      );
+    }
+
     // Create a job in the database
     const { data: job, error: jobError } = await supabase
       .from('generation_jobs')

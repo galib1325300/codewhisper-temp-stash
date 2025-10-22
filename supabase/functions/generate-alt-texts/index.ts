@@ -76,6 +76,8 @@ serve(async (req) => {
 
     // Générer les textes alt pour chaque image
     const updatedImages = [];
+    const errors = [];
+    
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
       
@@ -120,20 +122,21 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
           console.error(`AI API error for image ${i}:`, response.status, errorText);
           
           if (response.status === 429) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
-            );
+            errors.push({ image: i, error: 'Rate limit exceeded' });
+            updatedImages.push(image);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before next
+            continue;
           }
           
           if (response.status === 402) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Insufficient credits. Please add credits to continue.' }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 402 }
-            );
+            errors.push({ image: i, error: 'Insufficient credits' });
+            updatedImages.push(image);
+            continue;
           }
           
-          throw new Error(`AI API error: ${response.status}`);
+          errors.push({ image: i, error: `API error: ${response.status}` });
+          updatedImages.push(image);
+          continue;
         }
 
         const data = await response.json();
@@ -145,8 +148,21 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
         });
       } catch (error) {
         console.error(`Error generating alt text for image ${i}:`, error);
+        errors.push({ image: i, error: error.message });
         updatedImages.push(image);
       }
+    }
+
+    // If too many errors, return early
+    if (errors.length === images.length) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to generate any alt texts',
+          errors 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
 
     // Mettre à jour le produit avec les nouveaux textes alt (impersonate user)
@@ -163,8 +179,37 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
       );
     }
 
+    // Try to sync to WordPress if applicable
+    if (product.type === 'wordpress' && shop.wp_username && shop.wp_password) {
+      console.log('Attempting WordPress media sync...');
+      // For each image with WordPress media ID, update alt
+      for (let i = 0; i < updatedImages.length; i++) {
+        const img = updatedImages[i];
+        if (img.wordpress_media_id && img.alt !== images[i]?.alt) {
+          try {
+            await supabase.functions.invoke('update-wordpress-media-alt', {
+              body: {
+                shopId: shop.id,
+                mediaId: img.wordpress_media_id,
+                altText: img.alt
+              }
+            });
+          } catch (wpError) {
+            console.error(`Failed to sync image ${i} to WordPress:`, wpError);
+          }
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify({ success: true, images: updatedImages }),
+      JSON.stringify({ 
+        success: true, 
+        images: updatedImages,
+        errors: errors.length > 0 ? errors : undefined,
+        message: errors.length > 0 
+          ? `${updatedImages.length - errors.length}/${images.length} alt texts generated` 
+          : 'All alt texts generated successfully'
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

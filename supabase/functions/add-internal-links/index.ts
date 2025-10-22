@@ -126,6 +126,8 @@ serve(async (req) => {
       });
     }
 
+    let remoteUpdated = true;
+
     // Update WooCommerce if needed
     if (shop.type === 'woocommerce' && product.woocommerce_id) {
       const { error: wooError } = await supabase.functions.invoke('update-woocommerce-product', {
@@ -137,13 +139,18 @@ serve(async (req) => {
 
       if (wooError) {
         console.error('Error updating WooCommerce:', wooError);
+        remoteUpdated = false;
       }
     }
 
     return new Response(JSON.stringify({ 
       success: true,
       description: updatedDescription,
-      linksAdded: collectionLinks.length
+      linksAdded: collectionLinks.length,
+      remoteUpdated,
+      message: remoteUpdated 
+        ? 'Internal links added successfully'
+        : 'Links added to database but failed to sync to remote site'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

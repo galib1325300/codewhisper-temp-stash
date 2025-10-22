@@ -63,6 +63,9 @@ verify_jwt = false
 [functions.add-internal-links]
 verify_jwt = false
 
+[functions.format-product-content]
+verify_jwt = false
+
 [functions.update-woocommerce-product]
 verify_jwt = false
 

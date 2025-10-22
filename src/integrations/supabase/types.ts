@@ -202,6 +202,7 @@ export type Database = {
           error_message: string | null
           failed_count: number | null
           id: string
+          last_heartbeat: string | null
           processed_items: number | null
           progress: number | null
           shop_id: string
@@ -221,6 +222,7 @@ export type Database = {
           error_message?: string | null
           failed_count?: number | null
           id?: string
+          last_heartbeat?: string | null
           processed_items?: number | null
           progress?: number | null
           shop_id: string
@@ -240,6 +242,7 @@ export type Database = {
           error_message?: string | null
           failed_count?: number | null
           id?: string
+          last_heartbeat?: string | null
           processed_items?: number | null
           progress?: number | null
           shop_id?: string

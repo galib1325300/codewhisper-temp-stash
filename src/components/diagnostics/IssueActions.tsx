@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Zap, CheckCircle, Clock, AlertTriangle, ExternalLink, Wand2, FileText, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import IssueItemSelector from './IssueItemSelector';
+import { useJobPolling } from '@/hooks/useJobPolling';
 
 // Utility function to generate product URLs
 const generateProductUrl = (shopUrl: string, productSlug: string, shopType: string): string => {
@@ -48,10 +49,15 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [resolvedItems, setResolvedItems] = useState<string[]>([]); // Track individually resolved items
+  const [resolvedItems, setResolvedItems] = useState<string[]>([]); 
   const [progress, setProgress] = useState(0);
   const [currentItem, setCurrentItem] = useState<string>('');
   const [processedCount, setProcessedCount] = useState(0);
+  const [successCount, setSuccessCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
+  
+  const { startPolling, stopPolling, isPolling } = useJobPolling();
 
   // Enrich all items with URLs
   const enrichedItems = issue.affected_items?.map(item => ({
@@ -114,6 +120,9 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
     setResolving(true);
     setProgress(0);
     setProcessedCount(0);
+    setSuccessCount(0);
+    setFailedCount(0);
+    setSkippedCount(0);
     setCurrentItem('');
     
     try {
@@ -121,7 +130,7 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         itemIds.includes(item.id)
       );
 
-      // 1. Create job (immediate return)
+      // Queue job
       const { data: queueResult, error: queueError } = await supabase.functions.invoke('queue-seo-resolution', {
         body: {
           shopId,
@@ -135,58 +144,58 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         }
       });
 
-      if (queueError || !queueResult?.success) {
-        throw new Error(queueError?.message || 'Failed to queue job');
+      if (queueError) {
+        if (queueError.message?.includes('déjà en cours')) {
+          toast.error('Un traitement similaire est déjà en cours. Veuillez attendre.');
+          setResolving(false);
+          return;
+        }
+        throw new Error(queueError.message || 'Failed to queue job');
+      }
+
+      if (!queueResult?.success) {
+        throw new Error('Failed to queue job');
       }
 
       const jobId = queueResult.jobId;
       console.log('Job queued with ID:', jobId);
 
-      // 2. Poll for progress every 3 seconds
-      const pollInterval = setInterval(async () => {
-        const { data: job, error: jobError } = await supabase
-          .from('generation_jobs')
-          .select('*')
-          .eq('id', jobId)
-          .single();
-
-        if (jobError || !job) {
-          console.error('Error fetching job status:', jobError);
-          return;
-        }
-
-        console.log('Job status:', job.status, `${job.progress}%`);
-
-        setProgress(job.progress);
-        setProcessedCount(job.processed_items);
-        setCurrentItem(job.current_item || '');
-
-        // Job completed
-        if (job.status === 'completed') {
-          clearInterval(pollInterval);
+      // Use polling hook
+      startPolling(jobId, {
+        onUpdate: (job) => {
+          setProgress(job.progress);
+          setProcessedCount(job.processed_items);
+          setSuccessCount(job.success_count);
+          setFailedCount(job.failed_count);
+          setSkippedCount(job.skipped_count);
+          setCurrentItem(job.current_item || '');
+        },
+        onDone: (job) => {
           setProgress(100);
           
-          toast.success(
-            `✅ ${job.success_count} éléments traités avec succès sur ${job.total_items}`,
-            { duration: 5000 }
-          );
-
-          if (job.failed_count > 0) {
-            toast.warning(`⚠️ ${job.failed_count} éléments en erreur`, { duration: 5000 });
+          const messages = [];
+          if (job.success_count > 0) {
+            messages.push(`✅ ${job.success_count} succès`);
           }
+          if (job.failed_count > 0) {
+            messages.push(`⚠️ ${job.failed_count} échecs`);
+          }
+          if (job.skipped_count > 0) {
+            messages.push(`ℹ️ ${job.skipped_count} ignorés`);
+          }
+          
+          toast.success(messages.join(', '), { duration: 5000 });
 
           onIssueResolved?.();
           setResolving(false);
           setSelectedItems([]);
-        }
-
-        // Job failed
-        if (job.status === 'failed') {
-          clearInterval(pollInterval);
-          toast.error(`Erreur: ${job.error_message}`);
+        },
+        onError: (error) => {
+          toast.error(`Erreur: ${error}`);
           setResolving(false);
-        }
-      }, 3000); // Poll every 3 seconds
+        },
+        intervalMs: 3000
+      });
 
     } catch (error) {
       console.error('Error in auto-resolve:', error);
@@ -194,6 +203,15 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       setResolving(false);
     }
   };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (isPolling) {
+        stopPolling();
+      }
+    };
+  }, [isPolling, stopPolling]);
 
   return (
     <>
@@ -217,8 +235,13 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
                   <Progress value={progress} className="h-2" />
                 </div>
                 
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground space-y-1">
                   <p>Traité : {processedCount} / {selectedItems.length}</p>
+                  {(successCount > 0 || failedCount > 0 || skippedCount > 0) && (
+                    <p className="text-xs">
+                      ✅ {successCount} · ⚠️ {failedCount} · ℹ️ {skippedCount}
+                    </p>
+                  )}
                   {currentItem && (
                     <p className="mt-2 truncate">
                       En cours : <strong>{currentItem}</strong>

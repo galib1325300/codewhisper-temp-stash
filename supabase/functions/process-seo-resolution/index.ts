@@ -30,12 +30,13 @@ Deno.serve(async (req) => {
 
     console.log('Processing job:', jobId, 'with', affectedItems.length, 'items');
 
-    // Mark job as "processing"
+    // Mark job as "processing" with heartbeat
     await supabase
       .from('generation_jobs')
       .update({ 
         status: 'processing', 
-        started_at: new Date().toISOString() 
+        started_at: new Date().toISOString(),
+        last_heartbeat: new Date().toISOString()
       })
       .eq('id', jobId);
 
@@ -60,9 +61,18 @@ Deno.serve(async (req) => {
       console.log(`Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} items)`);
 
     for (const item of batch) {
+      const correlationId = `${jobId}-${batch.indexOf(item)}`;
+      
       try {
+        // Update heartbeat
+        await supabase
+          .from('generation_jobs')
+          .update({ last_heartbeat: new Date().toISOString() })
+          .eq('id', jobId);
+
         // Process based on issue type
         const issueTypeLower = issueType.toLowerCase();
+        console.log(`[${correlationId}] Processing item:`, item.name);
         
         if (issueTypeLower === 'images') {
           // Call generate-alt-texts for this item
@@ -75,14 +85,26 @@ Deno.serve(async (req) => {
 
           if (altError) {
             const errorMsg = `Alt text generation failed: ${altError.message}`;
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
+            
+            // Handle rate limiting gracefully
+            if (altError.message?.includes('429') || altError.message?.includes('Rate limit')) {
+              console.warn(`[${correlationId}] Rate limited, will retry later`);
+              results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before next
+            } else if (altError.message?.includes('402') || altError.message?.includes('credits')) {
+              console.error(`[${correlationId}] Insufficient credits`);
+              results.failed.push({ id: item.id, name: item.name, message: 'Insufficient credits' });
+            } else {
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            }
           } else if (altResult?.success) {
             results.success.push({ id: item.id, name: item.name });
+            console.log(`[${correlationId}] Success`);
           } else {
             const errorMsg = altResult?.error || 'Unknown error';
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
+            console.error(`[${correlationId}] Failed:`, errorMsg);
           }
         } else if (issueTypeLower === 'contenu' || issueTypeLower === 'génération ia') {
           // Generate both short and long descriptions
@@ -143,17 +165,77 @@ Deno.serve(async (req) => {
           if (linksError) {
             const errorMsg = `Internal links failed: ${linksError.message}`;
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
+            console.error(`[${correlationId}] Failed:`, errorMsg);
           } else if (linksResult?.success) {
-            results.success.push({ id: item.id, name: item.name });
+            if (linksResult.linksAdded === 0 || linksResult.message?.includes('already has')) {
+              results.skipped.push({ id: item.id, name: item.name, message: 'Links already present' });
+              console.log(`[${correlationId}] Skipped: links already present`);
+            } else if (!linksResult.remoteUpdated) {
+              results.success.push({ id: item.id, name: item.name, warning: 'DB updated but remote sync failed' });
+              console.warn(`[${correlationId}] Partial success: DB ok, remote failed`);
+            } else {
+              results.success.push({ id: item.id, name: item.name });
+              console.log(`[${correlationId}] Success`);
+            }
           } else {
             const errorMsg = linksResult?.error || 'Unknown error';
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
+            console.error(`[${correlationId}] Failed:`, errorMsg);
+          }
+        } else if (issueTypeLower === 'mise en forme') {
+          // Bold keywords
+          const { data: formatResult, error: formatError } = await supabase.functions.invoke('format-product-content', {
+            body: {
+              productId: item.id,
+              shopId: shopId,
+              actions: { bold_keywords: true }
+            }
+          });
+
+          if (formatError) {
+            if (formatError.message?.includes('429') || formatError.message?.includes('Rate limit')) {
+              results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              const errorMsg = `Format failed: ${formatError.message}`;
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            }
+          } else if (formatResult?.success) {
+            results.success.push({ id: item.id, name: item.name });
+            console.log(`[${correlationId}] Success`);
+          } else {
+            results.failed.push({ id: item.id, name: item.name, message: 'Format failed' });
+          }
+        } else if (issueTypeLower === 'structure') {
+          // Add bullet points
+          const { data: formatResult, error: formatError } = await supabase.functions.invoke('format-product-content', {
+            body: {
+              productId: item.id,
+              shopId: shopId,
+              actions: { add_bullets: true }
+            }
+          });
+
+          if (formatError) {
+            if (formatError.message?.includes('429') || formatError.message?.includes('Rate limit')) {
+              results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              const errorMsg = `Structure failed: ${formatError.message}`;
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            }
+          } else if (formatResult?.success) {
+            results.success.push({ id: item.id, name: item.name });
+            console.log(`[${correlationId}] Success`);
+          } else {
+            results.failed.push({ id: item.id, name: item.name, message: 'Structure failed' });
           }
         } else {
-          // For other issue types, skip for now
+          // For other issue types, skip
           results.skipped.push({ id: item.id, name: item.name, message: `Issue type '${issueType}' not yet supported` });
+          console.log(`[${correlationId}] Skipped: unsupported type`);
         }
 
         // Update progress in DB
