@@ -517,28 +517,16 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
       
       // If all items are resolved, convert to success type
       if (remainingItems.length === 0) {
-        const originalItemsCount = issue.affected_items?.length || 0;
-        // Calculate score improvement (15 for error, 8 for warning, 3 for info)
-        let scoreImprovement = 0;
-        switch (issue.type) {
-          case 'error':
-            scoreImprovement = 15;
-            break;
-          case 'warning':
-            scoreImprovement = 8;
-            break;
-          case 'info':
-            scoreImprovement = 3;
-            break;
-        }
+        const originalMaxPoints = issue.maxPoints || 0;
         
         return {
           ...issue,
           type: 'success',
           title: `✓ ${issue.title.replace(/^Examens? pour les? /, '').replace(/^Produits? /, '')} - Résolu`,
-          description: `Tous les ${originalItemsCount} éléments ont été traités avec succès.`,
+          description: `Tous les éléments ont été traités avec succès.`,
           affected_items: [],
-          score_improvement: scoreImprovement
+          score_improvement: originalMaxPoints,
+          earnedPoints: originalMaxPoints
         };
       }
       
@@ -550,53 +538,38 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
     return issue;
   });
 
-  // Recalculate counters - count issue CATEGORIES, not individual items
-  let errorsCount = 0;
-  let warningsCount = 0;
-  let infoCount = 0;
-  let totalItemsCount = 0;
+  // Recalculate counts and score based on points system
+  const errors_count = updatedIssues.filter((i: any) => i.type === 'error').length;
+  const warnings_count = updatedIssues.filter((i: any) => i.type === 'warning').length;
+  const info_count = updatedIssues.filter((i: any) => i.type === 'info').length;
+  const total_issues = errors_count + warnings_count + info_count;
 
+  let totalEarnedPoints = 0;
+  let totalMaxPoints = 0;
+  
   updatedIssues.forEach((issue: any) => {
-    const itemsCount = issue.affected_items?.length || 0;
-    // Count categories that still have items OR success categories (they still contribute to display)
-    if (itemsCount > 0 || issue.type === 'success') {
-      // Count 1 per category, not per item
-      switch (issue.type) {
-        case 'error':
-          errorsCount += 1;
-          break;
-        case 'warning':
-          warningsCount += 1;
-          break;
-        case 'info':
-          infoCount += 1;
-          break;
-        // success issues don't count as problems, just displayed
-      }
-      if (itemsCount > 0) {
-        totalItemsCount += itemsCount;
-      }
+    if (issue.maxPoints !== undefined && issue.earnedPoints !== undefined) {
+      totalMaxPoints += issue.maxPoints;
+      totalEarnedPoints += issue.earnedPoints;
     }
   });
+  
+  const score = totalMaxPoints > 0 
+    ? Math.round((totalEarnedPoints / totalMaxPoints) * 100) 
+    : 0;
 
-  const totalIssues = errorsCount + warningsCount + infoCount;
-
-  // Calculate SEO score: -15 per error category, -8 per warning category, -3 per info category
-  let score = 100 - (errorsCount * 15) - (warningsCount * 8) - (infoCount * 3);
-  score = Math.max(0, score);
-
-  console.log(`Score calculation: ${errorsCount} errors, ${warningsCount} warnings, ${infoCount} info → Score: ${score}/100 (${totalItemsCount} items affected)`);
+  console.log(`Score recalculated: ${totalEarnedPoints}/${totalMaxPoints} points → Score: ${score}/100`);
 
   // Update diagnostic in database
   const { error: updateError } = await supabase
     .from('seo_diagnostics')
     .update({
       issues: updatedIssues,
-      errors_count: errorsCount,
-      warnings_count: warningsCount,
-      info_count: infoCount,
-      total_issues: totalIssues,
-      score: score,
+      errors_count,
+      warnings_count,
+      info_count,
+      total_issues,
+      score,
       updated_at: new Date().toISOString()
     })
     .eq('id', diagnosticId);

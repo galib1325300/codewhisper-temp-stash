@@ -172,7 +172,14 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            {getIssueIcon(issue.type)}
+            <div className="flex items-center space-x-2">
+              {getIssueIcon(issue.type)}
+              {issue.type === 'success' && issue.score_improvement && (
+                <Badge variant="outline" className="border-green-600 text-green-600 bg-green-50">
+                  +{issue.score_improvement} points SEO
+                </Badge>
+              )}
+            </div>
             <div>
               <CardTitle className="text-lg">{issue.title}</CardTitle>
               <Badge variant="outline" className="mt-1">
