@@ -20,35 +20,48 @@ interface SEOIssue {
   earnedPoints?: number;
 }
 
-// Pondération SEO réaliste pour l'e-commerce (Total: 100 points)
+// Pondération SEO réaliste pour l'e-commerce (Total: 150 points → normalisé à 100)
 const SEO_WEIGHTS = {
-  // Produits - 81 points total
-  ALT_TEXTS: 7,              // Critique pour Google Images
-  AI_CONTENT: 10,            // Le plus important - contenu de qualité
-  INTERNAL_LINKS: 6,         // Maillage interne
-  BOLD_TEXT: 3,              // Mots en gras
-  MISLEADING_LINKS: 2,       // Liens descriptifs
-  BULLET_LISTS: 3,           // Listes à puces
-  SLUGS: 4,                  // URLs optimisées
-  H2_TITLES: 5,              // Structure H2
-  FOCUS_KEYWORDS: 6,         // Mots-clés focus
-  META_DESC: 8,              // Impact direct sur CTR
-  TITLES_LENGTH: 7,          // Titres optimisés (30-60 caractères)
-  IMAGES_PRESENT: 5,         // Images produits
-  DESC_LENGTH: 6,            // Descriptions suffisamment longues
-  PRICES: 4,                 // Prix présents
-  CATEGORIES: 4,             // Catégorisation
-  SHORT_DESC: 1,             // Descriptions courtes (moins critique)
-  
-  // Collections - 15 points total
-  COLLECTIONS_H2: 4,         // Structure H2
-  COLLECTIONS_PRODUCTS: 3,   // Nombre de produits
-  COLLECTIONS_LINKS: 5,      // Liens internes
-  COLLECTIONS_DESC: 3,       // Descriptions
-  
-  // Général - 4 points total
-  HOME_BLOG_LINK: 2,         // Lien blog sur page d'accueil
-  PRODUCT_PAGE_LINK: 2,      // Lien descriptif page produit
+  // Produits (15 vérifications - 81 points)
+  PRODUCT_ALT_TEXTS: 7,
+  PRODUCT_META_DESCRIPTIONS: 8,
+  PRODUCT_AI_CONTENT: 10,
+  PRODUCT_INTERNAL_LINKS: 6,
+  PRODUCT_STRUCTURED_DESC: 5,
+  PRODUCT_SEO_KEYWORDS: 6,
+  PRODUCT_BULLET_POINTS: 3,
+  PRODUCT_BOLD_TEXT: 3,
+  PRODUCT_SEO_TITLES: 7,
+  PRODUCT_IMAGES_PRESENT: 5,
+  PRODUCT_PRICES: 4,
+  PRODUCT_CATEGORIES: 4,
+  PRODUCT_LONG_DESC: 6,
+  PRODUCT_DESCRIPTIVE_LINKS: 3,
+  PRODUCT_ADEQUATE_TITLES: 4,
+
+  // Collections (4 vérifications - 15 points)
+  COLLECTION_H2_TITLES: 5,
+  COLLECTION_PRODUCT_COUNT: 3,
+  COLLECTION_INTERNAL_LINKS: 4,
+  COLLECTION_DESC_LENGTH: 3,
+
+  // Articles de blog (4 vérifications - 15 points)
+  BLOG_FEATURED_IMAGE: 3,
+  BLOG_SEO_META: 7,
+  BLOG_CONTENT_LENGTH: 3,
+  BLOG_INTERNAL_LINKS: 2,
+
+  // Vérifications avancées (6 vérifications - 35 points)
+  ADVANCED_IMAGE_SIZE: 5,
+  ADVANCED_ALT_GENERIC: 4,
+  ADVANCED_DUPLICATE_META: 6,
+  ADVANCED_BROKEN_LINKS: 5,
+  ADVANCED_LINK_HIERARCHY: 5,
+  ADVANCED_SCHEMA_MARKUP: 10,
+
+  // Pages générales (2 vérifications - 4 points)
+  GENERAL_HOME_TEMPLATE: 2,
+  GENERAL_PRODUCT_TEMPLATE: 2,
 };
 
 serve(async (req) => {
@@ -674,40 +687,189 @@ serve(async (req) => {
       })
     }
 
-    // Blog posts analysis (pas de pondération pour l'instant)
+    // === BLOG POSTS ANALYSIS ===
+    console.log('\n=== Analyzing Blog Posts ===\n');
+    
     if (blogPosts && blogPosts.length > 0) {
-      const postsWithoutFeaturedImage = blogPosts.filter(post => 
-        !post.featured_image || post.featured_image.trim() === ''
-      )
-
-      if (postsWithoutFeaturedImage.length > 0) {
-        issues.push({
-          type: 'warning',
-          category: 'Images',
-          title: `${postsWithoutFeaturedImage.length} articles sans image mise en avant`,
-          description: 'Les images mises en avant améliorent l\'engagement et le partage social',
-          recommendation: 'Ajoutez une image mise en avant pour tous vos articles de blog',
-          affected_items: postsWithoutFeaturedImage.map(p => ({ id: p.id, name: p.title, type: 'blog' })),
-          resource_type: 'blog',
-          action_available: true
-        })
-      }
-
-      const postsWithoutSEO = blogPosts.filter(post => 
-        !post.seo_title || !post.seo_description || post.seo_description.length < 120
-      )
-
-      if (postsWithoutSEO.length > 0) {
+      console.log(`Found ${blogPosts.length} blog posts\n`);
+      const totalBlogPosts = blogPosts.length;
+      
+      // 1. Check for featured images
+      const postsWithoutImage = blogPosts.filter(post => !post.featured_image);
+      const postsWithImage = blogPosts.filter(post => post.featured_image);
+      
+      const blogImageWeight = SEO_WEIGHTS.BLOG_FEATURED_IMAGE;
+      if (postsWithoutImage.length > 0) {
+        const earnedRatio = postsWithImage.length / totalBlogPosts;
+        const earned = Math.round(blogImageWeight * earnedRatio);
+        
         issues.push({
           type: 'error',
-          category: 'SEO',
-          title: `${postsWithoutSEO.length} articles sans optimisation SEO`,
-          description: 'Les titres et descriptions SEO sont essentiels pour le référencement',
-          recommendation: 'Configurez des titres SEO accrocheurs et des méta-descriptions de 120-160 caractères',
-          affected_items: postsWithoutSEO.map(p => ({ id: p.id, name: p.title, type: 'blog' })),
+          category: 'Articles de blog',
+          title: 'Images à la une manquantes',
+          description: `${postsWithoutImage.length} articles n'ont pas d'image à la une, ce qui nuit à leur visibilité.`,
+          recommendation: 'Ajoutez une image à la une attrayante pour chaque article de blog.',
+          affected_items: postsWithoutImage.map(post => ({
+            id: post.id,
+            name: post.title,
+            slug: post.slug,
+            type: 'blog'
+          })),
           resource_type: 'blog',
-          action_available: true
-        })
+          action_available: false,
+          maxPoints: blogImageWeight,
+          earnedPoints: earned,
+          score_improvement: blogImageWeight - earned,
+        });
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Articles de blog',
+          title: 'Images à la une présentes',
+          description: `Tous vos ${totalBlogPosts} articles ont une image à la une.`,
+          recommendation: '',
+          resource_type: 'blog',
+          maxPoints: blogImageWeight,
+          earnedPoints: blogImageWeight,
+          score_improvement: blogImageWeight,
+        });
+      }
+
+      // 2. Check for SEO meta data
+      const postsWithoutSEO = blogPosts.filter(post => !post.meta_title || !post.meta_description);
+      const postsWithSEO = blogPosts.filter(post => post.meta_title && post.meta_description);
+      
+      const blogSEOWeight = SEO_WEIGHTS.BLOG_SEO_META;
+      if (postsWithoutSEO.length > 0) {
+        const earnedRatio = postsWithSEO.length / totalBlogPosts;
+        const earned = Math.round(blogSEOWeight * earnedRatio);
+        
+        issues.push({
+          type: 'warning',
+          category: 'Articles de blog',
+          title: 'Métadonnées SEO manquantes',
+          description: `${postsWithoutSEO.length} articles n'ont pas de titre ou description SEO optimisés.`,
+          recommendation: 'Ajoutez un titre SEO (60 caractères max) et une méta-description (160 caractères max) pour chaque article.',
+          affected_items: postsWithoutSEO.map(post => ({
+            id: post.id,
+            name: post.title,
+            slug: post.slug,
+            type: 'blog'
+          })),
+          resource_type: 'blog',
+          action_available: false,
+          maxPoints: blogSEOWeight,
+          earnedPoints: earned,
+          score_improvement: blogSEOWeight - earned,
+        });
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Articles de blog',
+          title: 'Métadonnées SEO optimisées',
+          description: `Tous vos ${totalBlogPosts} articles ont des métadonnées SEO complètes.`,
+          recommendation: '',
+          resource_type: 'blog',
+          maxPoints: blogSEOWeight,
+          earnedPoints: blogSEOWeight,
+          score_improvement: blogSEOWeight,
+        });
+      }
+
+      // 3. Check content length (minimum 300 words)
+      const shortPosts = blogPosts.filter(post => {
+        const contentLength = post.content ? post.content.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
+        return contentLength < 300;
+      });
+      const longPosts = blogPosts.filter(post => {
+        const contentLength = post.content ? post.content.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
+        return contentLength >= 300;
+      });
+      
+      const blogContentWeight = SEO_WEIGHTS.BLOG_CONTENT_LENGTH;
+      if (shortPosts.length > 0) {
+        const earnedRatio = longPosts.length / totalBlogPosts;
+        const earned = Math.round(blogContentWeight * earnedRatio);
+        
+        issues.push({
+          type: 'warning',
+          category: 'Articles de blog',
+          title: 'Contenu trop court',
+          description: `${shortPosts.length} articles ont moins de 300 mots, ce qui est insuffisant pour le SEO.`,
+          recommendation: 'Visez au moins 300-500 mots par article pour un meilleur référencement.',
+          affected_items: shortPosts.map(post => ({
+            id: post.id,
+            name: post.title,
+            slug: post.slug,
+            type: 'blog'
+          })),
+          resource_type: 'blog',
+          action_available: false,
+          maxPoints: blogContentWeight,
+          earnedPoints: earned,
+          score_improvement: blogContentWeight - earned,
+        });
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Articles de blog',
+          title: 'Contenu suffisamment long',
+          description: `Tous vos ${totalBlogPosts} articles ont un contenu d'au moins 300 mots.`,
+          recommendation: '',
+          resource_type: 'blog',
+          maxPoints: blogContentWeight,
+          earnedPoints: blogContentWeight,
+          score_improvement: blogContentWeight,
+        });
+      }
+
+      // 4. Check internal links (at least 2 per post)
+      const postsWithoutLinks = blogPosts.filter(post => {
+        if (!post.content) return true;
+        const linkMatches = post.content.match(/<a\s+[^>]*href=["'][^"']*["'][^>]*>/gi) || [];
+        return linkMatches.length < 2;
+      });
+      const postsWithLinks = blogPosts.filter(post => {
+        if (!post.content) return false;
+        const linkMatches = post.content.match(/<a\s+[^>]*href=["'][^"']*["'][^>]*>/gi) || [];
+        return linkMatches.length >= 2;
+      });
+      
+      const blogLinksWeight = SEO_WEIGHTS.BLOG_INTERNAL_LINKS;
+      if (postsWithoutLinks.length > 0) {
+        const earnedRatio = postsWithLinks.length / totalBlogPosts;
+        const earned = Math.round(blogLinksWeight * earnedRatio);
+        
+        issues.push({
+          type: 'info',
+          category: 'Articles de blog',
+          title: 'Maillage interne insuffisant',
+          description: `${postsWithoutLinks.length} articles ont moins de 2 liens internes.`,
+          recommendation: 'Ajoutez au moins 2-3 liens internes vers d\'autres pages de votre site dans chaque article.',
+          affected_items: postsWithoutLinks.map(post => ({
+            id: post.id,
+            name: post.title,
+            slug: post.slug,
+            type: 'blog'
+          })),
+          resource_type: 'blog',
+          action_available: false,
+          maxPoints: blogLinksWeight,
+          earnedPoints: earned,
+          score_improvement: blogLinksWeight - earned,
+        });
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Articles de blog',
+          title: 'Bon maillage interne',
+          description: `Tous vos ${totalBlogPosts} articles contiennent au moins 2 liens internes.`,
+          recommendation: '',
+          resource_type: 'blog',
+          maxPoints: blogLinksWeight,
+          earnedPoints: blogLinksWeight,
+          score_improvement: blogLinksWeight,
+        });
       }
     }
 
@@ -965,24 +1127,24 @@ serve(async (req) => {
     }
 
     const recommendations = [
-      'Priorisez la correction des erreurs critiques avant les avertissements',
-      'Ajoutez des textes alternatifs descriptifs à toutes vos images pour Google Images',
-      'Générez du contenu optimisé SEO avec l\'IA pour tous vos produits (impact majeur)',
-      'Créez un maillage interne entre vos pages avec des liens pertinents',
-      'Mettez en gras les mots-clés importants dans vos descriptions',
-      'Utilisez des ancres descriptives pour tous vos liens (évitez "cliquez ici")',
-      'Structurez vos descriptions avec des listes à puces et sous-titres H2',
-      'Optimisez vos slugs pour qu\'ils soient courts et contiennent des mots-clés',
-      'Définissez un mot-clé focus pour chaque produit',
-      'Rédigez des méta-descriptions attractives entre 120-160 caractères (impact CTR)',
-      'Assurez-vous que les titres fassent entre 30 et 60 caractères',
-      'Vérifiez que tous vos produits ont au moins une image de qualité',
-      'Rédigez des descriptions d\'au moins 300 caractères pour le SEO longue traîne',
-      'Définissez un prix pour tous vos produits disponibles à la vente',
-      'Organisez vos produits en catégories cohérentes',
-      'Ajoutez au moins 15 produits pertinents dans chaque collection',
-      'Optimisez la vitesse de chargement de votre site (moins de 3 secondes)'
-    ]
+      '1. **Priorisez les erreurs critiques** : Corrigez d\'abord les erreurs (rouge) avant les avertissements (jaune).',
+      '2. **Textes alternatifs** : Ajoutez des descriptions précises à toutes vos images (important pour Google Images).',
+      '3. **Contenu optimisé** : Générez du contenu riche et optimisé SEO pour tous vos produits (impact majeur).',
+      '4. **Maillage interne** : Créez des liens entre vos pages pour améliorer la navigation et le référencement.',
+      '5. **Mise en forme** : Mettez en gras les mots-clés importants et utilisez des listes à puces.',
+      '6. **Ancres de liens** : Utilisez des textes descriptifs au lieu de "cliquez ici" ou "en savoir plus".',
+      '7. **Structure H2** : Organisez vos descriptions longues avec des sous-titres pertinents.',
+      '8. **Utiliser Schema.org** : Implémentez les données structurées JSON-LD pour vos produits (très important pour Google Shopping).',
+      '9. **Surveiller la vitesse** : Optimisez le temps de chargement de vos pages (objectif < 3 secondes) et compressez vos images.',
+      '10. **Éviter le contenu dupliqué** : Assurez-vous que chaque page a un contenu unique, surtout les méta-descriptions.',
+      '11. **Mobile-first** : Assurez-vous que votre site est parfaitement responsive.',
+      '12. **Vérifier les liens internes** : Corrigez régulièrement les liens cassés et maintenez une bonne structure hiérarchique.',
+      '13. **Textes alt descriptifs** : Évitez les noms génériques comme "image1.jpg", utilisez des descriptions précises.',
+      '14. **Actualiser régulièrement** : Publiez du nouveau contenu (blog, nouveaux produits) pour maintenir la fraîcheur du site.',
+      '15. **Analyser les performances** : Utilisez Google Search Console et Analytics pour suivre vos progrès.',
+      '16. **Optimiser les articles de blog** : Visez au moins 300 mots avec 2-3 liens internes par article.',
+      '17. **Enrichir les collections** : Ajoutez des descriptions longues avec titres H2 et liens vers les produits phares.'
+    ];
 
     // Update diagnostic record
     await supabase

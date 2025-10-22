@@ -305,6 +305,31 @@ export default function IssueDetailPage() {
                     <p className="font-medium">{issue.recommendation}</p>
                   </div>
                 </div>
+                
+                {issue.score_improvement > 0 && (
+                  <div className={`p-4 rounded-lg border ${
+                    issue.type === 'success' 
+                      ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800'
+                      : 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+                  }`}>
+                    <h3 className={`font-semibold mb-2 ${
+                      issue.type === 'success'
+                        ? 'text-green-900 dark:text-green-100'
+                        : 'text-blue-900 dark:text-blue-100'
+                    }`}>
+                      {issue.type === 'success' ? 'Points gagnés' : 'Impact SEO potentiel'}
+                    </h3>
+                    <p className={issue.type === 'success' 
+                      ? 'text-green-800 dark:text-green-200'
+                      : 'text-blue-800 dark:text-blue-200'
+                    }>
+                      {issue.type === 'success'
+                        ? `Cette bonne pratique vous a fait gagner +${issue.score_improvement} points SEO !`
+                        : `Résoudre ce problème pourrait améliorer votre score de +${issue.score_improvement} points`
+                      }
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

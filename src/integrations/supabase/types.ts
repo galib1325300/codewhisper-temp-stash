@@ -132,6 +132,66 @@ export type Database = {
           },
         ]
       }
+      collections: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          external_id: string | null
+          id: string
+          image: string | null
+          name: string
+          parent_id: string | null
+          product_count: number | null
+          shop_id: string
+          slug: string
+          updated_at: string | null
+          woocommerce_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          parent_id?: string | null
+          product_count?: number | null
+          shop_id: string
+          slug: string
+          updated_at?: string | null
+          woocommerce_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          parent_id?: string | null
+          product_count?: number | null
+          shop_id?: string
+          slug?: string
+          updated_at?: string | null
+          woocommerce_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collections_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_generation_jobs: {
         Row: {
           action: string
