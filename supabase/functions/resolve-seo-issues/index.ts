@@ -515,6 +515,33 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
         (item: any) => !resolvedItemIds.includes(item.id)
       );
       
+      // If all items are resolved, convert to success type
+      if (remainingItems.length === 0) {
+        const originalItemsCount = issue.affected_items?.length || 0;
+        // Calculate score improvement (15 for error, 8 for warning, 3 for info)
+        let scoreImprovement = 0;
+        switch (issue.type) {
+          case 'error':
+            scoreImprovement = 15;
+            break;
+          case 'warning':
+            scoreImprovement = 8;
+            break;
+          case 'info':
+            scoreImprovement = 3;
+            break;
+        }
+        
+        return {
+          ...issue,
+          type: 'success',
+          title: `✓ ${issue.title.replace(/^Examens? pour les? /, '').replace(/^Produits? /, '')} - Résolu`,
+          description: `Tous les ${originalItemsCount} éléments ont été traités avec succès.`,
+          affected_items: [],
+          score_improvement: scoreImprovement
+        };
+      }
+      
       return {
         ...issue,
         affected_items: remainingItems
@@ -522,11 +549,6 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
     }
     return issue;
   });
-
-  // Remove issues that have no more affected items
-  updatedIssues = updatedIssues.filter((issue: any) => 
-    !issue.affected_items || issue.affected_items.length > 0
-  );
 
   // Recalculate counters - count issue CATEGORIES, not individual items
   let errorsCount = 0;
@@ -536,7 +558,8 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
 
   updatedIssues.forEach((issue: any) => {
     const itemsCount = issue.affected_items?.length || 0;
-    if (itemsCount > 0) {
+    // Count categories that still have items OR success categories (they still contribute to display)
+    if (itemsCount > 0 || issue.type === 'success') {
       // Count 1 per category, not per item
       switch (issue.type) {
         case 'error':
@@ -548,8 +571,11 @@ async function updateDiagnostic(supabase: any, diagnosticId: string, issueType: 
         case 'info':
           infoCount += 1;
           break;
+        // success issues don't count as problems, just displayed
       }
-      totalItemsCount += itemsCount;
+      if (itemsCount > 0) {
+        totalItemsCount += itemsCount;
+      }
     }
   });
 

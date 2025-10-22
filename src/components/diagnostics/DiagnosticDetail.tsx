@@ -5,14 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, AlertTriangle, AlertCircle, Info, Settings } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ArrowLeft, AlertTriangle, AlertCircle, Info, Settings, CheckCircle } from 'lucide-react';
 import LoadingState from '@/components/ui/loading-state';
 import IssueActions from './IssueActions';
 import DiagnosticProgress from './DiagnosticProgress';
 import DiagnosticExport from './DiagnosticExport';
 
 interface SEOIssue {
-  type: 'error' | 'warning' | 'info';
+  type: 'error' | 'warning' | 'info' | 'success';
   category: string;
   title: string;
   description: string;
@@ -20,6 +21,7 @@ interface SEOIssue {
   affected_items?: any[];
   resource_type?: 'product' | 'collection' | 'blog' | 'general';
   action_available?: boolean;
+  score_improvement?: number;
 }
 
 interface DiagnosticData {
@@ -146,6 +148,8 @@ export default function DiagnosticDetail() {
         return <AlertCircle className="w-5 h-5 text-yellow-500" />;
       case 'info':
         return <Info className="w-5 h-5 text-blue-500" />;
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
       default:
         return <Info className="w-5 h-5 text-gray-500" />;
     }
@@ -156,6 +160,7 @@ export default function DiagnosticDetail() {
       case 'error': return 'border-red-200 bg-red-50';
       case 'warning': return 'border-yellow-200 bg-yellow-50';
       case 'info': return 'border-blue-200 bg-blue-50';
+      case 'success': return 'border-green-200 bg-green-50';
       default: return 'border-gray-200 bg-gray-50';
     }
   };
@@ -171,11 +176,11 @@ export default function DiagnosticDetail() {
 
     // Filter by status
     if (statusFilter === 'to-resolve') {
-      filtered = filtered.filter((i: any) => !i.resolved && !i.in_progress);
+      filtered = filtered.filter((i: any) => !i.resolved && !i.in_progress && i.type !== 'success');
     } else if (statusFilter === 'in-progress') {
       filtered = filtered.filter((i: any) => i.in_progress);
     } else if (statusFilter === 'resolved') {
-      filtered = filtered.filter((i: any) => i.resolved);
+      filtered = filtered.filter((i: any) => i.resolved || i.type === 'success');
     }
 
     // Filter by resource type
@@ -186,6 +191,20 @@ export default function DiagnosticDetail() {
         filtered = filtered.filter((i: any) => i.resource_type === resourceFilter);
       }
     }
+
+    // Sort by priority: error > warning > info > success
+    const typePriority: Record<string, number> = {
+      'error': 0,
+      'warning': 1,
+      'info': 2,
+      'success': 3
+    };
+    
+    filtered.sort((a: any, b: any) => {
+      const priorityA = typePriority[a.type] ?? 4;
+      const priorityB = typePriority[b.type] ?? 4;
+      return priorityA - priorityB;
+    });
 
     return filtered;
   };
@@ -307,21 +326,32 @@ export default function DiagnosticDetail() {
       </div>
 
       {/* Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recommandations générales</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {diagnostic.recommendations.map((rec, index) => (
-              <li key={index} className="flex items-start space-x-2">
-                <span className="text-primary">•</span>
-                <span className="text-sm">{rec}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      {diagnostic.recommendations && diagnostic.recommendations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommandations générales</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="recommendations">
+                <AccordionTrigger className="text-sm font-medium">
+                  Voir les {diagnostic.recommendations.length} recommandations
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ul className="space-y-2 mt-2">
+                    {diagnostic.recommendations.map((rec, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <span className="text-primary">•</span>
+                        <span className="text-sm">{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>

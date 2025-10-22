@@ -29,10 +29,11 @@ interface IssueActionsProps {
     category: string;
     title: string;
     description: string;
-    recommendation: string;
+    recommendation?: string;
     affected_items?: any[];
     resource_type?: 'product' | 'collection' | 'blog' | 'general';
     action_available?: boolean;
+    score_improvement?: number;
   };
   shopId: string;
   diagnosticId: string;
@@ -71,10 +72,10 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
 
   const getIssueColor = (type: string) => {
     switch (type) {
-      case 'error': return 'border-red-200 bg-red-50';
-      case 'warning': return 'border-yellow-200 bg-yellow-50';
-      case 'info': return 'border-blue-200 bg-blue-50';
-      case 'success': return 'border-green-200 bg-green-50';
+      case 'error': return 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950';
+      case 'warning': return 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950';
+      case 'info': return 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950';
+      case 'success': return 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950';
       default: return 'border-gray-200 bg-gray-50';
     }
   };
@@ -204,10 +205,22 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-muted-foreground mb-3">{issue.description}</p>
-        <div className="bg-muted p-3 rounded-lg mb-3">
-          <p className="text-sm"><strong>Recommandation :</strong> {issue.recommendation}</p>
-        </div>
+        <p className="text-sm text-muted-foreground mb-4">{issue.description}</p>
+        
+        {issue.type === 'success' && issue.score_improvement && (
+          <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-md">
+            <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+              🎉 +{issue.score_improvement} points de score SEO
+            </p>
+          </div>
+        )}
+        
+        {issue.recommendation && issue.type !== 'success' && (
+          <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-md">
+            <p className="text-sm font-medium text-foreground mb-1">💡 Recommandation</p>
+            <p className="text-sm text-muted-foreground">{issue.recommendation}</p>
+          </div>
+        )}
         
         {enrichedItems.length > 0 && (
           <div>
