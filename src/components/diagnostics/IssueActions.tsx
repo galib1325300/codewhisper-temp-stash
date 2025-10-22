@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Zap, CheckCircle, Clock, AlertTriangle, ExternalLink, Wand2, FileText } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Zap, CheckCircle, Clock, AlertTriangle, ExternalLink, Wand2, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import IssueItemSelector from './IssueItemSelector';
@@ -48,6 +49,9 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
   const [resolved, setResolved] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [resolvedItems, setResolvedItems] = useState<string[]>([]); // Track individually resolved items
+  const [progress, setProgress] = useState(0);
+  const [currentItem, setCurrentItem] = useState<string>('');
+  const [processedCount, setProcessedCount] = useState(0);
 
   // Enrich all items with URLs
   const enrichedItems = issue.affected_items?.map(item => ({
@@ -108,6 +112,9 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
     if (!issue.action_available || !issue.affected_items?.length || itemIds.length === 0) return;
     
     setResolving(true);
+    setProgress(0);
+    setProcessedCount(0);
+    setCurrentItem('');
     let successCount = 0;
 
     try {
@@ -115,6 +122,15 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       const selectedAffectedItems = issue.affected_items.filter(item => 
         itemIds.includes(item.id)
       );
+
+      // Simulate progress with an interval
+      let estimatedProgress = 0;
+      const progressInterval = setInterval(() => {
+        estimatedProgress += 1;
+        if (estimatedProgress < 95) {
+          setProgress(estimatedProgress);
+        }
+      }, 500); // Increase by 1% every 500ms
 
       // Call the resolve-seo-issues function
       const { data, error } = await supabase.functions.invoke('resolve-seo-issues', {
@@ -130,12 +146,16 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         }
       });
 
+      clearInterval(progressInterval);
+
       if (error) {
         throw new Error(error.message);
       }
 
       if (data?.success) {
+        setProgress(100);
         successCount = data.results.success;
+        setProcessedCount(successCount);
         
         // Track which items were successfully resolved
         const successfullyResolvedIds = data.results.details
@@ -156,7 +176,18 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         // Always trigger a reload of the diagnostic to get updated data
         onIssueResolved?.();
         
-        toast.success(`${successCount} éléments traités avec succès sur ${selectedAffectedItems.length} sélectionnés`);
+        toast.success(
+          `✅ ${data.results.success} éléments traités avec succès sur ${selectedAffectedItems.length}`,
+          { duration: 5000 }
+        );
+        
+        if (data.results.failed > 0) {
+          toast.warning(
+            `⚠️ ${data.results.failed} éléments en erreur`,
+            { duration: 5000 }
+          );
+        }
+        
         setSelectedItems([]); // Reset selection
       } else {
         toast.error(data?.error || 'Erreur lors de la résolution automatique');
@@ -166,11 +197,56 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       toast.error('Erreur lors de la résolution automatique');
     } finally {
       setResolving(false);
+      setProgress(0);
+      setProcessedCount(0);
+      setCurrentItem('');
     }
   };
 
   return (
-    <Card className={`border ${getIssueColor(issue.type)}`}>
+    <>
+      {/* Progress Overlay */}
+      {resolving && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Résolution en cours...</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Progression</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+                
+                <div className="text-sm text-muted-foreground">
+                  <p>Traité : {processedCount} / {selectedItems.length}</p>
+                  {currentItem && (
+                    <p className="mt-2 truncate">
+                      En cours : <strong>{currentItem}</strong>
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-800">
+                    ⏱️ Cette opération peut prendre quelques minutes. 
+                    Ne fermez pas cette fenêtre.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card className={`border ${getIssueColor(issue.type)}`}>
       <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-3">
@@ -306,5 +382,6 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         )}
       </CardContent>
     </Card>
+    </>
   );
 }

@@ -263,19 +263,23 @@ export default function DiagnosticsList({ shopId }: DiagnosticsListProps) {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Lancer un nouveau diagnostic ?</AlertDialogTitle>
-              <AlertDialogDescription className="space-y-3">
-                <p>Cette action va :</p>
-                <ul className="list-disc ml-6 space-y-1 text-sm">
-                  <li>Supprimer l'historique des anciens diagnostics</li>
-                  <li>Re-synchroniser tous les produits depuis WooCommerce</li>
-                  <li>Analyser à nouveau tous les éléments (produits, collections, articles)</li>
-                  <li>Générer un nouveau score SEO</li>
-                </ul>
-                {totalProducts > 0 && (
-                  <p className="font-medium mt-3">
-                    ⏱️ Durée estimée : 2-5 minutes pour {totalProducts} produits
-                  </p>
-                )}
+              <AlertDialogDescription asChild>
+                <div>
+                  <div className="text-sm text-muted-foreground mb-3">
+                    Cette action va :
+                  </div>
+                  <ul className="list-disc ml-6 space-y-1 text-sm text-muted-foreground">
+                    <li>Supprimer l'historique des anciens diagnostics</li>
+                    <li>Re-synchroniser tous les produits depuis WooCommerce</li>
+                    <li>Analyser à nouveau tous les éléments (produits, collections, articles)</li>
+                    <li>Générer un nouveau score SEO</li>
+                  </ul>
+                  {totalProducts > 0 && (
+                    <div className="mt-3 text-sm font-medium text-muted-foreground">
+                      ⏱️ Durée estimée : 2-5 minutes pour {totalProducts} produits
+                    </div>
+                  )}
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

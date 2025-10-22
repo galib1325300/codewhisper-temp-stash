@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Utility function to split array into chunks
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
 interface ResolutionRequest {
   shopId: string;
   diagnosticId: string;
@@ -53,11 +62,19 @@ serve(async (req) => {
     const results = {
       success: 0,
       failed: 0,
-      details: [] as Array<{ id: string; success: boolean; message: string }>
+      skipped: 0,
+      details: [] as Array<{ id: string; name?: string; success: boolean; message: string }>
     }
 
-    // Process each affected item based on issue type
-    for (const item of affectedItems) {
+    // Process items in batches of 10 to avoid timeouts
+    const batches = chunkArray(affectedItems, 10);
+    let totalProcessed = 0;
+
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      const batch = batches[batchIdx];
+      console.log(`Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} items)`);
+
+      for (const item of batch) {
       try {
         let updateResult;
 
@@ -346,6 +363,7 @@ serve(async (req) => {
           results.success++
           results.details.push({
             id: item.id,
+            name: item.name,
             success: true,
             message: 'Problème résolu automatiquement'
           })
@@ -358,11 +376,26 @@ serve(async (req) => {
         results.failed++
         results.details.push({
           id: item.id,
+          name: item.name,
           success: false,
           message: error instanceof Error ? error.message : 'Erreur inconnue'
         })
       }
+
+      totalProcessed++;
+      
+      // Log progress every 5 items
+      if (totalProcessed % 5 === 0) {
+        const percentComplete = Math.round((totalProcessed / affectedItems.length) * 100);
+        console.log(`Progress: ${totalProcessed}/${affectedItems.length} (${percentComplete}%)`);
+      }
     }
+
+    // Pause between batches to avoid rate limiting
+    if (batchIdx < batches.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
 
     // Update the diagnostic with resolved items
     if (results.success > 0 && diagnosticId) {
