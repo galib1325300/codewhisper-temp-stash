@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.sync-woocommerce-collections]
 verify_jwt = false
 
+[functions.mark-issues-manually-resolved]
+verify_jwt = false
+
 [functions.get-woocommerce-stats]
 verify_jwt = false
 

@@ -142,6 +142,25 @@ serve(async (req) => {
             }
             break;
 
+          case 'Mise en forme':
+            // Add bold keywords to descriptions
+            if (item.type === 'product') {
+              const { data: product } = await supabase
+                .from('products')
+                .select('description, name, categories')
+                .eq('id', item.id)
+                .single()
+
+              if (product?.description) {
+                const boldDescription = addBoldKeywords(product.description, product.name, product.categories)
+                updateResult = await supabase
+                  .from('products')
+                  .update({ description: boldDescription })
+                  .eq('id', item.id)
+              }
+            }
+            break;
+
           case 'Génération IA':
             // Handle AI content generation with Lovable AI
             if (item.type === 'product') {
@@ -326,6 +345,53 @@ function addInternalLinks(description: string, productName: string, categories: 
     }
   }
   
+  return enhanced;
+}
+
+// Function to add bold keywords to content
+function addBoldKeywords(description: string, productName: string, categories: any[]): string {
+  // Check if description already has bold formatting
+  if (description.includes('<strong>') || description.includes('<b>')) {
+    console.log('Description already has bold formatting');
+    return description;
+  }
+
+  let enhanced = description;
+  
+  // Extract important keywords from product name (split by spaces, filter short words)
+  const keywords = productName.split(' ')
+    .filter(word => word.length > 3) // Only words with more than 3 characters
+    .map(word => word.toLowerCase());
+  
+  // Add category names as keywords
+  if (categories && categories.length > 0) {
+    categories.forEach(cat => {
+      if (cat.name && cat.name.length > 3) {
+        keywords.push(cat.name.toLowerCase());
+      }
+    });
+  }
+  
+  // Common important e-commerce keywords to emphasize
+  const commonKeywords = ['qualité', 'premium', 'garanti', 'livraison', 'gratuite', 'rapide', 'nouveau', 'exclusif', 'unique'];
+  keywords.push(...commonKeywords);
+  
+  // Remove duplicates
+  const uniqueKeywords = [...new Set(keywords)];
+  
+  // Replace first occurrence of each keyword with bold version (case-insensitive)
+  uniqueKeywords.forEach(keyword => {
+    // Create case-insensitive regex that matches whole words
+    const regex = new RegExp(`\\b(${keyword})\\b`, 'i');
+    const match = enhanced.match(regex);
+    
+    if (match) {
+      // Only bold the first occurrence to avoid over-bolding
+      enhanced = enhanced.replace(regex, '<strong>$1</strong>');
+    }
+  });
+  
+  console.log(`Added bold keywords to product "${productName}"`);
   return enhanced;
 }
 

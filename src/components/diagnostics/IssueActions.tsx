@@ -97,6 +97,8 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         return 'Générer avec IA';
       case 'Maillage interne':
         return 'Ajouter liens';
+      case 'Mise en forme':
+        return 'Ajouter mots-clés en gras';
       default:
         return 'Résoudre automatiquement';
     }

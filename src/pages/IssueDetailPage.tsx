@@ -163,6 +163,8 @@ export default function IssueDetailPage() {
         return 'Structurer le contenu avec des listes et sous-titres';
       case 'Maillage interne':
         return 'Ajouter des liens internes pertinents vers d\'autres pages';
+      case 'Mise en forme':
+        return 'Mettre en gras les mots-clés importants dans les descriptions';
       default:
         return 'Résoudre automatiquement ce problème';
     }
@@ -203,13 +205,43 @@ export default function IssueDetailPage() {
     }
   };
 
-  const handleMarkAsResolved = () => {
-    setManuallyResolved(!manuallyResolved);
-    toast.success(
-      !manuallyResolved 
-        ? 'Problème marqué comme résolu' 
-        : 'Marque de résolution annulée'
-    );
+  const handleMarkAsResolved = async () => {
+    if (!issue || !shopId || !diagnosticId || !issueIndex) return;
+
+    try {
+      setResolving(true);
+
+      // Get all affected item IDs
+      const itemIds = issue.affected_items?.map((item: any) => item.id) || [];
+
+      // Call the edge function to mark as manually resolved
+      const { data, error } = await supabase.functions.invoke('mark-issues-manually-resolved', {
+        body: {
+          diagnosticId,
+          issueIndex: parseInt(issueIndex),
+          itemIds,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setManuallyResolved(true);
+        toast.success(`${data.resolvedCount} élément(s) marqué(s) comme résolu(s) manuellement`);
+        
+        // Reload the issue data to reflect changes
+        setTimeout(() => {
+          navigate(`/admin/shops/${shopId}/diagnostics/${diagnosticId}`);
+        }, 1500);
+      } else {
+        throw new Error(data?.error || 'Erreur lors du marquage manuel');
+      }
+    } catch (error) {
+      console.error('Error marking as resolved:', error);
+      toast.error('Erreur lors du marquage manuel');
+    } finally {
+      setResolving(false);
+    }
   };
 
   if (loading) {
@@ -350,24 +382,17 @@ export default function IssueDetailPage() {
                     {resolving ? 'Résolution en cours...' : 'Résoudre le problème'}
                   </Button>
 
-                  <div className="flex items-start space-x-2 p-4 bg-muted rounded-lg">
-                    <Checkbox
-                      id="manual-resolve"
-                      checked={manuallyResolved}
-                      onCheckedChange={handleMarkAsResolved}
-                    />
-                    <div className="flex-1">
-                      <label
-                        htmlFor="manual-resolve"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        Vous souhaitez résoudre ce problème vous-même ?
-                      </label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Marquer comme résolu manuellement
-                      </p>
-                    </div>
-                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleMarkAsResolved}
+                    disabled={resolving || manuallyResolved}
+                    className="w-full"
+                  >
+                    {manuallyResolved ? 'Résolu manuellement' : 'Marquer comme résolu manuellement'}
+                  </Button>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Vous souhaitez résoudre ce problème vous-même ? Utilisez ce bouton pour marquer l'issue comme résolue.
+                  </p>
                 </CardContent>
               </Card>
             )}
