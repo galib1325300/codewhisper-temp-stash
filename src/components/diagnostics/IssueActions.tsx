@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Zap, CheckCircle, Clock, AlertTriangle, ExternalLink, Wand2 } from 'lucide-react';
+import { Zap, CheckCircle, Clock, AlertTriangle, ExternalLink, Wand2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import IssueItemSelector from './IssueItemSelector';
@@ -37,10 +38,11 @@ interface IssueActionsProps {
   diagnosticId: string;
   shopUrl?: string;
   shopType?: string;
+  issueIndex?: number;
   onIssueResolved?: () => void;
 }
 
-export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, shopType, onIssueResolved }: IssueActionsProps) {
+export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, shopType, issueIndex, onIssueResolved }: IssueActionsProps) {
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -174,18 +176,28 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
               </Badge>
             </div>
           </div>
-          {issue.action_available && !resolved && enrichedItems.length > 0 && (
-            <IssueItemSelector
-              items={enrichedItems.filter(item => !resolvedItems.includes(item.id))}
-              selectedItems={selectedItems}
-              onSelectionChange={setSelectedItems}
-              issueTitle={issue.title}
-              issueType={issue.category}
-              actionButtonText={getActionText()}
-              onAction={handleAutoResolve}
-              isLoading={resolving}
-            />
-          )}
+          <div className="flex items-center space-x-2">
+            {issueIndex !== undefined && (
+              <Link to={`/admin/shops/${shopId}/diagnostics/${diagnosticId}/issues/${issueIndex}`}>
+                <Button variant="outline" size="sm">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Détails
+                </Button>
+              </Link>
+            )}
+            {issue.action_available && !resolved && enrichedItems.length > 0 && (
+              <IssueItemSelector
+                items={enrichedItems.filter(item => !resolvedItems.includes(item.id))}
+                selectedItems={selectedItems}
+                onSelectionChange={setSelectedItems}
+                issueTitle={issue.title}
+                issueType={issue.category}
+                actionButtonText={getActionText()}
+                onAction={handleAutoResolve}
+                isLoading={resolving}
+              />
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

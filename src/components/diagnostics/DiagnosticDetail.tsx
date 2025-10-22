@@ -365,19 +365,25 @@ export default function DiagnosticDetail() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredIssues.map((issue, index) => (
-                <IssueActions
-                  key={index}
-                  issue={issue}
-                  shopId={shopId || ''}
-                  diagnosticId={diagnosticId || ''}
-                  shopUrl={shop?.url}
-                  shopType={shop?.type}
-                  onIssueResolved={() => {
-                    loadDiagnostic();
-                  }}
-                />
-              ))}
+              {filteredIssues.map((issue, index) => {
+                // Find the original index in the full issues array
+                const originalIndex = diagnostic.issues.findIndex((i: any) => i === issue);
+                
+                return (
+                  <IssueActions
+                    key={index}
+                    issue={issue}
+                    shopId={shopId || ''}
+                    diagnosticId={diagnosticId || ''}
+                    shopUrl={shop?.url}
+                    shopType={shop?.type}
+                    issueIndex={originalIndex}
+                    onIssueResolved={() => {
+                      loadDiagnostic();
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -19,6 +19,7 @@ import ShopCollectionsPage from './pages/ShopCollectionsPage';
 import ShopBlogPage from './pages/ShopBlogPage';
 import ShopDiagnosticsPage from './pages/ShopDiagnosticsPage';
 import ShopDiagnosticDetailPage from './pages/ShopDiagnosticDetailPage';
+import IssueDetailPage from './pages/IssueDetailPage';
 import ShopSettingsPage from './pages/ShopSettingsPage';
 import ShopScrapingPage from './pages/ShopScrapingPage';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/admin/shops/:id/blog" element={<ProtectedRoute><ShopBlogPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics" element={<ProtectedRoute><ShopDiagnosticsPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics/:diagnosticId" element={<ProtectedRoute><ShopDiagnosticDetailPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/diagnostics/:diagnosticId/issues/:issueIndex" element={<ProtectedRoute><IssueDetailPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/settings" element={<ProtectedRoute><ShopSettingsPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/scraping" element={<ProtectedRoute><ShopScrapingPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
