@@ -107,22 +107,27 @@ serve(async (req) => {
     }
 
     // Fetch products, collections, and blog posts (exclude deleted/trash products)
-    const { data: products } = await supabase
+    const { data: productsData } = await supabase
       .from('products')
       .select('*')
       .eq('shop_id', shopId)
-      .not('status', 'in', '("trash","draft")')
-      .is('status', null).or('status', 'neq', 'trash')
+      .not('status', 'in', '("trash","draft")');
 
-    const { data: collections } = await supabase
+    const products = productsData || [];
+
+    const { data: collectionsData } = await supabase
       .from('collections')
       .select('*')
-      .eq('shop_id', shopId)
+      .eq('shop_id', shopId);
 
-    const { data: blogPosts } = await supabase
+    const collections = collectionsData || [];
+
+    const { data: blogPostsData } = await supabase
       .from('blog_posts')
       .select('*')
-      .eq('shop_id', shopId)
+      .eq('shop_id', shopId);
+
+    const blogPosts = blogPostsData || [];
 
     const issues: SEOIssue[] = []
     const totalProducts = products?.length || 0
