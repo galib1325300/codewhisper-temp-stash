@@ -25,7 +25,7 @@ const generateProductUrl = (shopUrl: string, productSlug: string, shopType: stri
 
 interface IssueActionsProps {
   issue: {
-    type: 'error' | 'warning' | 'info';
+    type: 'error' | 'warning' | 'info' | 'success';
     category: string;
     title: string;
     description: string;
@@ -62,6 +62,8 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         return <Clock className="w-5 h-5 text-yellow-500" />;
       case 'info':
         return <ExternalLink className="w-5 h-5 text-blue-500" />;
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
       default:
         return <ExternalLink className="w-5 h-5 text-gray-500" />;
     }
@@ -72,6 +74,7 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       case 'error': return 'border-red-200 bg-red-50';
       case 'warning': return 'border-yellow-200 bg-yellow-50';
       case 'info': return 'border-blue-200 bg-blue-50';
+      case 'success': return 'border-green-200 bg-green-50';
       default: return 'border-gray-200 bg-gray-50';
     }
   };

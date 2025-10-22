@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 interface SEOIssue {
-  type: 'error' | 'warning' | 'info';
+  type: 'error' | 'warning' | 'info' | 'success';
   category: string;
   title: string;
   description: string;
@@ -76,6 +76,8 @@ serve(async (req) => {
       .eq('shop_id', shopId)
 
     const issues: SEOIssue[] = []
+    const totalProducts = products?.length || 0
+    const totalCollections = collections?.length || 0
 
     // Enhanced product analysis
     if (products && products.length > 0) {
@@ -95,6 +97,16 @@ serve(async (req) => {
           affected_items: productsWithMissingAltTexts.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Images',
+          title: 'Textes alternatifs d\'images',
+          description: `Toutes les images ont des textes alternatifs.`,
+          recommendation: 'Continuez à ajouter des textes alternatifs descriptifs pour toutes les nouvelles images',
+          resource_type: 'product',
+          action_available: false
         })
       }
 
@@ -118,6 +130,16 @@ serve(async (req) => {
           resource_type: 'product',
           action_available: true
         })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Génération',
+          title: 'Contenu généré',
+          description: `Tous les produits ont du contenu généré.`,
+          recommendation: 'Continuez à utiliser la génération automatique pour les nouveaux produits',
+          resource_type: 'product',
+          action_available: false
+        })
       }
 
       // 3. Missing internal links (Liens internes manquants)
@@ -137,6 +159,16 @@ serve(async (req) => {
           affected_items: productsWithoutInternalLinks.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Maillage interne',
+          title: 'Liens internes présents',
+          description: `Le maillage interne est bien configuré.`,
+          recommendation: 'Continuez à créer des liens internes pertinents',
+          resource_type: 'product',
+          action_available: false
         })
       }
 
@@ -158,6 +190,16 @@ serve(async (req) => {
           resource_type: 'product',
           action_available: true
         })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Mise en forme',
+          title: 'Mots-clés en gras',
+          description: `Les mots-clés importants sont correctement mis en évidence.`,
+          recommendation: 'Continuez à mettre en gras les mots-clés importants',
+          resource_type: 'product',
+          action_available: false
+        })
       }
 
       // 5. Misleading links (Liens trompeurs)
@@ -178,6 +220,16 @@ serve(async (req) => {
           resource_type: 'product',
           action_available: true
         })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Liens',
+          title: 'Liens descriptifs',
+          description: `Les liens utilisent des ancres descriptives.`,
+          recommendation: 'Continuez à utiliser des ancres de liens claires et descriptives',
+          resource_type: 'product',
+          action_available: false
+        })
       }
 
       // 6. Missing bullet lists (Liste à puces manquante)
@@ -197,6 +249,16 @@ serve(async (req) => {
           affected_items: productsWithoutBulletLists.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Structure',
+          title: 'Listes à puces présentes',
+          description: `Le contenu est bien structuré avec des listes.`,
+          recommendation: 'Continuez à utiliser des listes à puces pour structurer le contenu',
+          resource_type: 'product',
+          action_available: false
         })
       }
 
@@ -225,6 +287,16 @@ serve(async (req) => {
           resource_type: 'product',
           action_available: true
         })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'URL',
+          title: 'Slugs optimisés',
+          description: `Les URLs sont bien optimisées avec des slugs pertinents.`,
+          recommendation: 'Continuez à créer des slugs descriptifs pour les nouveaux produits',
+          resource_type: 'product',
+          action_available: false
+        })
       }
 
       // 8. Missing H2 titles (Titre(s) H2 manquant(s))
@@ -245,6 +317,16 @@ serve(async (req) => {
           resource_type: 'product',
           action_available: true
         })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'Structure',
+          title: 'Sous-titres H2 présents',
+          description: `Le contenu est bien structuré avec des sous-titres.`,
+          recommendation: 'Continuez à structurer le contenu avec des H2 pertinents',
+          resource_type: 'product',
+          action_available: false
+        })
       }
 
       // 9. Missing focus keyword (Mot-clé focus manquant)
@@ -262,6 +344,16 @@ serve(async (req) => {
           affected_items: productsWithoutFocusKeyword.map(p => ({ id: p.id, name: p.name, type: 'product', slug: p.slug })),
           resource_type: 'product',
           action_available: true
+        })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'SEO',
+          title: 'Mots-clés focus définis',
+          description: `Tous les produits ont un mot-clé focus défini.`,
+          recommendation: 'Continuez à définir des mots-clés focus pertinents',
+          resource_type: 'product',
+          action_available: false
         })
       }
 
@@ -281,7 +373,28 @@ serve(async (req) => {
           resource_type: 'product',
           action_available: true
         })
+      } else {
+        issues.push({
+          type: 'success',
+          category: 'SEO',
+          title: 'Méta-descriptions optimisées',
+          description: `Toutes les méta-descriptions sont de la bonne longueur.`,
+          recommendation: 'Continuez à rédiger des méta-descriptions entre 120-160 caractères',
+          resource_type: 'product',
+          action_available: false
+        })
       }
+    } else if (totalProducts === 0) {
+      // No products at all
+      issues.push({
+        type: 'info',
+        category: 'Produits',
+        title: 'Aucun produit',
+        description: `Aucun produit n'a été trouvé dans la boutique.`,
+        recommendation: 'Synchronisez vos produits WooCommerce ou ajoutez des produits',
+        resource_type: 'product',
+        action_available: false
+      })
     }
 
     // Blog posts analysis
@@ -458,11 +571,16 @@ serve(async (req) => {
       })
     }
 
+    // Sort issues by priority: error > warning > info > success
+    const priorityOrder = { error: 0, warning: 1, info: 2, success: 3 };
+    issues.sort((a, b) => priorityOrder[a.type] - priorityOrder[b.type]);
+
     // Calculate score
     let score = 100
     const errorCount = issues.filter(i => i.type === 'error').length
     const warningCount = issues.filter(i => i.type === 'warning').length
     const infoCount = issues.filter(i => i.type === 'info').length
+    const successCount = issues.filter(i => i.type === 'success').length
 
     score -= errorCount * 15
     score -= warningCount * 8  
