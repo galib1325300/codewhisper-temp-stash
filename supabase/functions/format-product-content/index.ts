@@ -211,15 +211,35 @@ Génère une liste à puces de 4-6 caractéristiques clés.`;
     let remoteUpdated = true;
 
     // Sync to WooCommerce if applicable
-    if (shop.type === 'woocommerce' && product.woocommerce_id) {
-      const { error: wooError } = await supabase.functions.invoke('update-woocommerce-product', {
-        body: { shopId, productId }
-      });
+    if (shop.type?.toLowerCase() === 'woocommerce' && product.woocommerce_id) {
+      console.log('Syncing to WooCommerce...', { shopId, productId, woocommerce_id: product.woocommerce_id });
+      
+      try {
+        const { data: wooResult, error: wooError } = await supabase.functions.invoke('update-woocommerce-product', {
+          body: {
+            shopId: shopId,
+            productId: productId,
+          }
+        });
 
-      if (wooError) {
-        console.error('Error syncing to WooCommerce:', wooError);
+        if (wooError) {
+          console.error('Error updating WooCommerce:', wooError);
+          remoteUpdated = false;
+        } else if (!wooResult?.success) {
+          console.error('WooCommerce update failed:', wooResult);
+          remoteUpdated = false;
+        } else {
+          console.log('✓ WooCommerce product synced successfully');
+        }
+      } catch (err) {
+        console.error('Exception calling update-woocommerce-product:', err);
         remoteUpdated = false;
       }
+    } else {
+      console.log('Shop type or WooCommerce ID missing, skipping remote update', { 
+        type: shop.type, 
+        woocommerce_id: product.woocommerce_id 
+      });
     }
 
     return new Response(
