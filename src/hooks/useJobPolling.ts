@@ -90,8 +90,11 @@ export function useJobPolling() {
 
         onUpdate?.(jobStatus);
 
-        // Job completed
-        if (job.status === 'completed') {
+        // Job completed or all items processed (fallback to prevent UI blocking)
+        const isComplete = job.status === 'completed';
+        const allProcessed = jobStatus.processed_items >= jobStatus.total_items && jobStatus.total_items > 0;
+        
+        if (isComplete || allProcessed) {
           stopPolling();
           onDone?.(jobStatus);
         }

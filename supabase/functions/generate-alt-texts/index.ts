@@ -172,16 +172,18 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
 
         updatedImages.push(updatedImage);
 
-        // Sync to WordPress if applicable
-        if (shop.type === 'wordpress' && shop.wp_username && shop.wp_password) {
-          if (image.wordpress_media_id && altText !== oldAlt) {
-            console.log(`Syncing ALT to WordPress for media ID: ${image.wordpress_media_id}`);
+        // Sync to WordPress if applicable (includes WooCommerce shops)
+        const isWordPressShop = ['wordpress', 'woocommerce'].includes((shop.type || '').toLowerCase());
+        if (isWordPressShop && shop.wp_username && shop.wp_password) {
+          const mediaId = image.wordpress_media_id ?? image.id ?? image.mediaId;
+          if (mediaId && altText !== oldAlt) {
+            console.log(`Syncing ALT to WordPress for media ID: ${mediaId}`);
             
             try {
               const wpSyncResponse = await supabase.functions.invoke('update-wordpress-media-alt', {
                 body: {
                   shopId: shop.id,
-                  mediaId: image.wordpress_media_id,
+                  mediaId: mediaId,
                   altText: altText
                 }
               });
@@ -190,7 +192,7 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
                 console.error(`WordPress sync error for image ${i + 1}:`, wpSyncResponse.error);
                 wordpressSyncErrors.push({ 
                   index: i, 
-                  mediaId: image.wordpress_media_id,
+                  mediaId: mediaId,
                   error: wpSyncResponse.error.message || 'WordPress sync failed'
                 });
               } else {
@@ -200,12 +202,12 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
               console.error(`WordPress sync exception for image ${i + 1}:`, wpError);
               wordpressSyncErrors.push({ 
                 index: i, 
-                mediaId: image.wordpress_media_id,
+                mediaId: mediaId,
                 error: wpError.message 
               });
             }
-          } else if (!image.wordpress_media_id) {
-            console.log(`Skipping WordPress sync for image ${i + 1}: no wordpress_media_id`);
+          } else if (!mediaId) {
+            console.log(`Skipping WordPress sync for image ${i + 1}: no media ID found`);
           }
         }
 
@@ -250,10 +252,11 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
 
     let message = `✅ ${successCount} textes alt générés`;
     
+    const isWordPressShop = ['wordpress', 'woocommerce'].includes((shop.type || '').toLowerCase());
     if (wordpressSyncErrors.length > 0) {
       message += ` | ⚠️ ${wordpressSyncErrors.length} erreurs de synchro WordPress`;
-    } else if (shop.type === 'wordpress' && shop.wp_username && shop.wp_password) {
-      const syncedCount = updatedImages.filter(img => img.wordpress_media_id).length;
+    } else if (isWordPressShop && shop.wp_username && shop.wp_password) {
+      const syncedCount = updatedImages.filter(img => img.wordpress_media_id || img.id || img.mediaId).length;
       if (syncedCount > 0) {
         message += ` | ✓ ${syncedCount} synchronisés sur WordPress`;
       }
