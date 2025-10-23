@@ -129,7 +129,7 @@ serve(async (req) => {
     let remoteUpdated = true;
 
     // Update WooCommerce if needed
-    if (shop.type === 'woocommerce' && product.woocommerce_id) {
+    if (shop.type?.toLowerCase() === 'woocommerce' && product.woocommerce_id) {
       console.log('Syncing to WooCommerce...', { shopId, productId, woocommerce_id: product.woocommerce_id });
       
       try {
