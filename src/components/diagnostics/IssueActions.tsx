@@ -234,6 +234,8 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         shopId,
         label: issue.title,
       }));
+      // Notify the banner to reload the job
+      window.dispatchEvent(new Event('job:background'));
     } catch {}
     toast.info('Traitement en arrière-plan. Vous pouvez continuer à naviguer.');
     setResolving(false);

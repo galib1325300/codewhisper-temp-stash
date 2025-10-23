@@ -27,17 +27,35 @@ export default function BackgroundJobBanner() {
   const [progress, setProgress] = useState(0);
   const [counts, setCounts] = useState({ processed: 0, total: 0, success: 0, failed: 0, skipped: 0 });
 
-  // Load job from localStorage once
+  // Load job from localStorage on mount and when storage changes
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed: ActiveJobMeta = JSON.parse(raw);
-        if (parsed?.jobId) {
-          setActiveJob(parsed);
+    const loadJob = () => {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) {
+          const parsed: ActiveJobMeta = JSON.parse(raw);
+          if (parsed?.jobId) {
+            setActiveJob(parsed);
+            setHidden(false); // Show banner when new job detected
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    };
+
+    // Load initially
+    loadJob();
+
+    // Listen for custom event when job is put in background
+    const handleJobBackground = () => {
+      console.log('Job background event received, reloading job from localStorage');
+      loadJob();
+    };
+
+    window.addEventListener('job:background', handleJobBackground);
+
+    return () => {
+      window.removeEventListener('job:background', handleJobBackground);
+    };
   }, []);
 
   // If route changes and the user hid the banner only for a route, show again
