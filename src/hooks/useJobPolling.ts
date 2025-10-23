@@ -25,11 +25,28 @@ export function useJobPolling() {
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const jobIdRef = useRef<string | null>(null);
+  const channelRef = useRef<any>(null);
+  const staleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdateTsRef = useRef<number | null>(null);
+  const lastProcessedRef = useRef<number>(0);
+  const lastJobRef = useRef<JobStatus | null>(null);
 
   const stopPolling = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+    }
+    if (staleTimerRef.current) {
+      clearInterval(staleTimerRef.current);
+      staleTimerRef.current = null;
+    }
+    if (channelRef.current) {
+      try {
+        supabase.removeChannel(channelRef.current);
+      } catch (e) {
+        console.warn('Failed to remove realtime channel', e);
+      }
+      channelRef.current = null;
     }
     setIsPolling(false);
   };
@@ -50,6 +67,52 @@ export function useJobPolling() {
 
     jobIdRef.current = jobId;
     setIsPolling(true);
+    lastUpdateTsRef.current = Date.now();
+
+    // Realtime subscription for immediate updates
+    try {
+      channelRef.current = supabase
+        .channel(`job-status-${jobId}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'generation_jobs', filter: `id=eq.${jobId}` },
+          (payload) => {
+            const job = payload.new as any;
+            const jobStatus: JobStatus = {
+              id: job.id,
+              status: job.status as JobStatus['status'],
+              progress: job.progress || 0,
+              processed_items: job.processed_items || 0,
+              success_count: job.success_count || 0,
+              failed_count: job.failed_count || 0,
+              skipped_count: job.skipped_count || 0,
+              total_items: job.total_items || 0,
+              current_item: job.current_item,
+              error_message: job.error_message,
+            };
+            lastJobRef.current = jobStatus;
+            lastUpdateTsRef.current = Date.now();
+            lastProcessedRef.current = jobStatus.processed_items;
+            onUpdate?.(jobStatus);
+
+            const isComplete = job.status === 'completed';
+            const allProcessed = jobStatus.processed_items >= jobStatus.total_items && jobStatus.total_items > 0;
+            const isFailed = job.status === 'failed';
+
+            if (isComplete || allProcessed || isFailed) {
+              stopPolling();
+              if (isFailed) {
+                onError?.(job.error_message || 'Job failed');
+              } else {
+                onDone?.(jobStatus);
+              }
+            }
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime subscription failed, falling back to polling only:', e);
+    }
 
     const pollJob = async () => {
       if (!jobIdRef.current) return;
@@ -88,6 +151,9 @@ export function useJobPolling() {
 
         console.log('Job status:', jobStatus.status, `${jobStatus.progress}%`);
 
+        lastJobRef.current = jobStatus;
+        lastUpdateTsRef.current = Date.now();
+        lastProcessedRef.current = jobStatus.processed_items;
         onUpdate?.(jobStatus);
 
         // Job completed or all items processed (fallback to prevent UI blocking)
@@ -114,6 +180,20 @@ export function useJobPolling() {
     // Start polling immediately, then at intervals
     pollJob();
     intervalRef.current = setInterval(pollJob, intervalMs);
+
+    // Fallback: if updates stall but all items appear processed, finish UI to avoid blocking
+    staleTimerRef.current = setInterval(() => {
+      const last = lastUpdateTsRef.current;
+      const snapshot = lastJobRef.current;
+      if (!snapshot || !last) return;
+      const staleMs = Date.now() - last;
+      const allProcessed = snapshot.processed_items >= snapshot.total_items && snapshot.total_items > 0;
+      if (staleMs > Math.max(intervalMs * 5, 15000) && allProcessed) {
+        console.warn('Stale job updates detected, finalizing UI via fallback');
+        stopPolling();
+        onDone?.(snapshot);
+      }
+    }, Math.max(intervalMs * 2, 6000));
   };
 
   // Cleanup on unmount
