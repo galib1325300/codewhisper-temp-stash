@@ -282,7 +282,7 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
             </div>
             <div className="flex items-center space-x-2">
               {issueIndex !== undefined && (
-                <Link to={`/admin/shops/${shopId}/diagnostics/${diagnosticId}/issues/${issueIndex}`}>
+                <Link to={`/admin/shops/${shopId}/diagnostics/${diagnosticId}/issue/${encodeURIComponent(`${issue.category}|${issue.title}|${issue.resource_type || 'general'}`)}`}>
                   <Button variant="outline" size="sm">
                     <FileText className="w-4 h-4 mr-2" />
                     Détails

@@ -45,7 +45,7 @@ serve(async (req) => {
     // Récupérer le produit
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('*')
+      .select('id, name, images, shop_id, short_description, categories')
       .eq('id', productId)
       .single();
 
@@ -56,6 +56,23 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
+
+    // Fetch shop to check type and credentials
+    const { data: shop, error: shopError } = await supabase
+      .from('shops')
+      .select('id, type, url, wp_username, wp_password')
+      .eq('id', product.shop_id)
+      .single();
+
+    if (shopError || !shop) {
+      console.error('Shop not found:', shopError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Shop not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    console.log('Shop type:', shop.type, 'Has WP credentials:', !!(shop.wp_username && shop.wp_password));
 
     const images = product.images || [];
     if (images.length === 0) {
@@ -77,9 +94,11 @@ serve(async (req) => {
     // Générer les textes alt pour chaque image
     const updatedImages = [];
     const errors = [];
+    const wordpressSyncErrors = [];
     
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
+      const oldAlt = image.alt || '';
       
       const systemPrompt = `Tu es un expert en SEO et en accessibilité web.
 Génère un texte alt optimisé pour une image de produit e-commerce.
@@ -102,6 +121,8 @@ Image ${i + 1} sur ${images.length}
 C'est une image secondaire du produit (angle différent, détail, ou vue alternative). Génère un texte alt descriptif qui distingue cette vue de l'image principale.`;
 
       try {
+        console.log(`Processing image ${i + 1}/${images.length}`);
+        
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -142,10 +163,52 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
         const data = await response.json();
         const altText = data.choices?.[0]?.message?.content?.trim() || image.alt || `${product.name} - Image ${i + 1}`;
 
-        updatedImages.push({
+        console.log(`Generated alt text for image ${i + 1}:`, altText);
+
+        const updatedImage = {
           ...image,
           alt: altText
-        });
+        };
+
+        updatedImages.push(updatedImage);
+
+        // Sync to WordPress if applicable
+        if (shop.type === 'wordpress' && shop.wp_username && shop.wp_password) {
+          if (image.wordpress_media_id && altText !== oldAlt) {
+            console.log(`Syncing ALT to WordPress for media ID: ${image.wordpress_media_id}`);
+            
+            try {
+              const wpSyncResponse = await supabase.functions.invoke('update-wordpress-media-alt', {
+                body: {
+                  shopId: shop.id,
+                  mediaId: image.wordpress_media_id,
+                  altText: altText
+                }
+              });
+
+              if (wpSyncResponse.error) {
+                console.error(`WordPress sync error for image ${i + 1}:`, wpSyncResponse.error);
+                wordpressSyncErrors.push({ 
+                  index: i, 
+                  mediaId: image.wordpress_media_id,
+                  error: wpSyncResponse.error.message || 'WordPress sync failed'
+                });
+              } else {
+                console.log(`✓ WordPress ALT synced for image ${i + 1}`);
+              }
+            } catch (wpError) {
+              console.error(`WordPress sync exception for image ${i + 1}:`, wpError);
+              wordpressSyncErrors.push({ 
+                index: i, 
+                mediaId: image.wordpress_media_id,
+                error: wpError.message 
+              });
+            }
+          } else if (!image.wordpress_media_id) {
+            console.log(`Skipping WordPress sync for image ${i + 1}: no wordpress_media_id`);
+          }
+        }
+
       } catch (error) {
         console.error(`Error generating alt text for image ${i}:`, error);
         errors.push({ image: i, error: error.message });
@@ -179,36 +242,35 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
       );
     }
 
-    // Try to sync to WordPress if applicable
-    if (product.type === 'wordpress' && shop.wp_username && shop.wp_password) {
-      console.log('Attempting WordPress media sync...');
-      // For each image with WordPress media ID, update alt
-      for (let i = 0; i < updatedImages.length; i++) {
-        const img = updatedImages[i];
-        if (img.wordpress_media_id && img.alt !== images[i]?.alt) {
-          try {
-            await supabase.functions.invoke('update-wordpress-media-alt', {
-              body: {
-                shopId: shop.id,
-                mediaId: img.wordpress_media_id,
-                altText: img.alt
-              }
-            });
-          } catch (wpError) {
-            console.error(`Failed to sync image ${i} to WordPress:`, wpError);
-          }
-        }
+    // Build success message
+    const successCount = updatedImages.filter((img, idx) => {
+      const original = images[idx];
+      return img.alt && img.alt !== (original?.alt || '');
+    }).length;
+
+    let message = `✅ ${successCount} textes alt générés`;
+    
+    if (wordpressSyncErrors.length > 0) {
+      message += ` | ⚠️ ${wordpressSyncErrors.length} erreurs de synchro WordPress`;
+    } else if (shop.type === 'wordpress' && shop.wp_username && shop.wp_password) {
+      const syncedCount = updatedImages.filter(img => img.wordpress_media_id).length;
+      if (syncedCount > 0) {
+        message += ` | ✓ ${syncedCount} synchronisés sur WordPress`;
       }
+    }
+
+    if (errors.length > 0) {
+      message += ` | ⚠️ ${errors.length} erreurs AI`;
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         images: updatedImages,
+        successCount,
+        message,
         errors: errors.length > 0 ? errors : undefined,
-        message: errors.length > 0 
-          ? `${updatedImages.length - errors.length}/${images.length} alt texts generated` 
-          : 'All alt texts generated successfully'
+        wordpressSyncErrors: wordpressSyncErrors.length > 0 ? wordpressSyncErrors : undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

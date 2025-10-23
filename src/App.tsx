@@ -55,6 +55,7 @@ export default function App() {
             <Route path="/admin/shops/:id/blog" element={<ProtectedRoute><ShopBlogPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics" element={<ProtectedRoute><ShopDiagnosticsPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics/:diagnosticId" element={<ProtectedRoute><ShopDiagnosticDetailPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/diagnostics/:diagnosticId/issue/:issueKey" element={<ProtectedRoute><IssueDetailPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics/:diagnosticId/issues/:issueIndex" element={<ProtectedRoute><IssueDetailPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/settings" element={<ProtectedRoute><ShopSettingsPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/scraping" element={<ProtectedRoute><ShopScrapingPage /></ProtectedRoute>} />

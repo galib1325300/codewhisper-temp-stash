@@ -31,7 +31,7 @@ const generateProductUrl = (shopUrl: string, productSlug: string, shopType: stri
 };
 
 export default function IssueDetailPage() {
-  const { id: shopId, diagnosticId, issueIndex } = useParams();
+  const { id: shopId, diagnosticId, issueIndex, issueKey } = useParams();
   const navigate = useNavigate();
   const [shop, setShop] = useState<Shop | null>(null);
   const [issue, setIssue] = useState<any>(null);
@@ -40,10 +40,10 @@ export default function IssueDetailPage() {
   const [manuallyResolved, setManuallyResolved] = useState(false);
 
   useEffect(() => {
-    if (shopId && diagnosticId && issueIndex !== undefined) {
+    if (shopId && diagnosticId && (issueIndex !== undefined || issueKey)) {
       loadData();
     }
-  }, [shopId, diagnosticId, issueIndex]);
+  }, [shopId, diagnosticId, issueIndex, issueKey]);
 
   const loadData = async () => {
     try {
@@ -65,9 +65,21 @@ export default function IssueDetailPage() {
         throw new Error('Diagnostic not found');
       }
 
-      // Get the specific issue by index
-      const issues = diagnostic.issues || [];
-      const selectedIssue = issues[parseInt(issueIndex!)];
+      // Get the specific issue by key or index
+      const issues = Array.isArray(diagnostic.issues) ? diagnostic.issues : [];
+      let selectedIssue = null;
+
+      if (issueKey) {
+        // Find by composite key: category|title|resource_type
+        selectedIssue = issues.find((i: any) => 
+          `${i.category}|${i.title}|${i.resource_type || 'general'}` === decodeURIComponent(issueKey)
+        );
+      }
+      
+      // Fallback to index if key not found or not provided
+      if (!selectedIssue && issueIndex !== undefined) {
+        selectedIssue = issues[parseInt(issueIndex!)];
+      }
       
       if (!selectedIssue) {
         throw new Error('Issue not found');
