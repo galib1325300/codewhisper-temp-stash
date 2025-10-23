@@ -148,17 +148,19 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         }
       });
 
-      if (queueError) {
-        if (queueError.message?.includes('déjà en cours')) {
-          toast.error('Un traitement similaire est déjà en cours. Veuillez attendre.');
-          setResolving(false);
-          return;
+      // Handle errors (409 Conflict returns JSON body with error message)
+      if (queueError || !queueResult?.success) {
+        const errorMsg = queueResult?.error || queueError?.message || 'Échec de la mise en file d\'attente';
+        
+        // Check if it's a duplicate job error (409)
+        if (errorMsg.includes('déjà en cours') || errorMsg.includes('already in progress')) {
+          toast.error('Un traitement similaire est déjà en cours. Veuillez attendre qu\'il se termine.');
+        } else {
+          toast.error(`Erreur: ${errorMsg}`);
         }
-        throw new Error(queueError.message || 'Failed to queue job');
-      }
-
-      if (!queueResult?.success) {
-        throw new Error('Failed to queue job');
+        
+        setResolving(false);
+        return;
       }
 
       const jobId = queueResult.jobId;
