@@ -56,7 +56,9 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
   const [successCount, setSuccessCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
   
+
   const { startPolling, stopPolling, isPolling } = useJobPolling();
 
   // Enrich all items with URLs
@@ -130,6 +132,8 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
         itemIds.includes(item.id)
       );
 
+      setTotalItems(selectedAffectedItems.length);
+
       // Queue job
       const { data: queueResult, error: queueError } = await supabase.functions.invoke('queue-seo-resolution', {
         body: {
@@ -163,7 +167,11 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       // Use polling hook
       startPolling(jobId, {
         onUpdate: (job) => {
-          setProgress(job.progress);
+          const derived = job.total_items && job.total_items > 0
+            ? (job.processed_items / job.total_items) * 100
+            : (job.progress || 0);
+          setTotalItems(job.total_items || selectedItems.length);
+          setProgress(Math.max(derived, job.progress || 0));
           setProcessedCount(job.processed_items);
           setSuccessCount(job.success_count);
           setFailedCount(job.failed_count);
@@ -236,7 +244,7 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
                 </div>
                 
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>Traité : {processedCount} / {selectedItems.length}</p>
+                  <p>Traité : {processedCount} / {totalItems || selectedItems.length}</p>
                   {(successCount > 0 || failedCount > 0 || skippedCount > 0) && (
                     <p className="text-xs">
                       ✅ {successCount} · ⚠️ {failedCount} · ℹ️ {skippedCount}
