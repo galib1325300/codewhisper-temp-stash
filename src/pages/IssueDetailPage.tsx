@@ -38,6 +38,7 @@ export default function IssueDetailPage() {
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
   const [manuallyResolved, setManuallyResolved] = useState(false);
+  const [selectedIssueIndex, setSelectedIssueIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (shopId && diagnosticId && (issueIndex !== undefined || issueKey)) {
@@ -65,25 +66,32 @@ export default function IssueDetailPage() {
         throw new Error('Diagnostic not found');
       }
 
-      // Get the specific issue by key or index
+      // Get the specific issue by key or index and compute its index
       const issues = Array.isArray(diagnostic.issues) ? diagnostic.issues : [];
-      let selectedIssue = null;
+      let selectedIssue: any = null;
+      let selectedIndex: number | null = null;
 
       if (issueKey) {
-        // Find by composite key: category|title|resource_type
-        selectedIssue = issues.find((i: any) => 
-          `${i.category}|${i.title}|${i.resource_type || 'general'}` === decodeURIComponent(issueKey)
-        );
+        const key = decodeURIComponent(issueKey);
+        selectedIndex = issues.findIndex((i: any) => `${i.category}|${i.title}|${i.resource_type || 'general'}` === key);
+        if (selectedIndex >= 0) {
+          selectedIssue = issues[selectedIndex];
+        }
       }
       
       // Fallback to index if key not found or not provided
       if (!selectedIssue && issueIndex !== undefined) {
-        selectedIssue = issues[parseInt(issueIndex!)];
+        const idx = parseInt(issueIndex!);
+        selectedIssue = issues[idx];
+        selectedIndex = Number.isNaN(idx) ? null : idx;
       }
       
       if (!selectedIssue) {
         throw new Error('Issue not found');
       }
+
+      // Persist the resolved index for later actions (manual resolve)
+      setSelectedIssueIndex(selectedIndex);
 
       // Enrich issue with product data if needed
       if (selectedIssue.affected_items && selectedIssue.affected_items.length > 0) {
@@ -262,7 +270,8 @@ export default function IssueDetailPage() {
   };
 
   const handleMarkAsResolved = async () => {
-    if (!issue || !shopId || !diagnosticId || !issueIndex) return;
+    const idx = selectedIssueIndex ?? (issueIndex ? parseInt(issueIndex) : null);
+    if (!issue || !shopId || !diagnosticId || idx === null || Number.isNaN(idx)) return;
 
     try {
       setResolving(true);
@@ -274,7 +283,7 @@ export default function IssueDetailPage() {
       const { data, error } = await supabase.functions.invoke('mark-issues-manually-resolved', {
         body: {
           diagnosticId,
-          issueIndex: parseInt(issueIndex),
+          issueIndex: idx,
           itemIds,
         }
       });

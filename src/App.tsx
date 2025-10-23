@@ -26,12 +26,14 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SEOOptimizationPage from './pages/SEOOptimizationPage';
 import MultiStoreOverview from './pages/MultiStoreOverview';
 import ProtectedRoute from './components/ProtectedRoute';
+import BackgroundJobBanner from './components/layout/BackgroundJobBanner';
 
 export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <Router>
+          <BackgroundJobBanner />
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
