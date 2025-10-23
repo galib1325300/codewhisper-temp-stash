@@ -57,6 +57,7 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
   const [failedCount, setFailedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   
 
   const { startPolling, stopPolling, isPolling } = useJobPolling();
@@ -164,6 +165,7 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
       }
 
       const jobId = queueResult.jobId;
+      setCurrentJobId(jobId);
       console.log('Job queued with ID:', jobId);
 
       // Use polling hook
@@ -223,6 +225,21 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
     };
   }, [isPolling, stopPolling]);
 
+  const continueInBackground = () => {
+    if (!currentJobId) return;
+    try {
+      localStorage.setItem('seoActiveJob', JSON.stringify({
+        jobId: currentJobId,
+        diagnosticId,
+        shopId,
+        label: issue.title,
+      }));
+    } catch {}
+    toast.info('Traitement en arrière-plan. Vous pouvez continuer à naviguer.');
+    setResolving(false);
+    stopPolling();
+  };
+
   return (
     <>
       {/* Progress Overlay */}
@@ -261,9 +278,16 @@ export default function IssueActions({ issue, shopId, diagnosticId, shopUrl, sho
 
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-xs text-blue-800">
-                    ⏱️ Cette opération peut prendre quelques minutes. 
-                    Ne fermez pas cette fenêtre.
+                    ⏱️ Cette opération peut prendre quelques minutes. Vous pouvez continuer à naviguer, le traitement poursuit en arrière-plan.
                   </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button size="sm" variant="default" onClick={continueInBackground}>
+                      Continuer en arrière-plan
+                    </Button>
+                    <Link to={`/admin/shops/${shopId}/diagnostics/${diagnosticId}`}>
+                      <Button size="sm" variant="outline">Voir la page du diagnostic</Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </CardContent>
