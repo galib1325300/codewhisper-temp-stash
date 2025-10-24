@@ -36,12 +36,51 @@ serve(async (req) => {
       );
     }
 
-    // Update the product with the improved image
+    // Convert base64 to blob and upload to Supabase Storage
+    console.log('Uploading improved image to storage...');
+    
+    // Extract base64 data
+    const base64Data = improvedImageUrl.split(',')[1];
+    const mimeType = improvedImageUrl.split(';')[0].split(':')[1];
+    const fileExt = mimeType.split('/')[1];
+    
+    // Convert base64 to Uint8Array
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Upload to Supabase Storage
+    const fileName = `${productId}_${imageIndex}_${Date.now()}.${fileExt}`;
+    const { data: uploadData, error: uploadError } = await supabaseClient
+      .storage
+      .from('product-images')
+      .upload(fileName, bytes, {
+        contentType: mimeType,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Error uploading to storage:', uploadError);
+      throw uploadError;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabaseClient
+      .storage
+      .from('product-images')
+      .getPublicUrl(fileName);
+
+    console.log('Image uploaded successfully, public URL:', publicUrl);
+
+    // Update the product with the improved image URL
     const updatedImages = [...product.images];
     updatedImages[imageIndex] = {
       ...updatedImages[imageIndex],
-      src: improvedImageUrl,
-      improved_at: new Date().toISOString()
+      src: publicUrl,
+      improved_at: new Date().toISOString(),
+      original_src: product.images[imageIndex].src
     };
 
     const { error: updateError } = await supabaseClient

@@ -157,6 +157,21 @@ Deno.serve(async (req) => {
       updateData.meta_data.push({ key: '_yoast_wpseo_metadesc', value: product.meta_description });
     }
 
+    // Handle images - only include public URLs (not base64)
+    if (product.images && Array.isArray(product.images)) {
+      const validImages = product.images
+        .filter((img: any) => img.src && !img.src.startsWith('data:'))
+        .map((img: any) => ({
+          src: img.src,
+          alt: img.alt || product.name
+        }));
+      
+      if (validImages.length > 0) {
+        updateData.images = validImages;
+        console.log(`Including ${validImages.length} images in update`);
+      }
+    }
+
     console.log('Updating WooCommerce product:', product.woocommerce_id);
 
     // Update product on WooCommerce
