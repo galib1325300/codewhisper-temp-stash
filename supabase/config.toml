@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.improve-product-image]
 verify_jwt = false
+
+[functions.apply-improved-image]
+verify_jwt = false

@@ -119,29 +119,16 @@ serve(async (req) => {
 
     console.log('Image improved successfully');
 
-    // Update the product with the new image
-    const updatedImages = [...product.images];
-    updatedImages[imageIndex] = {
-      ...updatedImages[imageIndex],
-      src: improvedImageUrl,
-      improved_at: new Date().toISOString()
-    };
+    console.log('Image improved successfully, returning for preview');
 
-    const { error: updateError } = await supabaseClient
-      .from('products')
-      .update({ images: updatedImages })
-      .eq('id', productId);
-
-    if (updateError) {
-      console.error('Error updating product:', updateError);
-      throw updateError;
-    }
-
+    // Return the improved image for preview (don't save yet)
     return new Response(
       JSON.stringify({ 
         success: true, 
-        imageUrl: improvedImageUrl,
-        message: 'Image améliorée avec succès'
+        improvedImageUrl: improvedImageUrl,
+        originalImageUrl: imageUrl,
+        imageIndex: imageIndex,
+        message: 'Image améliorée - En attente d\'approbation'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

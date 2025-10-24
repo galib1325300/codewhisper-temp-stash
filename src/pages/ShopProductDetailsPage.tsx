@@ -406,6 +406,12 @@ export default function ShopProductDetailsPage() {
   const [customImagePrompt, setCustomImagePrompt] = useState('');
   const [improvingImage, setImprovingImage] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [imagePreview, setImagePreview] = useState<{
+    original: string;
+    improved: string;
+    index: number;
+  } | null>(null);
+  const [applyingImage, setApplyingImage] = useState(false);
 
   const handleImproveImageQuality = async (customPrompt?: string) => {
     setImprovingImage(true);
@@ -423,8 +429,12 @@ export default function ShopProductDetailsPage() {
       if (error) throw error;
 
       if (data.success) {
-        toast.success('Image améliorée avec succès');
-        loadData();
+        setImagePreview({
+          original: data.originalImageUrl,
+          improved: data.improvedImageUrl,
+          index: data.imageIndex
+        });
+        toast.success('Aperçu de l\'image améliorée disponible');
         setImagePromptDialogOpen(false);
         setCustomImagePrompt('');
       } else {
@@ -436,6 +446,44 @@ export default function ShopProductDetailsPage() {
     } finally {
       setImprovingImage(false);
     }
+  };
+
+  const handleAcceptImage = async () => {
+    if (!imagePreview) return;
+    
+    setApplyingImage(true);
+    toast.info('Application de l\'image en cours...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('apply-improved-image', {
+        body: { 
+          productId,
+          imageIndex: imagePreview.index,
+          improvedImageUrl: imagePreview.improved
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Image appliquée avec succès');
+        setImagePreview(null);
+        setHasChanges(true);
+        loadData();
+      } else {
+        toast.error(data.error || 'Erreur lors de l\'application');
+      }
+    } catch (error: any) {
+      console.error('Error applying image:', error);
+      toast.error(error.message || 'Erreur lors de l\'application de l\'image');
+    } finally {
+      setApplyingImage(false);
+    }
+  };
+
+  const handleRejectImage = () => {
+    setImagePreview(null);
+    toast.info('Image améliorée rejetée');
   };
 
   const handleDeleteProduct = async () => {
@@ -1057,6 +1105,75 @@ export default function ShopProductDetailsPage() {
                     </Button>
                   </div>
                 </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Image Preview Dialog */}
+            <Dialog open={!!imagePreview} onOpenChange={() => !applyingImage && handleRejectImage()}>
+              <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>Aperçu de l'image améliorée</DialogTitle>
+                  <DialogDescription>
+                    Comparez l'image originale et l'image améliorée, puis acceptez ou rejetez le résultat.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                {imagePreview && (
+                  <div className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium mb-2">Image originale</p>
+                        <img 
+                          src={imagePreview.original} 
+                          alt="Original" 
+                          className="w-full aspect-square object-cover rounded-lg border"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-2">Image améliorée</p>
+                        <img 
+                          src={imagePreview.improved} 
+                          alt="Améliorée" 
+                          className="w-full aspect-square object-cover rounded-lg border"
+                        />
+                      </div>
+                    </div>
+
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Si vous acceptez cette image, elle remplacera l'image actuelle. Vous devrez ensuite publier les modifications sur votre boutique WooCommerce.
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="flex justify-end gap-3">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleRejectImage}
+                        disabled={applyingImage}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Rejeter
+                      </Button>
+                      <Button 
+                        onClick={handleAcceptImage}
+                        disabled={applyingImage}
+                      >
+                        {applyingImage ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Application...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Accepter et appliquer
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           </div>
