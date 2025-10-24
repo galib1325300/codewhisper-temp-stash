@@ -5,7 +5,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
 import { getShopById } from '../utils/shops';
 import { Shop } from '../utils/types';
-import { ArrowLeft, Eye, Edit, Sparkles, Link2, ImagePlus, Trash2, AlertCircle, ExternalLink, Save, X, Languages, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Eye, Edit, Sparkles, Link2, ImagePlus, Trash2, AlertCircle, ExternalLink, Save, X, Languages, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
@@ -402,8 +402,40 @@ export default function ShopProductDetailsPage() {
     }
   };
 
-  const handleImproveImageQuality = async () => {
-    toast.info('Amélioration de la qualité des images...');
+  const [imagePromptDialogOpen, setImagePromptDialogOpen] = useState(false);
+  const [customImagePrompt, setCustomImagePrompt] = useState('');
+  const [improvingImage, setImprovingImage] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const handleImproveImageQuality = async (customPrompt?: string) => {
+    setImprovingImage(true);
+    toast.info('Amélioration de l\'image en cours...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('improve-product-image', {
+        body: { 
+          productId,
+          imageIndex: selectedImageIndex,
+          customPrompt: customPrompt || undefined
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Image améliorée avec succès');
+        loadData();
+        setImagePromptDialogOpen(false);
+        setCustomImagePrompt('');
+      } else {
+        toast.error(data.error || 'Erreur lors de l\'amélioration');
+      }
+    } catch (error: any) {
+      console.error('Error improving image:', error);
+      toast.error(error.message || 'Erreur lors de l\'amélioration de l\'image');
+    } finally {
+      setImprovingImage(false);
+    }
   };
 
   const handleDeleteProduct = async () => {
@@ -487,12 +519,54 @@ export default function ShopProductDetailsPage() {
 
             <Card className="p-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                <div className="md:col-span-1">
-                  <img
-                    src={mainImage}
-                    alt={product.name}
-                    className="w-full rounded-lg border"
-                  />
+                <div className="md:col-span-1 space-y-4">
+                  <div className="relative group">
+                    <img
+                      src={mainImage}
+                      alt={product.name}
+                      className="w-full rounded-lg border"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                      <Button
+                        onClick={() => {
+                          setSelectedImageIndex(0);
+                          setImagePromptDialogOpen(true);
+                        }}
+                        variant="secondary"
+                        disabled={improvingImage}
+                      >
+                        <ImagePlus className="w-4 h-4 mr-2" />
+                        Améliorer l'image
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {product.images && product.images.length > 1 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {product.images.slice(1).map((img: any, idx: number) => (
+                        <div key={idx} className="relative group">
+                          <img
+                            src={img.src}
+                            alt={`${product.name} - ${idx + 2}`}
+                            className="w-full aspect-square object-cover rounded-lg border cursor-pointer hover:border-primary"
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedImageIndex(idx + 1);
+                                setImagePromptDialogOpen(true);
+                              }}
+                              variant="secondary"
+                              disabled={improvingImage}
+                            >
+                              <ImagePlus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="md:col-span-2">
@@ -804,27 +878,16 @@ export default function ShopProductDetailsPage() {
 
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold">Images</h2>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleGenerateAltImages}
-                      disabled={generating}
-                    >
-                      <ImagePlus className="w-4 h-4 mr-2" />
-                      Générer les alt images
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleImproveImageQuality}
-                      disabled={generating}
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Améliorer la qualité
-                    </Button>
-                  </div>
+                  <h2 className="text-2xl font-bold">Textes alt des images</h2>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleGenerateAltImages}
+                    disabled={generating}
+                  >
+                    <ImagePlus className="w-4 h-4 mr-2" />
+                    Générer les alt images
+                  </Button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {product.images?.map((image: any, index: number) => (
@@ -928,6 +991,74 @@ export default function ShopProductDetailsPage() {
                 </p>
               </div>
             </Card>
+
+            {/* Image Improvement Dialog */}
+            <Dialog open={imagePromptDialogOpen} onOpenChange={setImagePromptDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Améliorer l'image du produit</DialogTitle>
+                  <DialogDescription>
+                    Choisissez une option d'amélioration automatique ou personnalisez votre demande.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Button 
+                      className="w-full justify-start" 
+                      variant="outline"
+                      onClick={() => handleImproveImageQuality()}
+                      disabled={improvingImage}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Fond professionnel automatique
+                    </Button>
+                    <p className="text-xs text-muted-foreground pl-6">
+                      L'IA créera automatiquement un fond professionnel adapté au produit
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        ou
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Prompt personnalisé</label>
+                    <Textarea
+                      value={customImagePrompt}
+                      onChange={(e) => setCustomImagePrompt(e.target.value)}
+                      placeholder="Ex: Ajouter un fond de cuisine moderne avec lumière naturelle"
+                      className="min-h-[100px]"
+                      disabled={improvingImage}
+                    />
+                    <Button 
+                      className="w-full" 
+                      onClick={() => handleImproveImageQuality(customImagePrompt)}
+                      disabled={improvingImage || !customImagePrompt.trim()}
+                    >
+                      {improvingImage ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Amélioration en cours...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Améliorer avec ce prompt
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </main>
       </div>

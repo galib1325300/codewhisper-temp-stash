@@ -194,7 +194,43 @@ export default function ShopProductsPage() {
       const productIds = Array.from(selectedProducts);
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Create jobs for each selected product
+      // Handle image improvement separately
+      if (action === 'improve-image') {
+        toast.info('Amélioration des images en cours...');
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const productId of productIds) {
+          try {
+            const { data, error } = await supabase.functions.invoke('improve-product-image', {
+              body: { productId, imageIndex: 0 }
+            });
+            
+            if (error) throw error;
+            if (data.success) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch (error) {
+            console.error(`Error improving image for product ${productId}:`, error);
+            failCount++;
+          }
+        }
+
+        if (successCount > 0) {
+          toast.success(`${successCount} image(s) améliorée(s) avec succès`);
+          loadProducts(shop.id);
+        }
+        if (failCount > 0) {
+          toast.error(`${failCount} image(s) n'ont pas pu être améliorées`);
+        }
+        
+        setSelectedProducts(new Set());
+        return;
+      }
+      
+      // Create jobs for each selected product (other actions)
       const jobsToInsert = productIds.map(productId => ({
         shop_id: shop.id,
         product_id: productId,

@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.update-wordpress-media-alt]
 verify_jwt = false
+
+[functions.improve-product-image]
+verify_jwt = false

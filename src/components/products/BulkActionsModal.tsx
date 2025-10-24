@@ -31,7 +31,7 @@ export default function BulkActionsModal({
     { id: 'meta_descriptions', label: 'Générer les méta descriptions', credits: 10 },
     { id: 'alt_images', label: 'Générer les alt images', credits: 15 },
     { id: 'internal_linking', label: 'Ajouter le maillage interne', credits: 15 },
-    { id: 'improve_images', label: 'Améliorer la qualité des images', credits: 30, disabled: true, badge: 'Bientôt disponible' },
+    { id: 'improve-image', label: 'Améliorer la qualité des images (fond professionnel)', credits: 30 },
     { id: 'translate', label: 'Traduire le contenu existant', credits: 25 },
   ];
 
@@ -77,18 +77,12 @@ export default function BulkActionsModal({
                     <RadioGroupItem 
                       value={action.id} 
                       id={action.id} 
-                      disabled={action.disabled}
                     />
                     <Label 
                       htmlFor={action.id} 
-                      className={`font-normal cursor-pointer flex-1 flex items-center gap-2 ${action.disabled ? 'opacity-50' : ''}`}
+                      className="font-normal cursor-pointer flex-1 flex items-center gap-2"
                     >
                       {action.label}
-                      {action.badge && (
-                        <Badge variant="outline" className="text-xs">
-                          {action.badge}
-                        </Badge>
-                      )}
                     </Label>
                   </div>
                 ))}
