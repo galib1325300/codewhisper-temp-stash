@@ -79,100 +79,184 @@ Deno.serve(async (req) => {
           setTimeout(() => reject(new Error('Item processing timeout')), 25000)
         );
         
-        let processPromise;
+        let result;
         
         if (issueTypeLower === 'images') {
           // Call generate-alt-texts for this item
-          processPromise = supabase.functions.invoke('generate-alt-texts', {
+          const processPromise = supabase.functions.invoke('generate-alt-texts', {
             body: {
               productId: item.id,
               userId: userId
             }
           });
 
-          if (altError) {
-            const errorMsg = `Alt text generation failed: ${altError.message}`;
+          try {
+            result = await Promise.race([processPromise, timeoutPromise]);
+            const { data: altResult, error: altError } = result;
             
-            // Handle rate limiting gracefully
-            if (altError.message?.includes('429') || altError.message?.includes('Rate limit')) {
-              console.warn(`[${correlationId}] Rate limited, will retry later`);
-              results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
-              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before next
-            } else if (altError.message?.includes('402') || altError.message?.includes('credits')) {
-              console.error(`[${correlationId}] Insufficient credits`);
-              results.failed.push({ id: item.id, name: item.name, message: 'Insufficient credits' });
-            } else {
-              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-              console.error(`[${correlationId}] Failed:`, errorMsg);
-            }
-          } else if (altResult?.success) {
-            results.success.push({ id: item.id, name: item.name });
-            console.log(`[${correlationId}] Success`);
-          } else {
-            const errorMsg = altResult?.error || 'Unknown error';
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`[${correlationId}] Failed:`, errorMsg);
-          }
-        } else if (issueTypeLower === 'contenu' || issueTypeLower === 'génération ia') {
-          const { shortResult, longResult } = result as any;
-          if ((shortResult.data?.success || longResult.data?.success) && !shortResult.error && !longResult.error) {
-            results.success.push({ id: item.id, name: item.name });
-          } else {
-            const errorMsg = shortResult.error?.message || longResult.error?.message || 'Content generation failed';
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
-          }
-        } else if (issueTypeLower === 'seo') {
-          const { data: metaResult, error: metaError } = result as any;
-          if (metaError) {
-            const errorMsg = `Meta description generation failed: ${metaError.message}`;
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
-          } else if (metaResult?.success) {
-            results.success.push({ id: item.id, name: item.name });
-          } else {
-            const errorMsg = metaResult?.error || 'Unknown error';
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`Failed to process ${item.name}:`, errorMsg);
-          }
-        } else if (issueTypeLower === 'maillage interne') {
-          const { data: linksResult, error: linksError } = result as any;
-          if (linksError) {
-            const errorMsg = `Internal links failed: ${linksError.message}`;
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`[${correlationId}] Failed:`, errorMsg);
-          } else if (linksResult?.success) {
-            if (linksResult.linksAdded === 0 || linksResult.message?.includes('already has')) {
-              results.skipped.push({ id: item.id, name: item.name, message: 'Links already present' });
-              console.log(`[${correlationId}] Skipped: links already present`);
-            } else if (!linksResult.remoteUpdated) {
-              results.success.push({ id: item.id, name: item.name, warning: 'DB updated but remote sync failed' });
-              console.warn(`[${correlationId}] Partial success: DB ok, remote failed`);
-            } else {
+            if (altError) {
+              const errorMsg = `Alt text generation failed: ${altError.message}`;
+              
+              // Handle rate limiting gracefully
+              if (altError.message?.includes('429') || altError.message?.includes('Rate limit')) {
+                console.warn(`[${correlationId}] Rate limited, will retry later`);
+                results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before next
+              } else if (altError.message?.includes('402') || altError.message?.includes('credits')) {
+                console.error(`[${correlationId}] Insufficient credits`);
+                results.failed.push({ id: item.id, name: item.name, message: 'Insufficient credits' });
+              } else {
+                results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+                console.error(`[${correlationId}] Failed:`, errorMsg);
+              }
+            } else if (altResult?.success) {
               results.success.push({ id: item.id, name: item.name });
               console.log(`[${correlationId}] Success`);
-            }
-          } else {
-            const errorMsg = linksResult?.error || 'Unknown error';
-            results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-            console.error(`[${correlationId}] Failed:`, errorMsg);
-          }
-        } else if (issueTypeLower === 'mise en forme' || issueTypeLower === 'structure') {
-          const { data: formatResult, error: formatError } = result as any;
-          if (formatError) {
-            if (formatError.message?.includes('429') || formatError.message?.includes('Rate limit')) {
-              results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
-              await new Promise(resolve => setTimeout(resolve, 2000));
             } else {
-              const errorMsg = `Format failed: ${formatError.message}`;
+              const errorMsg = altResult?.error || 'Unknown error';
               results.failed.push({ id: item.id, name: item.name, message: errorMsg });
               console.error(`[${correlationId}] Failed:`, errorMsg);
             }
-          } else if (formatResult?.success) {
-            results.success.push({ id: item.id, name: item.name });
-            console.log(`[${correlationId}] Success`);
-          } else {
-            results.failed.push({ id: item.id, name: item.name, message: 'Format failed' });
+          } catch (err) {
+            if (err.message === 'Item processing timeout') {
+              console.warn(`[${correlationId}] Timeout, marking as skipped`);
+              results.skipped.push({ id: item.id, name: item.name, message: 'Timeout' });
+            } else {
+              throw err;
+            }
+          }
+        } else if (issueTypeLower === 'contenu' || issueTypeLower === 'génération ia') {
+          const processPromise = Promise.all([
+            supabase.functions.invoke('generate-product-description', {
+              body: { productId: item.id, type: 'short', userId }
+            }),
+            supabase.functions.invoke('generate-product-description', {
+              body: { productId: item.id, type: 'long', userId }
+            })
+          ]);
+
+          try {
+            const result = await Promise.race([processPromise, timeoutPromise]);
+            const [shortResult, longResult] = result as any;
+            
+            if ((shortResult.data?.success || longResult.data?.success) && !shortResult.error && !longResult.error) {
+              results.success.push({ id: item.id, name: item.name });
+              console.log(`[${correlationId}] Success`);
+            } else {
+              const errorMsg = shortResult.error?.message || longResult.error?.message || 'Content generation failed';
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            }
+          } catch (err) {
+            if (err.message === 'Item processing timeout') {
+              console.warn(`[${correlationId}] Timeout, marking as skipped`);
+              results.skipped.push({ id: item.id, name: item.name, message: 'Timeout' });
+            } else {
+              throw err;
+            }
+          }
+        } else if (issueTypeLower === 'seo') {
+          const processPromise = supabase.functions.invoke('generate-meta-description', {
+            body: { productId: item.id, userId }
+          });
+
+          try {
+            const result = await Promise.race([processPromise, timeoutPromise]);
+            const { data: metaResult, error: metaError } = result;
+            
+            if (metaError) {
+              const errorMsg = `Meta description generation failed: ${metaError.message}`;
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            } else if (metaResult?.success) {
+              results.success.push({ id: item.id, name: item.name });
+              console.log(`[${correlationId}] Success`);
+            } else {
+              const errorMsg = metaResult?.error || 'Unknown error';
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            }
+          } catch (err) {
+            if (err.message === 'Item processing timeout') {
+              console.warn(`[${correlationId}] Timeout, marking as skipped`);
+              results.skipped.push({ id: item.id, name: item.name, message: 'Timeout' });
+            } else {
+              throw err;
+            }
+          }
+        } else if (issueTypeLower === 'maillage interne') {
+          const processPromise = supabase.functions.invoke('add-internal-links', {
+            body: { productId: item.id, userId }
+          });
+
+          try {
+            const result = await Promise.race([processPromise, timeoutPromise]);
+            const { data: linksResult, error: linksError } = result;
+            
+            if (linksError) {
+              const errorMsg = `Internal links failed: ${linksError.message}`;
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            } else if (linksResult?.success) {
+              if (linksResult.linksAdded === 0 || linksResult.message?.includes('already has')) {
+                results.skipped.push({ id: item.id, name: item.name, message: 'Links already present' });
+                console.log(`[${correlationId}] Skipped: links already present`);
+              } else if (!linksResult.remoteUpdated) {
+                results.success.push({ id: item.id, name: item.name, warning: 'DB updated but remote sync failed' });
+                console.warn(`[${correlationId}] Partial success: DB ok, remote failed`);
+              } else {
+                results.success.push({ id: item.id, name: item.name });
+                console.log(`[${correlationId}] Success`);
+              }
+            } else {
+              const errorMsg = linksResult?.error || 'Unknown error';
+              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+              console.error(`[${correlationId}] Failed:`, errorMsg);
+            }
+          } catch (err) {
+            if (err.message === 'Item processing timeout') {
+              console.warn(`[${correlationId}] Timeout, marking as skipped`);
+              results.skipped.push({ id: item.id, name: item.name, message: 'Timeout' });
+            } else {
+              throw err;
+            }
+          }
+        } else if (issueTypeLower === 'mise en forme' || issueTypeLower === 'structure') {
+          const processPromise = supabase.functions.invoke('format-product-content', {
+            body: { productId: item.id, userId }
+          });
+
+          try {
+            const result = await Promise.race([processPromise, timeoutPromise]);
+            const { data: formatResult, error: formatError } = result;
+            
+            if (formatError) {
+              if (formatError.message?.includes('429') || formatError.message?.includes('Rate limit')) {
+                results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              } else {
+                const errorMsg = `Format failed: ${formatError.message}`;
+                results.failed.push({ id: item.id, name: item.name, message: errorMsg });
+                console.error(`[${correlationId}] Failed:`, errorMsg);
+              }
+            } else if (formatResult?.success) {
+              if (!formatResult.remoteUpdated) {
+                results.success.push({ id: item.id, name: item.name, warning: 'DB updated but remote sync failed' });
+                console.warn(`[${correlationId}] Partial success: DB ok, remote failed`);
+              } else {
+                results.success.push({ id: item.id, name: item.name });
+                console.log(`[${correlationId}] Success`);
+              }
+            } else {
+              results.failed.push({ id: item.id, name: item.name, message: 'Format failed' });
+            }
+          } catch (err) {
+            if (err.message === 'Item processing timeout') {
+              console.warn(`[${correlationId}] Timeout, marking as skipped`);
+              results.skipped.push({ id: item.id, name: item.name, message: 'Timeout' });
+            } else {
+              throw err;
+            }
           }
         }
 
@@ -228,19 +312,23 @@ Deno.serve(async (req) => {
       for (let i = 0; i < issues.length; i++) {
         const issue = issues[i];
         if (issue.category === issueType || issue.title?.toLowerCase().includes(issueType.toLowerCase())) {
-          // Calculate progress and update earnedPoints
-          if (issue.maxPoints !== undefined) {
-            const progressRatio = results.success.length / affectedItems.length;
-            issue.earnedPoints = Math.round((issue.maxPoints || 0) * progressRatio);
+          // Assign default maxPoints if not set (15 points per issue)
+          if (issue.maxPoints === undefined || issue.maxPoints === null) {
+            issue.maxPoints = 15;
           }
+          
+          // Calculate progress and update earnedPoints
+          const progressRatio = results.success.length / affectedItems.length;
+          issue.earnedPoints = Math.round((issue.maxPoints || 0) * progressRatio);
           
           // Mark as resolved if 100% success
           if (results.success.length === affectedItems.length) {
             issue.type = 'success';
             issue.resolved = true;
-            if (issue.maxPoints !== undefined) {
-              issue.earnedPoints = issue.maxPoints;
-            }
+            issue.earnedPoints = issue.maxPoints;
+          } else if (results.success.length > 0) {
+            // Partial success - keep as error/warning but update earnedPoints
+            issue.type = issue.type || 'warning';
           }
           
           issues[i] = issue;
@@ -248,7 +336,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Recalculate score
+      // Recalculate score - assign default maxPoints to issues that don't have it
       let totalMaxPoints = 0;
       let totalEarnedPoints = 0;
       let errorsCount = 0;
@@ -256,13 +344,23 @@ Deno.serve(async (req) => {
       let infoCount = 0;
 
       issues.forEach((iss: any) => {
-        if (iss.maxPoints !== undefined && iss.earnedPoints !== undefined) {
-          totalMaxPoints += iss.maxPoints;
-          totalEarnedPoints += iss.earnedPoints;
+        // Assign default maxPoints if not set
+        if (iss.maxPoints === undefined || iss.maxPoints === null) {
+          iss.maxPoints = 15;
         }
+        if (iss.earnedPoints === undefined || iss.earnedPoints === null) {
+          iss.earnedPoints = 0;
+        }
+        
+        totalMaxPoints += iss.maxPoints;
+        totalEarnedPoints += iss.earnedPoints;
+        
         if (iss.type === 'error') errorsCount++;
         else if (iss.type === 'warning') warningsCount++;
         else if (iss.type === 'info') infoCount++;
+        else if (iss.type === 'success') {
+          // Success issues are not errors/warnings
+        }
       });
 
       const newScore = totalMaxPoints > 0 
