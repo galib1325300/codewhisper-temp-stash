@@ -287,7 +287,13 @@ export default function ShopCollectionsPage() {
                     {filteredCollections.map((collection) => (
                       <div
                         key={collection.id}
-                        className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+                        className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          // Don't navigate if clicking checkbox
+                          if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
+                            window.location.href = `/admin/shops/${id}/collections/${collection.id}`;
+                          }
+                        }}
                       >
                         <Checkbox
                           checked={selectedCollections.has(collection.id)}

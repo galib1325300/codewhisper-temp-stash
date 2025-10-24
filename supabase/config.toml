@@ -75,5 +75,17 @@ verify_jwt = false
 [functions.generate-collection-descriptions]
 verify_jwt = false
 
+[functions.generate-long-collection-description]
+verify_jwt = false
+
+[functions.generate-short-collection-description]
+verify_jwt = false
+
+[functions.publish-collection]
+verify_jwt = false
+
+[functions.sync-single-collection]
+verify_jwt = false
+
 [functions.update-wordpress-media-alt]
 verify_jwt = false
