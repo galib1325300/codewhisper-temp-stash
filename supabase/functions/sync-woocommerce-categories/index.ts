@@ -90,8 +90,7 @@ serve(async (req) => {
       name: category.name,
       slug: category.slug,
       description: category.description,
-      image_url: category.image?.src || null,
-      parent_id: category.parent,
+      image: category.image?.src || null,
       product_count: category.count,
     }));
 
