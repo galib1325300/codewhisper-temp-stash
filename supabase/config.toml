@@ -71,3 +71,9 @@ verify_jwt = false
 
 [functions.get-shopify-analytics]
 verify_jwt = false
+
+[functions.generate-collection-descriptions]
+verify_jwt = false
+
+[functions.update-wordpress-media-alt]
+verify_jwt = false
