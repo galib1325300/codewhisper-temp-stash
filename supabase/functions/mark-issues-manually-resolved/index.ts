@@ -79,18 +79,9 @@ serve(async (req) => {
         issue.type = 'success';
         issue.resolved = true;
         
-        // Add score improvement if not already present
-        if (!issue.score_improvement) {
-          // Calculate score improvement based on issue category
-          const scoreMapping: Record<string, number> = {
-            'Images': 3,
-            'Contenu': 5,
-            'SEO': 4,
-            'Structure': 3,
-            'Maillage interne': 2,
-            'Génération IA': 5,
-          };
-          issue.score_improvement = scoreMapping[issue.category] || 2;
+        // Update earnedPoints to maxPoints when issue becomes success
+        if (issue.maxPoints !== undefined) {
+          issue.earnedPoints = issue.maxPoints;
         }
       }
     }
@@ -109,17 +100,21 @@ serve(async (req) => {
       else if (iss.type === 'info') info_count++;
     });
 
-    // Calculate new score
-    const MAX_SCORE = 150; // Based on updated weights
-    let earnedPoints = 0;
+    // Calculate new score using the same logic as run-seo-diagnostic
+    let totalMaxPoints = 0;
+    let totalEarnedPoints = 0;
 
-    issues.forEach((iss: any) => {
-      if (iss.type === 'success' && iss.score_improvement) {
-        earnedPoints += iss.score_improvement;
+    issues.forEach((issue: any) => {
+      if (issue.maxPoints !== undefined && issue.earnedPoints !== undefined) {
+        totalMaxPoints += issue.maxPoints;
+        totalEarnedPoints += issue.earnedPoints;
       }
     });
 
-    const newScore = Math.min(100, Math.round((earnedPoints / MAX_SCORE) * 100));
+    // Score = (Points gagnés / Total points possibles) × 100
+    const newScore = totalMaxPoints > 0 
+      ? Math.round((totalEarnedPoints / totalMaxPoints) * 100) 
+      : 0;
 
     console.log('Successfully updated diagnostic with new score:', newScore);
 
