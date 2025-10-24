@@ -74,14 +74,19 @@ serve(async (req) => {
 
     console.log('Image uploaded successfully, public URL:', publicUrl);
 
-    // Update the product with the improved image URL
-    const updatedImages = [...product.images];
-    updatedImages[imageIndex] = {
-      ...updatedImages[imageIndex],
+    // Add the improved image as an additional gallery image (do not replace main)
+    const updatedImages = Array.isArray(product.images) ? [...product.images] : [];
+    const baseImage = updatedImages[imageIndex] ?? {};
+    const newImage = {
+      ...baseImage,
+      id: undefined,
       src: publicUrl,
+      alt: baseImage.alt || product.name || 'Improved image',
+      name: baseImage.name || `improved-${fileName}`,
       improved_at: new Date().toISOString(),
-      original_src: product.images[imageIndex].src
+      original_src: baseImage.src || null,
     };
+    updatedImages.push(newImage);
 
     const { error: updateError } = await supabaseClient
       .from('products')
