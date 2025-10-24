@@ -139,6 +139,7 @@ export type Database = {
           external_id: string | null
           id: string
           image: string | null
+          long_description: string | null
           name: string
           parent_id: string | null
           product_count: number | null
@@ -153,6 +154,7 @@ export type Database = {
           external_id?: string | null
           id?: string
           image?: string | null
+          long_description?: string | null
           name: string
           parent_id?: string | null
           product_count?: number | null
@@ -167,6 +169,7 @@ export type Database = {
           external_id?: string | null
           id?: string
           image?: string | null
+          long_description?: string | null
           name?: string
           parent_id?: string | null
           product_count?: number | null

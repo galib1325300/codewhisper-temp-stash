@@ -34,6 +34,7 @@ interface Collection {
   name: string;
   slug: string;
   description: string | null;
+  long_description: string | null;
   image: string | null;
   product_count: number;
   external_id: string;
@@ -51,7 +52,7 @@ export default function ShopCollectionDetailPage() {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [editedName, setEditedName] = useState('');
-  const [editedDescription, setEditedDescription] = useState('');
+  const [editedLongDescription, setEditedLongDescription] = useState('');
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
   const [showInternalLinkDialog, setShowInternalLinkDialog] = useState(false);
   const [selectedInternalLinks, setSelectedInternalLinks] = useState<Set<string>>(new Set());
@@ -96,7 +97,7 @@ export default function ShopCollectionDetailPage() {
     
     setCollection(data);
     setEditedName(data.name);
-    setEditedDescription(data.description || '');
+    setEditedLongDescription(data.long_description || '');
   };
 
   const loadAllCollections = async () => {
@@ -122,7 +123,7 @@ export default function ShopCollectionDetailPage() {
         .from('collections')
         .update({
           name: editedName,
-          description: editedDescription,
+          long_description: editedLongDescription,
           updated_at: new Date().toISOString()
         })
         .eq('id', collection.id);
@@ -162,7 +163,7 @@ export default function ShopCollectionDetailPage() {
       if (error) throw error;
 
       if (data.success) {
-        setEditedDescription(data.description);
+        setEditedLongDescription(data.description);
         toast({
           title: "Description générée",
           description: "La description longue a été générée avec succès"
@@ -232,11 +233,11 @@ export default function ShopCollectionDetailPage() {
 
     const selectedCollections = allCollections.filter(c => selectedInternalLinks.has(c.id));
     const links = selectedCollections
-      .map(c => `<a href="${shop.url}/${shop.collectionsSlug}/${c.slug}">${c.name}</a>`)
+      .map(c => `<a href="${shop.url}/${shop.collectionsSlug || 'collections'}/${c.slug}">${c.name}</a>`)
       .join(', ');
 
     const linkText = `\n\nDécouvrez également nos collections : ${links}`;
-    setEditedDescription(prev => prev + linkText);
+    setEditedLongDescription(prev => prev + linkText);
     setShowInternalLinkDialog(false);
     setSelectedInternalLinks(new Set());
 
@@ -244,6 +245,22 @@ export default function ShopCollectionDetailPage() {
       title: "Liens ajoutés",
       description: `${selectedInternalLinks.size} lien(s) interne(s) ajouté(s)`
     });
+  };
+
+  const copyLongDescriptionToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(editedLongDescription);
+      toast({
+        title: "Copié",
+        description: "Description longue copiée dans le presse-papier"
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de copier",
+        variant: "destructive"
+      });
+    }
   };
 
   const handlePublish = async () => {
@@ -395,16 +412,51 @@ export default function ShopCollectionDetailPage() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label>Description longue</Label>
+                        <Label>Description courte (synchronisée avec WooCommerce)</Label>
+                        <Button
+                          size="sm"
+                          onClick={handleGenerateShortDescription}
+                          disabled={generatingShort}
+                          className="flex items-center gap-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          {generatingShort ? 'Génération...' : 'Générer et publier'}
+                        </Button>
+                      </div>
+                      <div className="p-3 bg-muted rounded-md">
+                        <p className="text-sm">
+                          {collection.description || 'Aucune description courte'}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Cette description apparaît en haut de la page de collection et est synchronisée automatiquement avec WooCommerce.
+                      </p>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>Description longue SEO (à copier manuellement dans WordPress)</Label>
                         <div className="flex gap-2">
                           <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => setShowInternalLinkDialog(true)}
+                            size="sm"
+                            variant="secondary"
+                            onClick={copyLongDescriptionToClipboard}
+                            disabled={!editedLongDescription}
+                            className="flex items-center gap-2"
+                          >
+                            <Copy className="w-4 h-4" />
+                            Copier HTML
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setShowInternalLinkDialog(true)}
                             className="flex items-center gap-2"
                           >
                             <LinkIcon className="w-4 h-4" />
-                            Ajouter le maillage interne
+                            Maillage interne
                           </Button>
                           <Button
                             size="sm"
@@ -418,34 +470,19 @@ export default function ShopCollectionDetailPage() {
                         </div>
                       </div>
                       <Textarea
-                        value={editedDescription}
-                        onChange={(e) => setEditedDescription(e.target.value)}
+                        value={editedLongDescription}
+                        onChange={(e) => setEditedLongDescription(e.target.value)}
                         placeholder="Pas de description longue"
                         className="min-h-[300px] font-mono text-sm"
                       />
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {editedDescription.split(' ').filter(w => w).length} mots
-                      </p>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Description courte</Label>
-                        <Button
-                          size="sm"
-                          onClick={handleGenerateShortDescription}
-                          disabled={generatingShort}
-                          className="flex items-center gap-2"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          {generatingShort ? 'Génération...' : 'Générer'}
-                        </Button>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {editedLongDescription.split(' ').filter(w => w).length} mots
+                        </p>
+                        <p className="text-xs text-amber-600">
+                          ⚠️ À copier manuellement dans WordPress (WooCommerce ne supporte pas les descriptions longues)
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {collection.description || 'Aucune description courte'}
-                      </p>
                     </div>
                   </div>
                 </Card>
@@ -479,7 +516,7 @@ export default function ShopCollectionDetailPage() {
                   <Button
                     variant="secondary"
                     className="w-full"
-                    onClick={() => shop && window.open(`${shop.url}/${shop.collectionsSlug}/${collection.slug}`, '_blank')}
+                    onClick={() => shop && window.open(`${shop.url}/${shop.collectionsSlug || 'collections'}/${collection.slug}`, '_blank')}
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     Aperçu

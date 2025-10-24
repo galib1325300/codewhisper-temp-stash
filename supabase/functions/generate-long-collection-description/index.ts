@@ -102,6 +102,20 @@ Réponds uniquement avec le contenu HTML de la description, sans introduction ni
       throw new Error('No description generated');
     }
 
+    // Update long_description in database
+    const { error: updateError } = await supabaseClient
+      .from('collections')
+      .update({
+        long_description: generatedDescription,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', collectionId);
+
+    if (updateError) {
+      console.error('Error updating collection:', updateError);
+      throw new Error(`Database update error: ${updateError.message}`);
+    }
+
     console.log(`Generated long description for ${collection.name}`);
 
     return new Response(
