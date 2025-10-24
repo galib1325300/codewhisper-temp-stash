@@ -74,9 +74,16 @@ Deno.serve(async (req) => {
         const issueTypeLower = issueType.toLowerCase();
         console.log(`[${correlationId}] Processing item:`, item.name);
         
+        // Create timeout promise (25 seconds per item)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Item processing timeout')), 25000)
+        );
+        
+        let processPromise;
+        
         if (issueTypeLower === 'images') {
           // Call generate-alt-texts for this item
-          const { data: altResult, error: altError } = await supabase.functions.invoke('generate-alt-texts', {
+          processPromise = supabase.functions.invoke('generate-alt-texts', {
             body: {
               productId: item.id,
               userId: userId
@@ -107,40 +114,16 @@ Deno.serve(async (req) => {
             console.error(`[${correlationId}] Failed:`, errorMsg);
           }
         } else if (issueTypeLower === 'contenu' || issueTypeLower === 'génération ia') {
-          // Generate both short and long descriptions
-          const { data: shortResult, error: shortError } = await supabase.functions.invoke('generate-product-description', {
-            body: {
-              productId: item.id,
-              type: 'short',
-              userId: userId
-            }
-          });
-
-          const { data: longResult, error: longError } = await supabase.functions.invoke('generate-product-description', {
-            body: {
-              productId: item.id,
-              type: 'long',
-              userId: userId
-            }
-          });
-
-          // Consider success if at least one succeeded
-          if ((shortResult?.success || longResult?.success) && !shortError && !longError) {
+          const { shortResult, longResult } = result as any;
+          if ((shortResult.data?.success || longResult.data?.success) && !shortResult.error && !longResult.error) {
             results.success.push({ id: item.id, name: item.name });
           } else {
-            const errorMsg = shortError?.message || longError?.message || 'Content generation failed';
+            const errorMsg = shortResult.error?.message || longResult.error?.message || 'Content generation failed';
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
             console.error(`Failed to process ${item.name}:`, errorMsg);
           }
         } else if (issueTypeLower === 'seo') {
-          // Generate meta description
-          const { data: metaResult, error: metaError } = await supabase.functions.invoke('generate-meta-description', {
-            body: {
-              productId: item.id,
-              userId: userId
-            }
-          });
-
+          const { data: metaResult, error: metaError } = result as any;
           if (metaError) {
             const errorMsg = `Meta description generation failed: ${metaError.message}`;
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
@@ -153,15 +136,7 @@ Deno.serve(async (req) => {
             console.error(`Failed to process ${item.name}:`, errorMsg);
           }
         } else if (issueTypeLower === 'maillage interne') {
-          // Add internal links
-          const { data: linksResult, error: linksError } = await supabase.functions.invoke('add-internal-links', {
-            body: {
-              productId: item.id,
-              shopId: shopId,
-              preserveExisting: true
-            }
-          });
-
+          const { data: linksResult, error: linksError } = result as any;
           if (linksError) {
             const errorMsg = `Internal links failed: ${linksError.message}`;
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
@@ -182,16 +157,8 @@ Deno.serve(async (req) => {
             results.failed.push({ id: item.id, name: item.name, message: errorMsg });
             console.error(`[${correlationId}] Failed:`, errorMsg);
           }
-        } else if (issueTypeLower === 'mise en forme') {
-          // Bold keywords
-          const { data: formatResult, error: formatError } = await supabase.functions.invoke('format-product-content', {
-            body: {
-              productId: item.id,
-              shopId: shopId,
-              actions: { bold_keywords: true }
-            }
-          });
-
+        } else if (issueTypeLower === 'mise en forme' || issueTypeLower === 'structure') {
+          const { data: formatResult, error: formatError } = result as any;
           if (formatError) {
             if (formatError.message?.includes('429') || formatError.message?.includes('Rate limit')) {
               results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
@@ -207,35 +174,6 @@ Deno.serve(async (req) => {
           } else {
             results.failed.push({ id: item.id, name: item.name, message: 'Format failed' });
           }
-        } else if (issueTypeLower === 'structure') {
-          // Add bullet points
-          const { data: formatResult, error: formatError } = await supabase.functions.invoke('format-product-content', {
-            body: {
-              productId: item.id,
-              shopId: shopId,
-              actions: { add_bullets: true }
-            }
-          });
-
-          if (formatError) {
-            if (formatError.message?.includes('429') || formatError.message?.includes('Rate limit')) {
-              results.skipped.push({ id: item.id, name: item.name, message: 'Rate limit - will retry' });
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            } else {
-              const errorMsg = `Structure failed: ${formatError.message}`;
-              results.failed.push({ id: item.id, name: item.name, message: errorMsg });
-              console.error(`[${correlationId}] Failed:`, errorMsg);
-            }
-          } else if (formatResult?.success) {
-            results.success.push({ id: item.id, name: item.name });
-            console.log(`[${correlationId}] Success`);
-          } else {
-            results.failed.push({ id: item.id, name: item.name, message: 'Structure failed' });
-          }
-        } else {
-          // For other issue types, skip
-          results.skipped.push({ id: item.id, name: item.name, message: `Issue type '${issueType}' not yet supported` });
-          console.log(`[${correlationId}] Skipped: unsupported type`);
         }
 
         // Update progress in DB
@@ -260,7 +198,12 @@ Deno.serve(async (req) => {
 
         } catch (error) {
           console.error('Error processing item:', item.name, error);
-          results.failed.push({ id: item.id, name: item.name, message: error.message });
+          if (error.message === 'Item processing timeout') {
+            console.log(`[${correlationId}] Item timed out, marking as skipped`);
+            results.skipped.push({ id: item.id, name: item.name, message: 'Timeout' });
+          } else {
+            results.failed.push({ id: item.id, name: item.name, message: error.message });
+          }
         }
       }
 
@@ -270,6 +213,78 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Update diagnostic with results
+    console.log('Updating diagnostic with job results...');
+    const { data: diagnostic, error: diagError } = await supabase
+      .from('seo_diagnostics')
+      .select('issues')
+      .eq('id', diagnosticId)
+      .single();
+
+    if (!diagError && diagnostic) {
+      const issues = Array.isArray(diagnostic.issues) ? diagnostic.issues : [];
+      
+      // Find and update the issue
+      for (let i = 0; i < issues.length; i++) {
+        const issue = issues[i];
+        if (issue.category === issueType || issue.title?.toLowerCase().includes(issueType.toLowerCase())) {
+          // Calculate progress and update earnedPoints
+          if (issue.maxPoints !== undefined) {
+            const progressRatio = results.success.length / affectedItems.length;
+            issue.earnedPoints = Math.round((issue.maxPoints || 0) * progressRatio);
+          }
+          
+          // Mark as resolved if 100% success
+          if (results.success.length === affectedItems.length) {
+            issue.type = 'success';
+            issue.resolved = true;
+            if (issue.maxPoints !== undefined) {
+              issue.earnedPoints = issue.maxPoints;
+            }
+          }
+          
+          issues[i] = issue;
+          break;
+        }
+      }
+
+      // Recalculate score
+      let totalMaxPoints = 0;
+      let totalEarnedPoints = 0;
+      let errorsCount = 0;
+      let warningsCount = 0;
+      let infoCount = 0;
+
+      issues.forEach((iss: any) => {
+        if (iss.maxPoints !== undefined && iss.earnedPoints !== undefined) {
+          totalMaxPoints += iss.maxPoints;
+          totalEarnedPoints += iss.earnedPoints;
+        }
+        if (iss.type === 'error') errorsCount++;
+        else if (iss.type === 'warning') warningsCount++;
+        else if (iss.type === 'info') infoCount++;
+      });
+
+      const newScore = totalMaxPoints > 0 
+        ? Math.round((totalEarnedPoints / totalMaxPoints) * 100) 
+        : 0;
+
+      // Update diagnostic
+      await supabase
+        .from('seo_diagnostics')
+        .update({
+          issues,
+          score: newScore,
+          errors_count: errorsCount,
+          warnings_count: warningsCount,
+          info_count: infoCount,
+          total_issues: errorsCount + warningsCount + infoCount
+        })
+        .eq('id', diagnosticId);
+
+      console.log(`Diagnostic updated: new score ${newScore}`);
+    }
+    
     // Mark as completed
     await supabase
       .from('generation_jobs')

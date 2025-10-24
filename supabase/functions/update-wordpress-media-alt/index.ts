@@ -49,22 +49,54 @@ serve(async (req) => {
 
     console.log('Updating WordPress media at:', wpApiUrl);
 
-    // Update media ALT via WordPress API
-    const response = await fetch(wpApiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': auth,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        alt_text: altText
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`WordPress API error (${response.status}):`, errorText);
-      throw new Error(`WordPress API error: ${response.status} - ${errorText}`);
+    // Update media ALT via WordPress API with timeout and retry
+    let response;
+    const maxRetries = 2;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        response = await fetch(wpApiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': auth,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            alt_text: altText
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) break;
+        
+        // Retry on 5xx or 429
+        if ((response.status >= 500 || response.status === 429) && attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`Request failed, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        const errorText = await response.text();
+        console.error(`WordPress API error (${response.status}):`, errorText);
+        throw new Error(`WordPress API error: ${response.status} - ${errorText}`);
+      } catch (error) {
+        if (error.name === 'AbortError' && attempt < maxRetries) {
+          console.log(`Timeout on attempt ${attempt + 1}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          continue;
+        }
+        throw error;
+      }
+    }
+    
+    if (!response || !response.ok) {
+      throw new Error('Failed to update media after retries');
     }
 
     const updatedMedia = await response.json();

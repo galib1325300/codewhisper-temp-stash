@@ -15,32 +15,64 @@ async function wooCommerceRequest(
   endpoint: string,
   auth: string,
   method: string,
-  data?: any
+  data?: any,
+  retries = 2
 ) {
   const fullUrl = `${url}/wp-json/wc/v3/${endpoint}`;
   console.log(`Making ${method} request to:`, fullUrl);
   
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Authorization': auth,
-      'Content-Type': 'application/json',
-    },
-  };
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      // Add timeout (12 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      
+      const options: RequestInit = {
+        method,
+        headers: {
+          'Authorization': auth,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      };
 
-  if (data && (method === 'POST' || method === 'PUT')) {
-    options.body = JSON.stringify(data);
-  }
+      if (data && (method === 'POST' || method === 'PUT')) {
+        options.body = JSON.stringify(data);
+      }
 
-  const response = await fetch(fullUrl, options);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`WooCommerce API error (${response.status}):`, errorText);
-    throw new Error(`WooCommerce API error: ${response.status} - ${errorText}`);
+      const response = await fetch(fullUrl, options);
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        
+        // Retry on 5xx or 429
+        if ((response.status >= 500 || response.status === 429) && attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+          console.log(`Request failed with ${response.status}, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        console.error(`WooCommerce API error (${response.status}):`, errorText);
+        throw new Error(`WooCommerce API error: ${response.status} - ${errorText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log(`Request timeout on attempt ${attempt + 1}`);
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          continue;
+        }
+        throw new Error('Request timeout after retries');
+      }
+      throw error;
+    }
   }
   
-  return await response.json();
+  throw new Error('Max retries exceeded');
 }
 
 Deno.serve(async (req) => {

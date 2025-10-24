@@ -54,6 +54,35 @@ export default function DiagnosticDetail() {
     }
   }, [diagnosticId, shopId]);
 
+  // Real-time subscription for diagnostic updates
+  useEffect(() => {
+    if (!diagnosticId) return;
+
+    console.log('Setting up real-time subscription for diagnostic:', diagnosticId);
+
+    const channel = supabase
+      .channel('diagnostic-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'seo_diagnostics',
+          filter: `id=eq.${diagnosticId}`
+        },
+        (payload) => {
+          console.log('Diagnostic updated via real-time:', payload);
+          // Reload diagnostic data
+          loadDiagnostic();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [diagnosticId]);
+
   const enrichIssuesWithProductData = async (issues: any[]) => {
     // Extract all product IDs from issues
     const productIds = new Set<string>();

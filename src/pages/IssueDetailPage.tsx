@@ -292,9 +292,15 @@ export default function IssueDetailPage() {
 
       if (data?.success) {
         setManuallyResolved(true);
-        toast.success(`${data.resolvedCount} élément(s) marqué(s) comme résolu(s) manuellement`);
         
-        // Reload the issue data to reflect changes
+        // Show success message with new score
+        const message = data.newScore 
+          ? `${data.resolvedCount} élément(s) résolu(s) - Nouveau score: ${data.newScore}/100`
+          : `${data.resolvedCount} élément(s) marqué(s) comme résolu(s)`;
+        
+        toast.success(message, { duration: 4000 });
+        
+        // Navigate back with a slight delay
         setTimeout(() => {
           navigate(`/admin/shops/${shopId}/diagnostics/${diagnosticId}`);
         }, 1500);

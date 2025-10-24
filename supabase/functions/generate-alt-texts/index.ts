@@ -123,6 +123,10 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
       try {
         console.log(`Processing image ${i + 1}/${images.length}`);
         
+        // Add timeout to AI API call (15 seconds)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -136,7 +140,10 @@ C'est une image secondaire du produit (angle différent, détail, ou vue alterna
               { role: 'user', content: prompt }
             ],
           }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errorText = await response.text();
