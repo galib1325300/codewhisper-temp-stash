@@ -9,6 +9,8 @@ export interface Niche {
   profit_margin_avg: number;
   seasonality: Record<string, number>;
   top_keywords: string[];
+  aliexpress_availability?: 'high' | 'medium' | 'low';
+  example_products?: string[];
 }
 
 export interface CompetitorAnalysis {

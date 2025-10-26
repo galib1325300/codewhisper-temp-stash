@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Settings, Target, TrendingUp, Sparkles, Download } from 'lucide-react';
+import { Settings, Target, TrendingUp, Sparkles, Download, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNicheSuggestions, useCompetitorAnalysis, useGenerateSite, useGeneratedSite } from '@/hooks/useAIGenerator';
 import NicheSuggestionCard from './NicheSuggestionCard';
@@ -10,6 +11,7 @@ import GenerationProgress from './GenerationProgress';
 import ExportOptions from './ExportOptions';
 import LoadingState from '@/components/ui/loading-state';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const steps = [
   { id: 1, name: 'Configuration', icon: Settings },
@@ -28,6 +30,7 @@ export default function GeneratorWizard() {
     productCount: 100
   });
   const [selectedNiche, setSelectedNiche] = useState<any>(null);
+  const [manualUrls, setManualUrls] = useState<string>('');
   const [competitorData, setCompetitorData] = useState<any>(null);
   const [generatedSiteId, setGeneratedSiteId] = useState<string | undefined>();
 
@@ -38,13 +41,25 @@ export default function GeneratorWizard() {
 
   const handleAnalyzeCompetitors = async () => {
     try {
+      // Parse manual URLs if provided
+      const urlList = manualUrls
+        .split('\n')
+        .map(url => url.trim())
+        .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
+
       const result = await competitorMutation.mutateAsync({
         nicheName: selectedNiche.name,
         country: config.country,
         language: config.language,
+        manualUrls: urlList.length > 0 ? urlList : undefined,
       });
       setCompetitorData(result);
-      toast({ title: 'Analyse terminée', description: 'Les concurrents ont été analysés avec succès' });
+      toast({ 
+        title: 'Analyse terminée', 
+        description: urlList.length > 0 
+          ? `${urlList.length} concurrents analysés avec succès` 
+          : 'Concurrents simulés analysés avec succès'
+      });
     } catch (error: any) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     }
@@ -146,18 +161,39 @@ export default function GeneratorWizard() {
       <h2 className="text-2xl font-bold">Analyse des concurrents</h2>
       
       {!competitorData ? (
-        <div className="text-center py-12">
-          <TrendingUp className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground mb-6">
-            Analysez les meilleurs concurrents SEO pour optimiser votre site
-          </p>
-          <Button 
-            onClick={handleAnalyzeCompetitors}
-            disabled={competitorMutation.isPending}
-            size="lg"
-          >
-            {competitorMutation.isPending ? 'Analyse en cours...' : 'Analyser les concurrents'}
-          </Button>
+        <div className="space-y-6">
+          <Alert>
+            <LinkIcon className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Recommandé :</strong> Recherchez sur SEMrush ou Google "<em>{selectedNiche?.name} shop</em>" 
+              et collez les URLs des 5-10 meilleurs sites dropshipping concurrents ci-dessous.
+            </AlertDescription>
+          </Alert>
+
+          <div>
+            <Label htmlFor="manualUrls">URLs des concurrents (optionnel)</Label>
+            <Textarea
+              id="manualUrls"
+              placeholder="https://concurrent1.com&#10;https://concurrent2.com&#10;https://concurrent3.com&#10;...&#10;&#10;Ou collez les résultats SEMrush"
+              value={manualUrls}
+              onChange={(e) => setManualUrls(e.target.value)}
+              rows={8}
+              className="font-mono text-sm"
+            />
+            <p className="text-sm text-muted-foreground mt-2">
+              Collez une URL par ligne. Si vous laissez vide, nous utiliserons des données simulées.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <Button 
+              onClick={handleAnalyzeCompetitors}
+              disabled={competitorMutation.isPending}
+              size="lg"
+            >
+              {competitorMutation.isPending ? 'Analyse en cours...' : 'Analyser les concurrents'}
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">

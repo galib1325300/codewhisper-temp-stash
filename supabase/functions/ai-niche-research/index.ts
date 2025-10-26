@@ -46,32 +46,57 @@ Deno.serve(async (req) => {
       ? `Préférences utilisateur : ${preferences.join(', ')}\n` 
       : '';
 
-    const prompt = `Tu es un expert en e-commerce et tendances 2025.
+    const prompt = `Tu es un expert en dropshipping AliExpress/Temu 2025.
 
-Analyse le marché e-commerce en ${country} (langue: ${language}).
-${preferencesText}Identifie 5 niches rentables et peu saturées pour un nouveau shop en ligne.
+CONTEXTE : L'utilisateur veut créer un shop dropshipping avec produits sourcés depuis AliExpress/Temu.
 
-Pour chaque niche, fournis au format JSON strict :
+Analyse le marché dropshipping en ${country} (langue: ${language}).
+${preferencesText}Identifie 5 niches DROPSHIPPING rentables et peu saturées.
+
+CRITÈRES OBLIGATOIRES :
+✅ Produits 100% disponibles sur AliExpress/Temu
+✅ Produits physiques légers (<2kg) pour shipping économique
+✅ Marge dropshipping 50-70% (coût AliExpress 5-15€, vente 15-50€)
+✅ Pas de produits réglementés (cosmétiques ingérés, électronique certifié, médical)
+✅ Tendance montante 2024-2025
+✅ Concurrence faible-moyenne (pas saturé par Amazon)
+✅ Volume recherche >15k/mois
+
+NICHES À EXCLURE :
+❌ Cosmétiques naturels/bio (certification requise)
+❌ Produits éco-responsables premium (incompatible dropshipping chinois)
+❌ Vêtements (tailles problématiques)
+❌ Électronique certifié CE (réglementations)
+❌ Alimentation/compléments (normes sanitaires)
+
+NICHES FAVORABLES :
+✅ Gadgets tech (supports téléphone, accessoires gaming, câbles)
+✅ Décoration intérieure tendance (LED strips, posters, vases design)
+✅ Accessoires fitness/yoga (tapis, bandes élastiques, bouteilles)
+✅ Pet accessories (jouets chien/chat, gamelles design, vêtements animaux)
+✅ Organisation maison (rangements, boîtes design, crochets)
+✅ Bijoux fantaisie/montres (bracelets, bagues, montres connectées)
+✅ Accessoires auto (supports, organiseurs, LED intérieur)
+✅ Jardinage urbain (kits hydroponie, pots design, outils mini)
+
+Fournis au format JSON strict :
 {
   "niches": [
     {
       "name": "Nom court de la niche",
-      "description": "Description en 1 phrase",
+      "description": "Description dropshipping en 1 phrase",
       "search_volume": 50000,
-      "competition_score": 65,
-      "profit_margin_avg": 35,
+      "competition_score": 60,
+      "profit_margin_avg": 60,
       "seasonality": {"jan": 80, "feb": 90, "mar": 85, "apr": 75, "may": 70, "jun": 65, "jul": 60, "aug": 70, "sep": 80, "oct": 90, "nov": 95, "dec": 100},
-      "top_keywords": ["kw1", "kw2", "kw3", "kw4", "kw5"]
+      "top_keywords": ["kw1", "kw2", "kw3", "kw4", "kw5"],
+      "aliexpress_availability": "high",
+      "example_products": ["produit1", "produit2", "produit3"]
     }
   ]
 }
 
-Critères :
-- Exclure les niches ultra-saturées (Amazon, Aliexpress dominants)
-- Privilégier produits avec marge >25%
-- Volume recherche >10k/mois
-- Croissance tendance 2024-2025
-- Niches adaptées au marché ${country}`;
+IMPORTANT : Chaque niche DOIT être adaptée au dropshipping AliExpress/Temu.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

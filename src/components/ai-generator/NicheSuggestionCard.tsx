@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Users, DollarSign, Check } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Check, Package } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Niche } from '@/hooks/useAIGenerator';
@@ -30,10 +30,13 @@ export default function NicheSuggestionCard({ niche, selected, onSelect }: Niche
       }`}
       onClick={onSelect}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="font-semibold text-lg">{niche.name}</h3>
-          <p className="text-sm text-muted-foreground mt-1">{niche.description}</p>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold text-lg">{niche.name}</h3>
+            <Badge variant="secondary" className="text-xs">🚚 Dropshipping</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{niche.description}</p>
         </div>
         {selected && (
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -70,15 +73,39 @@ export default function NicheSuggestionCard({ niche, selected, onSelect }: Niche
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {niche.top_keywords.slice(0, 3).map(keyword => (
-          <Badge key={keyword} variant="secondary" className="text-xs">
-            {keyword}
-          </Badge>
-        ))}
-        {niche.top_keywords.length > 3 && (
-          <Badge variant="outline" className="text-xs">
-            +{niche.top_keywords.length - 3}
+      {niche.example_products && niche.example_products.length > 0 && (
+        <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="w-4 h-4 text-muted-foreground" />
+            <p className="text-xs font-semibold text-muted-foreground">Exemples produits AliExpress :</p>
+          </div>
+          <ul className="text-xs space-y-1">
+            {niche.example_products.slice(0, 3).map((product, idx) => (
+              <li key={idx} className="text-muted-foreground">• {product}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          {niche.top_keywords.slice(0, 3).map(keyword => (
+            <Badge key={keyword} variant="secondary" className="text-xs">
+              {keyword}
+            </Badge>
+          ))}
+          {niche.top_keywords.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{niche.top_keywords.length - 3}
+            </Badge>
+          )}
+        </div>
+        {niche.aliexpress_availability && (
+          <Badge 
+            variant={niche.aliexpress_availability === 'high' ? 'default' : 'secondary'}
+            className="text-xs"
+          >
+            Dispo: {niche.aliexpress_availability === 'high' ? 'Haute' : niche.aliexpress_availability === 'medium' ? 'Moyenne' : 'Faible'}
           </Badge>
         )}
       </div>
