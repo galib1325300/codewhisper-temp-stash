@@ -1,14 +1,16 @@
-import React from 'react';
-import { Sparkles, Zap, CreditCard } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Zap, CreditCard, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import GeneratorWizard from '@/components/ai-generator/GeneratorWizard';
 import { useGeneratorSubscription } from '@/hooks/useAIGenerator';
 import LoadingState from '@/components/ui/loading-state';
+import { Link } from 'react-router-dom';
 
 export default function AISiteGeneratorPage() {
   const { data: subscription, isLoading } = useGeneratorSubscription();
+  const [skipSubscription, setSkipSubscription] = useState(false);
 
   if (isLoading) {
     return (
@@ -20,6 +22,12 @@ export default function AISiteGeneratorPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      {/* Back button */}
+      <Link to="/admin" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors">
+        <ArrowLeft className="w-4 h-4" />
+        <span>Retour au dashboard</span>
+      </Link>
+
       {/* Header avec gradient */}
       <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 mb-8 text-white">
         <div className="flex items-start justify-between">
@@ -62,7 +70,7 @@ export default function AISiteGeneratorPage() {
       </div>
 
       {/* Subscription Cards */}
-      {!subscription && (
+      {!subscription && !skipSubscription && (
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6 text-center">Choisissez votre formule</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -132,21 +140,24 @@ export default function AISiteGeneratorPage() {
               </div>
             </Card>
           </div>
+
+          {/* Skip button for testing */}
+          <div className="text-center mt-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => setSkipSubscription(true)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Ignorer pour l'instant (mode test)
+            </Button>
+          </div>
         </div>
       )}
 
       {/* Wizard */}
-      {subscription ? (
+      {subscription || skipSubscription ? (
         <GeneratorWizard />
-      ) : (
-        <div className="text-center py-12 bg-muted/30 rounded-lg">
-          <Sparkles className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">Prêt à générer votre premier site ?</h3>
-          <p className="text-muted-foreground">
-            Choisissez une formule ci-dessus pour commencer
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
