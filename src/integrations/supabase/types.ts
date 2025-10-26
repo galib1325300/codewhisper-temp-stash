@@ -14,6 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generated_sites: {
+        Row: {
+          blog_posts_count: number | null
+          collections_count: number | null
+          competitors_analyzed: Json | null
+          config: Json | null
+          created_at: string | null
+          csv_shopify_url: string | null
+          csv_woocommerce_url: string | null
+          error_message: string | null
+          generation_completed_at: string | null
+          generation_started_at: string | null
+          id: string
+          niche_name: string
+          products_count: number | null
+          status: string | null
+          user_id: string
+          zip_wordpress_url: string | null
+        }
+        Insert: {
+          blog_posts_count?: number | null
+          collections_count?: number | null
+          competitors_analyzed?: Json | null
+          config?: Json | null
+          created_at?: string | null
+          csv_shopify_url?: string | null
+          csv_woocommerce_url?: string | null
+          error_message?: string | null
+          generation_completed_at?: string | null
+          generation_started_at?: string | null
+          id?: string
+          niche_name: string
+          products_count?: number | null
+          status?: string | null
+          user_id: string
+          zip_wordpress_url?: string | null
+        }
+        Update: {
+          blog_posts_count?: number | null
+          collections_count?: number | null
+          competitors_analyzed?: Json | null
+          config?: Json | null
+          created_at?: string | null
+          csv_shopify_url?: string | null
+          csv_woocommerce_url?: string | null
+          error_message?: string | null
+          generation_completed_at?: string | null
+          generation_started_at?: string | null
+          id?: string
+          niche_name?: string
+          products_count?: number | null
+          status?: string | null
+          user_id?: string
+          zip_wordpress_url?: string | null
+        }
+        Relationships: []
+      }
+      ai_generator_subscriptions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          plan_type: string
+          sites_remaining: number | null
+          stripe_subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          plan_type: string
+          sites_remaining?: number | null
+          stripe_subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          plan_type?: string
+          sites_remaining?: number | null
+          stripe_subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_niche_suggestions: {
+        Row: {
+          competition_score: number | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          language: string | null
+          niche_name: string
+          profit_margin_avg: number | null
+          search_volume: number | null
+          seasonality: Json | null
+          top_keywords: Json | null
+          user_id: string
+        }
+        Insert: {
+          competition_score?: number | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          language?: string | null
+          niche_name: string
+          profit_margin_avg?: number | null
+          search_volume?: number | null
+          seasonality?: Json | null
+          top_keywords?: Json | null
+          user_id: string
+        }
+        Update: {
+          competition_score?: number | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          language?: string | null
+          niche_name?: string
+          profit_margin_avg?: number | null
+          search_volume?: number | null
+          seasonality?: Json | null
+          top_keywords?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       automation_rules: {
         Row: {
           actions: Json

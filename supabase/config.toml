@@ -95,3 +95,15 @@ verify_jwt = false
 
 [functions.apply-improved-image]
 verify_jwt = false
+
+[functions.ai-niche-research]
+verify_jwt = false
+
+[functions.ai-competitor-analysis]
+verify_jwt = false
+
+[functions.ai-generate-catalog]
+verify_jwt = false
+
+[functions.ai-export-catalog]
+verify_jwt = false

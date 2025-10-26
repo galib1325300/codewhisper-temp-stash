@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Globe, FileText, Store, Plus } from 'lucide-react';
+import { LayoutDashboard, Globe, FileText, Store, Plus, Sparkles } from 'lucide-react';
 import { getShops } from '../utils/shops';
 import { Shop } from '../utils/types';
 
@@ -76,6 +76,13 @@ export default function AdminSidebar() {
             label="Fiches produits"
             subLabel="via csv"
             active={location.pathname === '/admin/files'}
+          />
+          <SidebarLink
+            to="/admin/ai-generator"
+            icon={<Sparkles className="w-5 h-5" />}
+            label="Générateur IA"
+            subLabel="site auto"
+            active={location.pathname === '/admin/ai-generator'}
           />
         </div>
 

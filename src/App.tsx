@@ -8,6 +8,7 @@ import AuthPage from './pages/AuthPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ScrapingPage from './pages/ScrapingPage';
 import FilesPage from './pages/FilesPage';
+import AISiteGeneratorPage from './pages/AISiteGeneratorPage';
 import AccountPage from './pages/AccountPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import HistoryPage from './pages/HistoryPage';
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/scraping" element={<ProtectedRoute><ScrapingPage /></ProtectedRoute>} />
             <Route path="/admin/files" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+            <Route path="/admin/ai-generator" element={<ProtectedRoute><AISiteGeneratorPage /></ProtectedRoute>} />
             <Route path="/admin/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/admin/subscribe" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/admin/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
