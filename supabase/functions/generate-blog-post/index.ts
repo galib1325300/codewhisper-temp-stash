@@ -183,6 +183,14 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 - Utilise des listes <ul> et <ol> pour structurer l'information
 - Ajoute des <blockquote> pour les citations ou statistiques importantes
 
+❓ SECTION FAQ (OBLIGATOIRE - Featured Snippets):
+- Inclus une section "Questions Fréquentes" avec 5-7 questions/réponses
+- Questions longue traîne que les utilisateurs recherchent réellement
+- Réponses concises 40-60 mots (optimal pour Featured Snippets)
+- Format HTML sémantique avec schema.org FAQPage
+- Structure : <div class="faq-section" itemscope itemtype="https://schema.org/FAQPage">
+- Chaque Q&A avec les attributs schema.org appropriés
+
 ${serpAnalysis ? `
 💡 DIFFÉRENCIATION PAR RAPPORT AUX CONCURRENTS :
 - Ajouter des sections uniques non présentes chez les concurrents
@@ -198,12 +206,14 @@ Format de réponse JSON STRICT :
   "meta_description": "Meta description 155-160 caractères avec mot-clé + CTA",
   "focus_keyword": "Mot-clé principal exact",
   "excerpt": "Résumé accrocheur 150-200 caractères",
-  "content": "Contenu HTML complet 1200+ mots avec <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <table>, <blockquote>, <a href='URL'>anchor text</a>. IMPORTANT : Inclure AU MOINS 1 tableau et utiliser <strong> pour les mots-clés importants.",
+  "content": "Contenu HTML complet 1200+ mots avec <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <table>, <blockquote>, <a href='URL'>anchor text</a>, ET une section FAQ complète avec schema.org. IMPORTANT : Inclure AU MOINS 1 tableau, utiliser <strong> pour les mots-clés importants, ET une section FAQ avec 5-7 questions/réponses structurées.",
   "internal_links": ["Lien vers collection 1", "Lien vers collection 2"],
+  "faq_count": 6,
   "seo_score": 95
 }
 
-IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant. N'oublie pas d'inclure des tableaux et de mettre en gras les éléments clés !
+IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant. N'oublie pas d'inclure des tableaux, de mettre en gras les éléments clés, ET une section FAQ complète avec structured data schema.org pour maximiser les chances de Featured Snippets !
+`;
 `;
 
     console.log('Calling Lovable AI for blog post generation...');

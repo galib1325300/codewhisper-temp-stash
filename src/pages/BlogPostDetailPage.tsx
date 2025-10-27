@@ -526,7 +526,6 @@ export default function BlogPostDetailPage() {
                           if (data.success) {
                             setFormData({ ...formData, content: data.content });
                             
-                            // Update post in database is already done by the function
                             const { data: updatedPost } = await supabase
                               .from('blog_posts')
                               .select('*')
@@ -550,9 +549,62 @@ export default function BlogPostDetailPage() {
                     >
                       🔗 {syncing ? 'Ajout en cours...' : 'Ajouter des liens internes'}
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Ajoute automatiquement 3-5 liens internes pertinents vers vos autres articles, collections et produits
-                    </p>
+                    
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          setSyncing(true);
+                          toast.info('Génération de la FAQ en cours...');
+                          
+                          const { data, error } = await supabase.functions.invoke('add-blog-faq', {
+                            body: {
+                              postId: postId,
+                              shopId: shopId,
+                              content: formData.content,
+                              topic: formData.title,
+                              focusKeyword: formData.focus_keyword
+                            }
+                          });
+
+                          if (error) throw error;
+
+                          if (data.success) {
+                            setFormData({ ...formData, content: data.content });
+                            
+                            const { data: updatedPost } = await supabase
+                              .from('blog_posts')
+                              .select('*')
+                              .eq('id', postId)
+                              .single();
+                            
+                            if (updatedPost) setPost(updatedPost);
+                            
+                            toast.success(`✅ ${data.faqCount} questions FAQ ajoutées !`);
+                          } else {
+                            toast.error(data.error || 'Erreur lors de la génération de la FAQ');
+                          }
+                        } catch (error) {
+                          console.error('Error adding FAQ:', error);
+                          toast.error('Erreur lors de la génération de la FAQ');
+                        } finally {
+                          setSyncing(false);
+                        }
+                      }}
+                      disabled={syncing}
+                    >
+                      ❓ {syncing ? 'Génération...' : 'Générer une FAQ'}
+                    </Button>
+                    
+                    <div className="pt-2 space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        🔗 Liens internes: 3-5 liens vers articles, collections et produits
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ❓ FAQ: 5-7 questions optimisées pour Featured Snippets Google
+                      </p>
+                    </div>
                   </div>
                 </div>
 
