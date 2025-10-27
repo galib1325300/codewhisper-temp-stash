@@ -283,34 +283,81 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       }
     }
 
-    // Fallback: try to parse JSON content
+    // Fallback 1: try to parse JSON content from message
     if (!blogPost) {
       const generatedContent = aiData?.choices?.[0]?.message?.content?.trim();
-      if (!generatedContent) {
-        throw new Error('Erreur lors de la génération du contenu');
-      }
-
-      console.log('AI response received, parsing JSON (fallback)...');
-      try {
-        const cleanedContent = generatedContent
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim();
-        // Try to extract the first JSON object if extra text is present
-        const firstBrace = cleanedContent.indexOf('{');
-        const lastBrace = cleanedContent.lastIndexOf('}');
-        const jsonSlice = (firstBrace !== -1 && lastBrace !== -1)
-          ? cleanedContent.slice(firstBrace, lastBrace + 1)
-          : cleanedContent;
-        blogPost = JSON.parse(jsonSlice);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        console.error('Raw content:', (aiData?.choices?.[0]?.message?.content || '').substring(0, 500));
-        throw new Error('Format de réponse invalide de l\'IA');
+      if (generatedContent) {
+        console.log('AI response received, parsing JSON (fallback)...');
+        try {
+          const cleanedContent = generatedContent
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim();
+          const firstBrace = cleanedContent.indexOf('{');
+          const lastBrace = cleanedContent.lastIndexOf('}');
+          const jsonSlice = (firstBrace !== -1 && lastBrace !== -1)
+            ? cleanedContent.slice(firstBrace, lastBrace + 1)
+            : cleanedContent;
+          blogPost = JSON.parse(jsonSlice);
+        } catch (_err) {
+          console.warn('JSON parsing failed, switching to HTML-only fallback');
+        }
       }
     }
 
+    // Fallback 2: Ask for HTML-only article and build metadata ourselves
+    if (!blogPost) {
+      console.log('Falling back to HTML-only generation...');
+      const htmlOnlyPrompt = `Crée un article de blog SEO EN FRANÇAIS pour le sujet: "${topic}"\n\nExigences STRICTES:\n- Retourne UNIQUEMENT le HTML complet de l'article entre <article>...</article> (aucun JSON, aucun markdown, aucun commentaire)\n- Inclus H1, H2/H3, paragraphes, listes, tableau, blockquote, gras (<strong>)\n- 1200+ mots, naturel et engageant, optimisé pour SEO\n- Pas d'en-têtes meta, seulement le corps de l'article`;
+
+      const aiResponse2 = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: 'Tu es un expert SEO. Tu génères uniquement du HTML propre, sans JSON ni balises de code.' },
+            { role: 'user', content: htmlOnlyPrompt }
+          ]
+        }),
+      });
+
+      if (!aiResponse2.ok) {
+        const t2 = await aiResponse2.text();
+        console.error('Lovable AI (fallback) error:', aiResponse2.status, t2);
+        if (aiResponse2.status === 402) throw new Error('Crédits Lovable AI épuisés. Veuillez recharger vos crédits dans Settings → Workspace → Usage.');
+        if (aiResponse2.status === 429) throw new Error('Limite de requêtes atteinte. Veuillez réessayer dans quelques instants.');
+        throw new Error(`Erreur de l'API Lovable AI (${aiResponse2.status}). Veuillez réessayer.`);
+      }
+
+      const aiData2 = await aiResponse2.json();
+      const contentHtml = aiData2?.choices?.[0]?.message?.content?.trim();
+      if (!contentHtml) throw new Error('Réponse vide de l’IA (fallback)');
+
+      // Build minimal metadata
+      const h1Match = contentHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+      const derivedTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : (topic || 'Article de blog');
+      const plain = contentHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const derivedExcerpt = plain.slice(0, 180);
+      const derivedMeta = plain.slice(0, 160);
+
+      blogPost = {
+        title: derivedTitle,
+        seo_title: derivedTitle,
+        meta_description: derivedMeta,
+        focus_keyword: (keywords && keywords.length > 0) ? keywords[0] : null,
+        excerpt: derivedExcerpt,
+        content: contentHtml,
+        internal_links: [],
+        faq_count: 0
+      };
+    }
+
     const slug = generateSlug(blogPost.title);
+
 
     console.log('Saving blog post to database...');
 
