@@ -28,7 +28,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { shopId, topic, keywords = [], collectionIds = [] } = await req.json();
+    const { shopId, topic, keywords = [], collectionIds = [], analyzeCompetitors = false } = await req.json();
 
     // Get shop data
     const { data: shop, error: shopError } = await supabaseClient
@@ -77,9 +77,55 @@ serve(async (req) => {
       }
     }
 
+    // Analyze competitors if requested
+    let serpAnalysis = null;
+    if (analyzeCompetitors && keywords.length > 0) {
+      console.log('Analyzing SERP competitors for:', keywords[0]);
+      try {
+        const { data: analysisData, error: analysisError } = await supabaseClient.functions.invoke('analyze-serp', {
+          body: { 
+            keyword: keywords[0],
+            shopUrl: shop.url
+          }
+        });
+
+        if (!analysisError && analysisData?.success) {
+          serpAnalysis = analysisData.analysis;
+          console.log('SERP analysis completed:', {
+            topResults: serpAnalysis.top_results.length,
+            targetWordCount: serpAnalysis.recommended_structure.target_word_count
+          });
+        }
+      } catch (analysisError) {
+        console.error('SERP analysis failed, continuing without:', analysisError);
+      }
+    }
+
     // Generate blog post
     const keywordsText = keywords.length > 0 ? `\nMots-clés principaux à optimiser : ${keywords.join(', ')}` : '';
     
+    // Build SERP analysis context
+    let serpContext = '';
+    if (serpAnalysis) {
+      const topCompetitors = serpAnalysis.top_results.slice(0, 3).map((r: any, i: number) => 
+        `${i + 1}. ${r.title} (${r.url})\n   - H1: ${r.h1 || 'N/A'}\n   - Mots: ${r.word_count || 'N/A'}\n   - Structure H2: ${(r.h2_structure || []).slice(0, 5).join(', ')}`
+      ).join('\n\n');
+
+      serpContext = `
+
+🔍 ANALYSE DES CONCURRENTS GOOGLE (TOP 3) :
+${topCompetitors}
+
+📊 RECOMMANDATIONS BASÉES SUR L'ANALYSE :
+- Longueur cible : ${serpAnalysis.recommended_structure.target_word_count} mots minimum
+- Structure H2 recommandée : ${serpAnalysis.recommended_structure.h2_sections.join(', ')}
+- Mots-clés à inclure : ${serpAnalysis.recommended_structure.must_include_keywords.join(', ')}
+- Éléments à ajouter : ${serpAnalysis.recommended_structure.content_types_to_add.join(', ')}
+
+🎯 OBJECTIF : SURPASSER les concurrents en créant un contenu plus complet, mieux structuré, et plus utile.
+`;
+    }
+
     const prompt = `
 Tu es un expert SEO et content marketing spécialisé en e-commerce. Crée un article de blog 100% optimisé SEO pour le sujet : "${topic}"
 
@@ -90,6 +136,7 @@ CONTEXTE BOUTIQUE :
 - Langue : ${shop.language}
 ${keywordsText}
 ${collectionsContext}
+${serpContext}
 
 CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 
@@ -126,6 +173,14 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 - Sous-titres descriptifs (H2/H3)
 - Contenu scannable (gras, listes, espaces)
 
+${serpAnalysis ? `
+💡 DIFFÉRENCIATION PAR RAPPORT AUX CONCURRENTS :
+- Ajouter des sections uniques non présentes chez les concurrents
+- Approfondir les sujets traités superficiellement par les concurrents
+- Inclure des exemples concrets et actionnables
+- Créer une meilleure expérience utilisateur (tableaux, FAQ, visuels)
+` : ''}
+
 Format de réponse JSON STRICT :
 {
   "title": "Titre H1 optimisé avec mot-clé (max 60 char)",
@@ -141,19 +196,23 @@ Format de réponse JSON STRICT :
 IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant.
 `;
 
+    const systemPrompt = serpAnalysis 
+      ? "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T. IMPORTANT: Tu as analysé les concurrents en top 3 de Google - ton objectif est de créer un contenu MEILLEUR qui les surpasse en qualité, profondeur, et utilité pour l'utilisateur."
+      : "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness).";
+
     const completion = await openai.createChatCompletion({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)."
+          content: systemPrompt
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      max_tokens: 3500,
+      max_tokens: serpAnalysis ? 4000 : 3500,
       temperature: 0.7,
     });
 
@@ -184,8 +243,8 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         seo_title: blogPost.seo_title || blogPost.title,
         seo_description: blogPost.meta_description,
         meta_description: blogPost.meta_description,
+        meta_title: blogPost.seo_title || blogPost.title,
         focus_keyword: blogPost.focus_keyword || keywords[0] || null,
-        seo_score: blogPost.seo_score || 85,
         status: 'draft',
       })
       .select()
@@ -200,7 +259,12 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         success: true, 
         post: {
           ...savedPost,
-          ...blogPost
+          ...blogPost,
+          serp_analysis: serpAnalysis ? {
+            competitors_analyzed: serpAnalysis.top_results.length,
+            target_word_count: serpAnalysis.recommended_structure.target_word_count,
+            insights: serpAnalysis.competitive_insights
+          } : null
         }
       }),
       {

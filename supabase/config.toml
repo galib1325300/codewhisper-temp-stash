@@ -113,3 +113,6 @@ verify_jwt = false
 
 [functions.suggest-blog-topics]
 verify_jwt = false
+
+[functions.analyze-serp]
+verify_jwt = false

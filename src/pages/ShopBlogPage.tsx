@@ -25,7 +25,8 @@ export default function ShopBlogPage() {
   const [formData, setFormData] = useState({
     topic: '',
     keywords: '',
-    collectionIds: [] as string[]
+    collectionIds: [] as string[],
+    analyzeCompetitors: true
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [wpCredentialsConfigured, setWpCredentialsConfigured] = useState(false);
@@ -164,7 +165,8 @@ export default function ShopBlogPage() {
           shopId: shop.id,
           topic: formData.topic,
           keywords,
-          collectionIds: formData.collectionIds
+          collectionIds: formData.collectionIds,
+          analyzeCompetitors: formData.analyzeCompetitors
         }
       });
 
@@ -173,7 +175,7 @@ export default function ShopBlogPage() {
       if (data.success && data.post) {
         toast.success('Article SEO optimisé généré avec succès !');
         setShowForm(false);
-        setFormData({ topic: '', keywords: '', collectionIds: [] });
+        setFormData({ topic: '', keywords: '', collectionIds: [], analyzeCompetitors: true });
         loadBlogPosts();
       } else {
         toast.error(data.error || 'Erreur lors de la génération');
@@ -357,6 +359,27 @@ export default function ShopBlogPage() {
                       </p>
                     </div>
 
+                    <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4">
+                      <label className="flex items-start space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.analyzeCompetitors}
+                          onChange={(e) => setFormData({ ...formData, analyzeCompetitors: e.target.checked })}
+                          className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-indigo-900">🔍 Analyser les concurrents Google</span>
+                            <span className="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full">Recommandé</span>
+                          </div>
+                          <p className="text-xs text-indigo-700 mt-1">
+                            Analyse les top 3 résultats Google pour créer un article qui surpasse la concurrence. 
+                            L'IA analysera leur structure, longueur, mots-clés et créera un contenu supérieur.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
                     {collections.length > 0 && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -418,7 +441,7 @@ export default function ShopBlogPage() {
                         variant="secondary"
                         onClick={() => {
                           setShowForm(false);
-                          setFormData({ topic: '', keywords: '', collectionIds: [] });
+                          setFormData({ topic: '', keywords: '', collectionIds: [], analyzeCompetitors: true });
                         }}
                       >
                         Annuler
