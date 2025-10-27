@@ -13,7 +13,8 @@ interface TopicSuggestion {
   search_volume_estimate: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   opportunity_score: number;
-  top_competitors: string[];
+  article_type: 'guide' | 'comparatif' | 'tutoriel' | 'listicle';
+  recommended_length: number;
 }
 
 serve(async (req) => {
@@ -26,6 +27,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
 
     const { shopId } = await req.json();
 
@@ -40,134 +46,139 @@ serve(async (req) => {
       throw new Error('Boutique non trouvée');
     }
 
-    console.log('Generating topic suggestions for shop:', shop.name);
+    console.log('Generating intelligent topic suggestions for shop:', shop.name);
 
-    // Analyze shop niche based on products/collections
+    // Analyze shop catalog (more products for better analysis)
     const { data: products } = await supabaseClient
       .from('products')
       .select('name, description')
       .eq('shop_id', shopId)
-      .limit(10);
+      .limit(20);
 
     const { data: collections } = await supabaseClient
       .from('collections')
       .select('name, description')
       .eq('shop_id', shopId)
-      .limit(5);
+      .limit(10);
 
-    // Identify niche keywords
-    const nicheKeywords: string[] = [];
-    
-    if (products && products.length > 0) {
-      // Extract main product categories
-      products.forEach(p => {
-        const words = p.name.toLowerCase().split(/\s+/);
-        words.forEach(w => {
-          if (w.length > 4 && !nicheKeywords.includes(w)) {
-            nicheKeywords.push(w);
+    console.log(`Analyzing ${products?.length || 0} products and ${collections?.length || 0} collections`);
+
+    // Build catalog description for AI
+    const productList = products?.map(p => `- ${p.name}`).join('\n') || 'Aucun produit';
+    const collectionList = collections?.map(c => `- ${c.name}`).join('\n') || 'Aucune collection';
+
+    const prompt = `Analyse le catalogue e-commerce suivant et génère 12 suggestions d'articles de blog SEO optimisés et TRÈS DIVERSIFIÉES.
+
+PRODUITS (${products?.length || 0} articles):
+${productList}
+
+COLLECTIONS (${collections?.length || 0} catégories):
+${collectionList}
+
+CONSIGNES IMPORTANTES:
+1. Identifie les 3-5 thématiques principales du catalogue (marques, types de produits, usages)
+2. Pour chaque suggestion, fournis:
+   - Un titre SEO optimisé (6-9 mots, accrocheur)
+   - Le mot-clé principal ciblé
+   - 4-5 mots-clés secondaires de LONGUE TRAÎNE (3-5 mots pour réduire concurrence)
+   - Le type d'article (guide/comparatif/tutoriel/listicle)
+   - La difficulté SEO estimée (Easy/Medium/Hard)
+   - Un score d'opportunité réaliste (0-100)
+   - La longueur recommandée en mots (1200-2500)
+   - Une estimation de volume de recherche mensuel
+
+3. IMPÉRATIF - DIVERSIFIE ABSOLUMENT les suggestions:
+   - 3 guides complets (ex: "Guide complet de...", "Tout savoir sur...")
+   - 3 comparatifs (ex: "X vs Y : lequel choisir?", "Comparatif...")
+   - 2 tutoriels pratiques (ex: "Comment...", "Tutoriel...")
+   - 4 listicles (ex: "Top 5 des meilleurs...", "Les X meilleurs...")
+
+4. Cible des mots-clés de LONGUE TRAÎNE (3-5 mots minimum) pour réduire la concurrence
+5. Varie les angles : prix, qualité, usage, comparaison, tendances ${new Date().getFullYear()}
+6. Estime la difficulté en fonction de la spécificité du mot-clé (plus spécifique = plus facile)
+
+RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans commentaire):
+{
+  "niche_detected": "Description courte de la niche détectée",
+  "main_categories": ["catégorie1", "catégorie2", "catégorie3"],
+  "suggestions": [
+    {
+      "topic": "Titre de l'article optimisé SEO",
+      "primary_keyword": "mot-clé principal longue traîne",
+      "secondary_keywords": ["keyword longue traîne 1", "keyword 2", "keyword 3", "keyword 4"],
+      "article_type": "guide",
+      "difficulty": "Medium",
+      "opportunity_score": 75,
+      "recommended_length": 1800,
+      "search_volume_estimate": "1,500-3,000/mois"
+    }
+  ]
+}`;
+
+    console.log('Calling Lovable AI for intelligent suggestions...');
+
+    // Call Lovable AI
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: 'Tu es un expert SEO et content strategist. Tu analyses les catalogues e-commerce pour proposer des stratégies de contenu optimisées. Tu réponds UNIQUEMENT en JSON valide, sans markdown.'
+          },
+          {
+            role: 'user',
+            content: prompt
           }
-        });
-      });
-    }
-
-    if (collections && collections.length > 0) {
-      collections.forEach(c => {
-        const words = c.name.toLowerCase().split(/\s+/);
-        words.forEach(w => {
-          if (w.length > 4 && !nicheKeywords.includes(w)) {
-            nicheKeywords.push(w);
-          }
-        });
-      });
-    }
-
-    // Fallback to shop URL analysis if no products
-    if (nicheKeywords.length === 0) {
-      const urlParts = shop.url.replace(/https?:\/\//, '').replace(/www\./, '').split('.')[0];
-      nicheKeywords.push(urlParts);
-    }
-
-    console.log('Niche keywords identified:', nicheKeywords.slice(0, 5));
-
-    // Generate topic ideas based on niche
-    const topicTemplates = [
-      `Comment choisir {keyword} en {year}`,
-      `Top 10 des meilleurs {keyword}`,
-      `{keyword} : guide complet pour débutants`,
-      `Comparatif {keyword} : quel modèle choisir`,
-      `Comment entretenir votre {keyword}`,
-      `{keyword} professionnel vs domestique`,
-      `Les erreurs à éviter avec votre {keyword}`,
-      `{keyword} écologique : alternatives durables`,
-      `Astuces pour optimiser votre {keyword}`,
-      `{keyword} : tendances {year}`,
-    ];
-
-    const year = new Date().getFullYear();
-    const suggestions: TopicSuggestion[] = [];
-
-    // Generate 5-7 diverse suggestions
-    const mainKeyword = nicheKeywords[0] || 'produit';
-    const selectedTemplates = topicTemplates.slice(0, 7);
-
-    for (const template of selectedTemplates) {
-      const topic = template
-        .replace(/{keyword}/g, mainKeyword)
-        .replace(/{year}/g, year.toString());
-      
-      const primaryKeyword = template.includes('comment') 
-        ? `comment ${mainKeyword}`
-        : template.includes('top') || template.includes('meilleur')
-        ? `meilleur ${mainKeyword}`
-        : mainKeyword;
-
-      const secondaryKeywords = [
-        `${mainKeyword} ${year}`,
-        `choisir ${mainKeyword}`,
-        `guide ${mainKeyword}`,
-        `${mainKeyword} qualité`,
-      ].slice(0, 3);
-
-      // Estimate difficulty based on keyword complexity
-      let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
-      if (template.includes('guide complet') || template.includes('top 10')) {
-        difficulty = 'Hard';
-      } else if (template.includes('astuces') || template.includes('erreurs')) {
-        difficulty = 'Easy';
-      }
-
-      // Calculate opportunity score (inverse of difficulty + relevance)
-      const opportunityScore = difficulty === 'Easy' ? 85 : difficulty === 'Medium' ? 70 : 55;
-
-      // Mock search volume (would use real API in production)
-      const volumeEstimates = ['1,200-2,400/mois', '2,500-5,000/mois', '5,000-10,000/mois', '800-1,500/mois'];
-      const searchVolume = volumeEstimates[Math.floor(Math.random() * volumeEstimates.length)];
-
-      suggestions.push({
-        topic,
-        primary_keyword: primaryKeyword,
-        secondary_keywords: secondaryKeywords,
-        search_volume_estimate: searchVolume,
-        difficulty,
-        opportunity_score: opportunityScore,
-        top_competitors: [
-          'amazon.fr',
-          'leroymerlin.fr',
-          'castorama.fr',
         ],
-      });
+        temperature: 0.8,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Lovable AI error:', aiResponse.status, errorText);
+      throw new Error(`AI generation failed: ${aiResponse.status}`);
     }
 
-    // Sort by opportunity score (highest first)
-    suggestions.sort((a, b) => b.opportunity_score - a.opportunity_score);
+    const aiData = await aiResponse.json();
+    const aiContent = aiData.choices[0].message.content;
+    
+    console.log('AI response received, parsing...');
 
-    console.log(`Generated ${suggestions.length} topic suggestions`);
+    // Parse AI response (remove markdown if present)
+    let parsedResponse;
+    try {
+      const cleanContent = aiContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsedResponse = JSON.parse(cleanContent);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', aiContent);
+      throw new Error('Failed to parse AI suggestions');
+    }
+
+    const suggestions: TopicSuggestion[] = parsedResponse.suggestions || [];
+    const nicheDetected = parsedResponse.niche_detected || 'Non détecté';
+    const mainCategories = parsedResponse.main_categories || [];
+
+    console.log(`Generated ${suggestions.length} intelligent suggestions for niche: ${nicheDetected}`);
+    console.log(`Main categories: ${mainCategories.join(', ')}`);
+
+    // Sort by opportunity score
+    suggestions.sort((a, b) => b.opportunity_score - a.opportunity_score);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         suggestions,
-        niche: mainKeyword,
+        niche: nicheDetected,
+        main_categories: mainCategories,
+        analyzed_products: products?.length || 0,
+        analyzed_collections: collections?.length || 0,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

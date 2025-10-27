@@ -34,6 +34,12 @@ export default function ShopBlogPage() {
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [nicheData, setNicheData] = useState<{
+    niche?: string;
+    mainCategories?: string[];
+    analyzedProducts?: number;
+    analyzedCollections?: number;
+  }>({});
 
   useEffect(() => {
     const loadShop = async () => {
@@ -131,6 +137,13 @@ export default function ShopBlogPage() {
 
       if (data.success && data.suggestions) {
         setSuggestions(data.suggestions);
+        setNicheData({
+          niche: data.niche,
+          mainCategories: data.main_categories,
+          analyzedProducts: data.analyzed_products,
+          analyzedCollections: data.analyzed_collections,
+        });
+        toast.success(`${data.suggestions.length} suggestions générées pour votre niche !`);
       } else {
         toast.error(data.error || 'Erreur lors de la génération des suggestions');
       }
@@ -543,13 +556,17 @@ export default function ShopBlogPage() {
         </main>
       </div>
 
-      <TopicSuggestionsModal
-        isOpen={showSuggestionsModal}
-        onClose={() => setShowSuggestionsModal(false)}
-        suggestions={suggestions}
-        loading={loadingSuggestions}
-        onSelectTopic={handleSelectTopic}
-      />
+            <TopicSuggestionsModal
+              isOpen={showSuggestionsModal}
+              onClose={() => setShowSuggestionsModal(false)}
+              suggestions={suggestions}
+              loading={loadingSuggestions}
+              onSelectTopic={handleSelectTopic}
+              niche={nicheData.niche}
+              mainCategories={nicheData.mainCategories}
+              analyzedProducts={nicheData.analyzedProducts}
+              analyzedCollections={nicheData.analyzedCollections}
+            />
     </div>
   );
 }
