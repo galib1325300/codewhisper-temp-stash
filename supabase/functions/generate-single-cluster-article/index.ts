@@ -95,8 +95,7 @@ RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans balises):
   "meta_description": "Description SEO 150-160 caractères",
   "content": "Contenu HTML complet avec <h2>, <h3>, <p>, <ul>, <li>",
   "excerpt": "Résumé court 100-150 mots",
-  "focus_keyword": "${randomKeyword}",
-  "tags": ["tag1", "tag2", "tag3"]
+  "focus_keyword": "${randomKeyword}"
 }`;
 
     console.log('Calling AI API...');
@@ -162,7 +161,6 @@ RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans balises):
         excerpt: articleData.excerpt,
         meta_description: articleData.meta_description,
         focus_keyword: articleData.focus_keyword,
-        tags: articleData.tags || [],
         status: 'draft',
         author_id: cluster.created_by || null,
       })
