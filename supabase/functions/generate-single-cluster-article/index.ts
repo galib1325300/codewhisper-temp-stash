@@ -48,7 +48,7 @@ serve(async (req) => {
     // Get shop information
     const { data: shop, error: shopError } = await supabaseClient
       .from('shops')
-      .select('name, url, description')
+      .select('name, url')
       .eq('id', shopId)
       .single();
 
@@ -79,7 +79,6 @@ INFORMATIONS DU CLUSTER:
 INFORMATIONS DE LA BOUTIQUE:
 - Nom: ${shop.name}
 - URL: ${shop.url}
-- Description: ${shop.description || 'N/A'}
 
 CONSIGNES:
 1. Crée un article unique autour du mot-clé: "${randomKeyword}"

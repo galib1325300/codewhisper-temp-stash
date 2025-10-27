@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { ClusterGenerationModal } from './ClusterGenerationModal';
 import { ClusterArticleGenerator } from './ClusterArticleGenerator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TopicCluster {
   id: string;
@@ -93,7 +94,7 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
           target_keywords: Array.isArray(cluster.target_keywords) ? cluster.target_keywords : [],
           cluster_posts_count: count || 0,
           pillar_post_title: cluster.blog_posts?.title,
-          remaining_articles: Math.max(0, (cluster.suggested_article_count || 0) - (count || 0))
+          remaining_articles: (cluster.suggested_article_count || 0) - (count || 0)
         } as TopicCluster;
       })
     );
@@ -346,7 +347,14 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
       ) : (
         <div className="grid gap-4">
           {clusters.map((cluster) => (
-            <Card key={cluster.id} className="hover:shadow-md transition-shadow">
+            <Card 
+              key={cluster.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('button')) return;
+                navigate(`/admin/shops/${shopId}/blog?cluster=${cluster.id}`);
+              }}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -367,11 +375,29 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
                       <Badge variant="outline">
                         {cluster.cluster_posts_count} article{cluster.cluster_posts_count > 1 ? 's' : ''}
                       </Badge>
-                      {cluster.remaining_articles! > 0 && (
-                        <Badge variant="default" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">
-                          {cluster.remaining_articles} restants
-                        </Badge>
-                      )}
+                      {(() => {
+                        const remaining = cluster.remaining_articles || 0;
+                        if (remaining > 0) {
+                          return (
+                            <Badge variant="default" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">
+                              {remaining} restants
+                            </Badge>
+                          );
+                        } else if (remaining === 0 && cluster.suggested_article_count) {
+                          return (
+                            <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                              ✓ Complet
+                            </Badge>
+                          );
+                        } else if (remaining < 0) {
+                          return (
+                            <Badge variant="default" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                              +{Math.abs(remaining)} bonus
+                            </Badge>
+                          );
+                        }
+                        return null;
+                      })()}
                       {cluster.status === 'active' && (
                         <Badge className="bg-green-500">Actif</Badge>
                       )}
@@ -410,13 +436,22 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
                         </Button>
                       </>
                     )}
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => navigate(`/admin/shops/${shopId}/blog?cluster=${cluster.id}`)}
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => navigate(`/admin/shops/${shopId}/blog?cluster=${cluster.id}`)}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Voir les articles de ce cluster</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <Button 
                       variant="ghost" 
                       size="sm"

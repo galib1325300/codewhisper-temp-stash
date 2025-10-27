@@ -88,8 +88,8 @@ export const ClusterArticleGenerator: React.FC<ClusterArticleGeneratorProps> = (
 
         if (error) throw error;
 
-        if (!data.success) {
-          throw new Error(data.error || 'Article generation failed');
+        if (!data?.success) {
+          throw new Error(data?.error || 'Article generation failed');
         }
 
         const duration = (Date.now() - articleStartTime) / 1000;
@@ -100,10 +100,11 @@ export const ClusterArticleGenerator: React.FC<ClusterArticleGeneratorProps> = (
         }]);
 
       } catch (error) {
-        console.error(`Error generating article ${i + 1}:`, error);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`Error generating article ${i + 1}:`, errorMsg);
         setFailedList(prev => [...prev, {
           index: i + 1,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: errorMsg
         }]);
       }
 
