@@ -828,38 +828,47 @@ export type Database = {
       }
       topic_clusters: {
         Row: {
+          auto_generated: boolean | null
           created_at: string
           description: string | null
+          generation_prompt: string | null
           id: string
           name: string
           pillar_keyword: string
           pillar_post_id: string | null
           shop_id: string
           status: string | null
+          suggested_article_count: number | null
           target_keywords: Json | null
           updated_at: string
         }
         Insert: {
+          auto_generated?: boolean | null
           created_at?: string
           description?: string | null
+          generation_prompt?: string | null
           id?: string
           name: string
           pillar_keyword: string
           pillar_post_id?: string | null
           shop_id: string
           status?: string | null
+          suggested_article_count?: number | null
           target_keywords?: Json | null
           updated_at?: string
         }
         Update: {
+          auto_generated?: boolean | null
           created_at?: string
           description?: string | null
+          generation_prompt?: string | null
           id?: string
           name?: string
           pillar_keyword?: string
           pillar_post_id?: string | null
           shop_id?: string
           status?: string | null
+          suggested_article_count?: number | null
           target_keywords?: Json | null
           updated_at?: string
         }

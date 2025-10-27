@@ -6,9 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Network, FileText, Link2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Network, FileText, Link2, Sparkles, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { ClusterGenerationModal } from './ClusterGenerationModal';
+import { ClusterArticleGenerator } from './ClusterArticleGenerator';
 
 interface TopicCluster {
   id: string;
@@ -20,6 +22,9 @@ interface TopicCluster {
   status: string;
   cluster_posts_count?: number;
   pillar_post_title?: string;
+  auto_generated?: boolean;
+  suggested_article_count?: number;
+  remaining_articles?: number;
 }
 
 interface TopicClustersManagementProps {
@@ -33,6 +38,9 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCluster, setEditingCluster] = useState<TopicCluster | null>(null);
+  const [generationModalOpen, setGenerationModalOpen] = useState(false);
+  const [articleGeneratorOpen, setArticleGeneratorOpen] = useState(false);
+  const [selectedClusterForGeneration, setSelectedClusterForGeneration] = useState<TopicCluster | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -81,12 +89,18 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
           ...cluster,
           target_keywords: Array.isArray(cluster.target_keywords) ? cluster.target_keywords : [],
           cluster_posts_count: count || 0,
-          pillar_post_title: cluster.blog_posts?.title
+          pillar_post_title: cluster.blog_posts?.title,
+          remaining_articles: Math.max(0, (cluster.suggested_article_count || 0) - (count || 0))
         } as TopicCluster;
       })
     );
 
     setClusters(clustersWithCounts);
+  };
+
+  const handleGenerateArticles = (cluster: TopicCluster) => {
+    setSelectedClusterForGeneration(cluster);
+    setArticleGeneratorOpen(true);
   };
 
   const loadPosts = async () => {
@@ -194,16 +208,22 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau cluster
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setGenerationModalOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Générer des clusters automatiquement
+          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau cluster
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
@@ -281,6 +301,7 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {clusters.length === 0 ? (
@@ -309,18 +330,40 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
                       {cluster.name}
                     </CardTitle>
                     <div className="flex items-center gap-2 mt-2">
+                      {cluster.auto_generated && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Auto
+                        </Badge>
+                      )}
                       <Badge variant="secondary" className="font-mono">
                         {cluster.pillar_keyword}
                       </Badge>
                       <Badge variant="outline">
                         {cluster.cluster_posts_count} article{cluster.cluster_posts_count > 1 ? 's' : ''}
                       </Badge>
+                      {cluster.remaining_articles! > 0 && (
+                        <Badge variant="default" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">
+                          {cluster.remaining_articles} restants
+                        </Badge>
+                      )}
                       {cluster.status === 'active' && (
                         <Badge className="bg-green-500">Actif</Badge>
                       )}
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    {cluster.remaining_articles! > 0 && (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => handleGenerateArticles(cluster)}
+                        className="bg-primary"
+                      >
+                        <Zap className="h-4 w-4 mr-1" />
+                        Générer articles
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -371,6 +414,28 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
             </Card>
           ))}
         </div>
+      )}
+
+      <ClusterGenerationModal
+        isOpen={generationModalOpen}
+        onClose={() => setGenerationModalOpen(false)}
+        shopId={shopId}
+        onClustersCreated={loadClusters}
+      />
+
+      {selectedClusterForGeneration && (
+        <ClusterArticleGenerator
+          isOpen={articleGeneratorOpen}
+          onClose={() => {
+            setArticleGeneratorOpen(false);
+            setSelectedClusterForGeneration(null);
+          }}
+          clusterId={selectedClusterForGeneration.id}
+          clusterName={selectedClusterForGeneration.name}
+          shopId={shopId}
+          articleCount={selectedClusterForGeneration.remaining_articles || 6}
+          onComplete={loadClusters}
+        />
       )}
     </div>
   );
