@@ -214,7 +214,6 @@ Format de réponse JSON STRICT :
 
 IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant. N'oublie pas d'inclure des tableaux, de mettre en gras les éléments clés, ET une section FAQ complète avec structured data schema.org pour maximiser les chances de Featured Snippets !
 `;
-`;
 
     console.log('Calling Lovable AI for blog post generation...');
 
@@ -231,39 +230,84 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.7,
-        max_tokens: serpAnalysis ? 4000 : 3500
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'compose_blog_post',
+              description: 'Return a fully-composed SEO blog post with HTML content and metadata.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string' },
+                  seo_title: { type: 'string' },
+                  meta_description: { type: 'string' },
+                  focus_keyword: { type: 'string' },
+                  excerpt: { type: 'string' },
+                  content: { type: 'string' },
+                  internal_links: { type: 'array', items: { type: 'string' } },
+                  faq_count: { type: 'number' }
+                },
+                required: ['title','seo_title','meta_description','excerpt','content']
+              }
+            }
+          }
+        ],
+        tool_choice: { type: 'function', function: { name: 'compose_blog_post' } }
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('Lovable AI error:', aiResponse.status, errorText);
-      throw new Error(`Erreur Lovable AI: ${aiResponse.status}`);
+      if (aiResponse.status === 402) {
+        throw new Error('Crédits Lovable AI épuisés. Veuillez recharger vos crédits dans Settings → Workspace → Usage.');
+      }
+      if (aiResponse.status === 429) {
+        throw new Error('Limite de requêtes atteinte. Veuillez réessayer dans quelques instants.');
+      }
+      throw new Error(`Erreur de l'API Lovable AI (${aiResponse.status}). Veuillez réessayer.`);
     }
 
     const aiData = await aiResponse.json();
-    const generatedContent = aiData.choices[0]?.message?.content?.trim();
 
-    if (!generatedContent) {
-      throw new Error('Erreur lors de la génération du contenu');
+    // Prefer structured tool call output
+    let blogPost: any | null = null;
+    const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.name === 'compose_blog_post' && toolCall.function.arguments) {
+      try {
+        blogPost = JSON.parse(toolCall.function.arguments);
+        console.log('Parsed blog post from tool call.');
+      } catch (e) {
+        console.error('Tool call arguments parse error:', e);
+      }
     }
 
-    console.log('AI response received, parsing JSON...');
+    // Fallback: try to parse JSON content
+    if (!blogPost) {
+      const generatedContent = aiData?.choices?.[0]?.message?.content?.trim();
+      if (!generatedContent) {
+        throw new Error('Erreur lors de la génération du contenu');
+      }
 
-    let blogPost;
-    try {
-      // Remove markdown code blocks if present
-      const cleanedContent = generatedContent
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      
-      blogPost = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Raw content:', generatedContent.substring(0, 500));
-      throw new Error('Format de réponse invalide de l\'IA');
+      console.log('AI response received, parsing JSON (fallback)...');
+      try {
+        const cleanedContent = generatedContent
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .trim();
+        // Try to extract the first JSON object if extra text is present
+        const firstBrace = cleanedContent.indexOf('{');
+        const lastBrace = cleanedContent.lastIndexOf('}');
+        const jsonSlice = (firstBrace !== -1 && lastBrace !== -1)
+          ? cleanedContent.slice(firstBrace, lastBrace + 1)
+          : cleanedContent;
+        blogPost = JSON.parse(jsonSlice);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        console.error('Raw content:', (aiData?.choices?.[0]?.message?.content || '').substring(0, 500));
+        throw new Error('Format de réponse invalide de l\'IA');
+      }
     }
 
     const slug = generateSlug(blogPost.title);
