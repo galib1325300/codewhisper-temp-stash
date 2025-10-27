@@ -380,6 +380,41 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       console.error('Error generating images (non-critical):', imageError);
     }
 
+    // Add internal links to the content
+    let internalLinksAdded = 0;
+    try {
+      console.log('Adding internal links to blog post...');
+      const linksResponse = await fetch(
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-internal-links`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            postId: savedPost.id,
+            shopId: shopId,
+            content: savedPost.content,
+            topic: topic
+          })
+        }
+      );
+
+      if (linksResponse.ok) {
+        const linksData = await linksResponse.json();
+        if (linksData.success && linksData.linksAdded > 0) {
+          internalLinksAdded = linksData.linksAdded;
+          savedPost.content = linksData.content;
+          console.log(`✓ Added ${internalLinksAdded} internal links successfully`);
+        }
+      } else {
+        console.error('Internal linking failed:', await linksResponse.text());
+      }
+    } catch (linksError) {
+      console.error('Error adding internal links (non-critical):', linksError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -387,6 +422,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
           ...savedPost,
           ...blogPost,
           images: generatedImages,
+          internal_links_added: internalLinksAdded,
           serp_analysis: serpAnalysis ? {
             competitors_analyzed: serpAnalysis.top_results.length,
             target_word_count: serpAnalysis.recommended_structure.target_word_count,

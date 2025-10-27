@@ -500,6 +500,62 @@ export default function BlogPostDetailPage() {
                   </div>
                 </div>
 
+                {/* SEO Optimization */}
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="font-semibold mb-4">Optimisation SEO</h3>
+                  <div className="space-y-3">
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          setSyncing(true);
+                          toast.info('Ajout de liens internes en cours...');
+                          
+                          const { data, error } = await supabase.functions.invoke('add-blog-internal-links', {
+                            body: {
+                              postId: postId,
+                              shopId: shopId,
+                              content: formData.content,
+                              topic: formData.title
+                            }
+                          });
+
+                          if (error) throw error;
+
+                          if (data.success) {
+                            setFormData({ ...formData, content: data.content });
+                            
+                            // Update post in database is already done by the function
+                            const { data: updatedPost } = await supabase
+                              .from('blog_posts')
+                              .select('*')
+                              .eq('id', postId)
+                              .single();
+                            
+                            if (updatedPost) setPost(updatedPost);
+                            
+                            toast.success(`✅ ${data.linksAdded} lien(s) interne(s) ajouté(s) !`);
+                          } else {
+                            toast.error(data.error || 'Erreur lors de l\'ajout des liens');
+                          }
+                        } catch (error) {
+                          console.error('Error adding internal links:', error);
+                          toast.error('Erreur lors de l\'ajout des liens internes');
+                        } finally {
+                          setSyncing(false);
+                        }
+                      }}
+                      disabled={syncing}
+                    >
+                      🔗 {syncing ? 'Ajout en cours...' : 'Ajouter des liens internes'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Ajoute automatiquement 3-5 liens internes pertinents vers vos autres articles, collections et produits
+                    </p>
+                  </div>
+                </div>
+
                 {/* SEO Info */}
                 <div className="bg-card rounded-lg border p-6">
                   <h3 className="font-semibold mb-4">SEO</h3>
