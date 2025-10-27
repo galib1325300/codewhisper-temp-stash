@@ -44,6 +44,7 @@ export const ClusterArticleGenerator: React.FC<ClusterArticleGeneratorProps> = (
   const [failedList, setFailedList] = useState<FailedArticle[]>([]);
   const [isDone, setIsDone] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const startedRef = useRef(false);
   const { toast } = useToast();
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -120,7 +121,7 @@ export const ClusterArticleGenerator: React.FC<ClusterArticleGeneratorProps> = (
     setIsGenerating(false);
     setIsDone(true);
 
-    const successCount = successList.length + (isDone ? 0 : 1);
+    const successCount = successList.length;
     const failedCount = failedList.length;
 
     toast({
@@ -141,12 +142,15 @@ export const ClusterArticleGenerator: React.FC<ClusterArticleGeneratorProps> = (
   };
 
   React.useEffect(() => {
-    if (isOpen && !isDone && !isGenerating) {
-      // Request notification permission
+    if (isOpen && !startedRef.current) {
+      startedRef.current = true;
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
       }
       handleGenerate();
+    }
+    if (!isOpen) {
+      startedRef.current = false;
     }
   }, [isOpen]);
 
