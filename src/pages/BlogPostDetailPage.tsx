@@ -28,6 +28,7 @@ export default function BlogPostDetailPage() {
     focus_keyword: ''
   });
   const [showPreview, setShowPreview] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -250,16 +251,7 @@ export default function BlogPostDetailPage() {
                       }}
                     >
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Générer
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Éditer
+                      Régénérer
                     </Button>
                     </div>
                   </div>
@@ -267,7 +259,7 @@ export default function BlogPostDetailPage() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-lg font-medium bg-background"
                     placeholder="Titre de l'article"
                   />
                 </div>
@@ -281,13 +273,26 @@ export default function BlogPostDetailPage() {
                         {wordCount} mots
                       </span>
                     </h2>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setEditMode(!editMode)}
+                    >
+                      {editMode ? '👁️ Vue visuelle' : '📝 Éditer HTML'}
+                    </Button>
                   </div>
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[400px] font-mono text-sm"
-                    placeholder="Contenu HTML de l'article"
-                  />
+                  {editMode ? (
+                    <textarea
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[500px] font-mono text-sm bg-muted/30"
+                      placeholder="Contenu HTML de l'article"
+                    />
+                  ) : (
+                    <div className="prose prose-slate dark:prose-invert max-w-none px-4 py-2 min-h-[500px] border rounded-lg bg-background">
+                      <div dangerouslySetInnerHTML={{ __html: formData.content }} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Excerpt Section */}
@@ -295,13 +300,13 @@ export default function BlogPostDetailPage() {
                   <h2 className="text-lg font-semibold mb-4">
                     Résumé de l'article 
                     <span className="text-sm text-muted-foreground ml-2">
-                      {formData.excerpt.length} mots
+                      {formData.excerpt.length} caractères
                     </span>
                   </h2>
                   <textarea
                     value={formData.excerpt}
                     onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[120px]"
+                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[120px] bg-background"
                     placeholder="Résumé court de l'article"
                   />
                 </div>
@@ -313,7 +318,7 @@ export default function BlogPostDetailPage() {
                     type="text"
                     value={formData.slug}
                     onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary font-mono text-sm bg-background"
                     placeholder="slug-de-larticle"
                   />
                 </div>
@@ -386,10 +391,10 @@ export default function BlogPostDetailPage() {
                     onClick={() => setShowPreview(!showPreview)}
                   >
                     <Eye className="w-4 h-4 mr-2" />
-                    Aperçu
+                    {showPreview ? 'Masquer l\'aperçu' : 'Voir l\'aperçu'}
                   </Button>
                   {showPreview && (
-                    <div className="mt-4 p-4 border rounded-lg prose prose-sm max-w-none">
+                    <div className="mt-4 p-4 border rounded-lg prose prose-sm dark:prose-invert max-w-none bg-background max-h-[400px] overflow-y-auto">
                       <div dangerouslySetInnerHTML={{ __html: formData.content }} />
                     </div>
                   )}
@@ -442,7 +447,7 @@ export default function BlogPostDetailPage() {
                         type="text"
                         value={formData.meta_title}
                         onChange={(e) => setFormData({ ...formData, meta_title: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border rounded-lg"
+                        className="w-full px-3 py-2 text-sm border rounded-lg bg-background"
                         placeholder="Titre SEO"
                       />
                     </div>
@@ -453,7 +458,7 @@ export default function BlogPostDetailPage() {
                       <textarea
                         value={formData.meta_description}
                         onChange={(e) => setFormData({ ...formData, meta_description: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border rounded-lg"
+                        className="w-full px-3 py-2 text-sm border rounded-lg bg-background"
                         rows={3}
                         placeholder="Description SEO"
                       />
@@ -466,7 +471,7 @@ export default function BlogPostDetailPage() {
                         type="text"
                         value={formData.focus_keyword}
                         onChange={(e) => setFormData({ ...formData, focus_keyword: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border rounded-lg"
+                        className="w-full px-3 py-2 text-sm border rounded-lg bg-background"
                         placeholder="Mot-clé focus"
                       />
                     </div>
