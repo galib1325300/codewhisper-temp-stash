@@ -96,7 +96,9 @@ serve(async (req) => {
           .update(postData)
           .eq('id', existing.id);
 
-        if (!updateError) {
+        if (updateError) {
+          console.error('Update error on blog_posts', { shopId, external_id: post.id.toString(), error: updateError });
+        } else {
           updatedCount++;
         }
       } else {
@@ -105,7 +107,9 @@ serve(async (req) => {
           .from('blog_posts')
           .insert(postData);
 
-        if (!insertError) {
+        if (insertError) {
+          console.error('Insert error on blog_posts', { shopId, external_id: post.id.toString(), error: insertError });
+        } else {
           syncedCount++;
         }
       }
