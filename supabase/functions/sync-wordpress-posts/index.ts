@@ -30,12 +30,12 @@ serve(async (req) => {
       throw new Error('Boutique non trouvée');
     }
 
-    if (!shop.wpUsername || !shop.wpPassword) {
+    if (!shop.wp_username || !shop.wp_password) {
       throw new Error('Identifiants WordPress non configurés');
     }
 
     const baseUrl = shop.url.replace(/\/$/, '');
-    const auth = btoa(`${shop.wpUsername}:${shop.wpPassword}`);
+    const auth = btoa(`${shop.wp_username}:${shop.wp_password}`);
     
     console.log('Synchronisation des articles WordPress depuis:', baseUrl);
 
