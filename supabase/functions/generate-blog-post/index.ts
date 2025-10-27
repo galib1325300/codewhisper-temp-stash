@@ -1,6 +1,6 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-import { Configuration, OpenAIApi } from 'https://esm.sh/openai@3.3.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,28 +41,48 @@ serve(async (req) => {
       throw new Error('Boutique non trouvée');
     }
 
-    // Get OpenAI API key
-    let openaiApiKey = shop.openai_api_key;
-    
-    if (!openaiApiKey) {
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('openai_api_key')
-        .eq('user_id', shop.user_id)
-        .single();
-      
-      openaiApiKey = profile?.openai_api_key;
+    console.log('Generating blog post for shop:', shop.name);
+
+    // Get Lovable AI API key (automatically provisioned)
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY non configurée');
     }
 
-    if (!openaiApiKey) {
-      throw new Error('Clé API OpenAI manquante. Veuillez la configurer dans les paramètres.');
-    }
+    // Analyze competitors if requested
+    let serpAnalysis = null;
+    if (analyzeCompetitors && keywords.length > 0) {
+      console.log('Analyzing SERP competitors for:', keywords[0]);
+      try {
+        const analysisResponse = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-serp`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+            },
+            body: JSON.stringify({ 
+              keyword: keywords[0],
+              shopUrl: shop.url
+            })
+          }
+        );
 
-    // Initialize OpenAI
-    const configuration = new Configuration({
-      apiKey: openaiApiKey,
-    });
-    const openai = new OpenAIApi(configuration);
+        if (analysisResponse.ok) {
+          const analysisData = await analysisResponse.json();
+          if (analysisData?.success) {
+            serpAnalysis = analysisData.analysis;
+            console.log('SERP analysis completed:', {
+              topResults: serpAnalysis.top_results.length,
+              targetWordCount: serpAnalysis.recommended_structure.target_word_count
+            });
+          }
+        }
+      } catch (analysisError) {
+        console.error('SERP analysis failed, continuing without:', analysisError);
+      }
+    }
 
     // Get collections data if specified
     let collectionsContext = '';
@@ -77,34 +97,9 @@ serve(async (req) => {
       }
     }
 
-    // Analyze competitors if requested
-    let serpAnalysis = null;
-    if (analyzeCompetitors && keywords.length > 0) {
-      console.log('Analyzing SERP competitors for:', keywords[0]);
-      try {
-        const { data: analysisData, error: analysisError } = await supabaseClient.functions.invoke('analyze-serp', {
-          body: { 
-            keyword: keywords[0],
-            shopUrl: shop.url
-          }
-        });
-
-        if (!analysisError && analysisData?.success) {
-          serpAnalysis = analysisData.analysis;
-          console.log('SERP analysis completed:', {
-            topResults: serpAnalysis.top_results.length,
-            targetWordCount: serpAnalysis.recommended_structure.target_word_count
-          });
-        }
-      } catch (analysisError) {
-        console.error('SERP analysis failed, continuing without:', analysisError);
-      }
-    }
-
-    // Generate blog post
+    // Build SERP analysis context
     const keywordsText = keywords.length > 0 ? `\nMots-clés principaux à optimiser : ${keywords.join(', ')}` : '';
     
-    // Build SERP analysis context
     let serpContext = '';
     if (serpAnalysis) {
       const topCompetitors = serpAnalysis.top_results.slice(0, 3).map((r: any, i: number) => 
@@ -125,6 +120,10 @@ ${topCompetitors}
 🎯 OBJECTIF : SURPASSER les concurrents en créant un contenu plus complet, mieux structuré, et plus utile.
 `;
     }
+
+    const systemPrompt = serpAnalysis 
+      ? "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T. IMPORTANT: Tu as analysé les concurrents en top 3 de Google - ton objectif est de créer un contenu MEILLEUR qui les surpasse en qualité, profondeur, et utilité pour l'utilisateur."
+      : "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness).";
 
     const prompt = `
 Tu es un expert SEO et content marketing spécialisé en e-commerce. Crée un article de blog 100% optimisé SEO pour le sujet : "${topic}"
@@ -196,40 +195,59 @@ Format de réponse JSON STRICT :
 IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant.
 `;
 
-    const systemPrompt = serpAnalysis 
-      ? "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T. IMPORTANT: Tu as analysé les concurrents en top 3 de Google - ton objectif est de créer un contenu MEILLEUR qui les surpasse en qualité, profondeur, et utilité pour l'utilisateur."
-      : "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness).";
+    console.log('Calling Lovable AI for blog post generation...');
 
-    const completion = await openai.createChatCompletion({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      max_tokens: serpAnalysis ? 4000 : 3500,
-      temperature: 0.7,
+    // Call Lovable AI
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: serpAnalysis ? 4000 : 3500
+      }),
     });
 
-    const generatedContent = completion.data.choices[0]?.message?.content?.trim();
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Lovable AI error:', aiResponse.status, errorText);
+      throw new Error(`Erreur Lovable AI: ${aiResponse.status}`);
+    }
+
+    const aiData = await aiResponse.json();
+    const generatedContent = aiData.choices[0]?.message?.content?.trim();
 
     if (!generatedContent) {
       throw new Error('Erreur lors de la génération du contenu');
     }
 
+    console.log('AI response received, parsing JSON...');
+
     let blogPost;
     try {
-      blogPost = JSON.parse(generatedContent);
-    } catch {
+      // Remove markdown code blocks if present
+      const cleanedContent = generatedContent
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      
+      blogPost = JSON.parse(cleanedContent);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Raw content:', generatedContent.substring(0, 500));
       throw new Error('Format de réponse invalide de l\'IA');
     }
 
     const slug = generateSlug(blogPost.title);
+
+    console.log('Saving blog post to database...');
 
     // Save blog post to database
     const { data: savedPost, error: saveError } = await supabaseClient
@@ -240,8 +258,6 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         slug,
         content: blogPost.content,
         excerpt: blogPost.excerpt,
-        seo_title: blogPost.seo_title || blogPost.title,
-        seo_description: blogPost.meta_description,
         meta_description: blogPost.meta_description,
         meta_title: blogPost.seo_title || blogPost.title,
         focus_keyword: blogPost.focus_keyword || keywords[0] || null,
@@ -251,8 +267,11 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       .single();
 
     if (saveError) {
+      console.error('Database save error:', saveError);
       throw saveError;
     }
+
+    console.log('Blog post saved successfully:', savedPost.id);
 
     return new Response(
       JSON.stringify({ 
