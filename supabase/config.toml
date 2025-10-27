@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.ai-export-catalog]
 verify_jwt = false
+
+[functions.sync-wordpress-posts]
+verify_jwt = false
