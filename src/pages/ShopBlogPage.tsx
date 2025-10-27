@@ -483,7 +483,11 @@ export default function ShopBlogPage() {
                         post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
                       )
                       .map((post) => (
-                        <div key={post.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                        <div 
+                          key={post.id} 
+                          className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => navigate(`/admin/shops/${id}/blog/${post.id}`)}
+                        >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
