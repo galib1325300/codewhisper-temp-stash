@@ -78,7 +78,7 @@ serve(async (req) => {
         published_at: post.date,
         meta_description: post.yoast_head_json?.og_description || null,
         focus_keyword: post.yoast_head_json?.schema?.['@graph']?.[0]?.keywords?.[0] || null,
-        seo_score: post.yoast_head_json?.og_description ? 80 : 50,
+        
       };
 
       // Check if post already exists
