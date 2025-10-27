@@ -9,6 +9,7 @@ import { Shop } from '../utils/types';
 import { ArrowLeft, Save, Trash2, RefreshCw, Calendar, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { BlogSEOScore } from '@/components/blog/BlogSEOScore';
 
 export default function BlogPostDetailPage() {
   const { id: shopId, postId } = useParams();
@@ -499,6 +500,9 @@ export default function BlogPostDetailPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* SEO Score */}
+                <BlogSEOScore postId={postId!} />
 
                 {/* SEO Optimization */}
                 <div className="bg-card rounded-lg border p-6">

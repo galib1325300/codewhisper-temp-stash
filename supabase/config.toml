@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.add-blog-faq]
 verify_jwt = false
+
+[functions.analyze-blog-seo]
+verify_jwt = false
