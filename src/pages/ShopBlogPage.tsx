@@ -7,10 +7,11 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import TopicSuggestionsModal from '../components/blog/TopicSuggestionsModal';
 
 export default function ShopBlogPage() {
   const { id } = useParams();
@@ -29,6 +30,9 @@ export default function ShopBlogPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [wpCredentialsConfigured, setWpCredentialsConfigured] = useState(false);
   const [collections, setCollections] = useState<any[]>([]);
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -109,6 +113,39 @@ export default function ShopBlogPage() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleSuggestTopics = async () => {
+    if (!shop) return;
+    
+    setShowSuggestionsModal(true);
+    setLoadingSuggestions(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-blog-topics', {
+        body: { shopId: shop.id }
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.suggestions) {
+        setSuggestions(data.suggestions);
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération des suggestions');
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la génération des suggestions');
+      console.error('Suggestions error:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleSelectTopic = (topic: string, keywords: string) => {
+    setFormData({ ...formData, topic, keywords });
+    setShowSuggestionsModal(false);
+    setShowForm(true);
+    toast.success('Sujet sélectionné ! Vous pouvez maintenant personnaliser et générer l\'article.');
   };
 
   const handleGeneratePost = async (e: React.FormEvent) => {
@@ -238,6 +275,13 @@ export default function ShopBlogPage() {
                         className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
+                    <Button 
+                      variant="secondary"
+                      onClick={handleSuggestTopics}
+                    >
+                      <Lightbulb className="w-4 h-4 mr-2" />
+                      Suggérer des sujets
+                    </Button>
                     {wpCredentialsConfigured && (
                       <Button 
                         variant="secondary"
@@ -471,6 +515,14 @@ export default function ShopBlogPage() {
           </div>
         </main>
       </div>
+
+      <TopicSuggestionsModal
+        isOpen={showSuggestionsModal}
+        onClose={() => setShowSuggestionsModal(false)}
+        suggestions={suggestions}
+        loading={loadingSuggestions}
+        onSelectTopic={handleSelectTopic}
+      />
     </div>
   );
 }
