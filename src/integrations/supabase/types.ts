@@ -202,8 +202,59 @@ export type Database = {
           },
         ]
       }
+      blog_authors: {
+        Row: {
+          avatar_url: string | null
+          bio: string
+          created_at: string
+          credentials: string | null
+          expertise_areas: Json | null
+          id: string
+          name: string
+          shop_id: string
+          social_links: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio: string
+          created_at?: string
+          credentials?: string | null
+          expertise_areas?: Json | null
+          id?: string
+          name: string
+          shop_id: string
+          social_links?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string
+          created_at?: string
+          credentials?: string | null
+          expertise_areas?: Json | null
+          id?: string
+          name?: string
+          shop_id?: string
+          social_links?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_authors_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
+          author_id: string | null
           content: string | null
           created_at: string | null
           excerpt: string | null
@@ -221,6 +272,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          author_id?: string | null
           content?: string | null
           created_at?: string | null
           excerpt?: string | null
@@ -238,6 +290,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          author_id?: string | null
           content?: string | null
           created_at?: string | null
           excerpt?: string | null
@@ -255,6 +308,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "blog_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "blog_authors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "blog_posts_shop_id_fkey"
             columns: ["shop_id"]

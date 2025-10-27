@@ -1,0 +1,414 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface BlogAuthor {
+  id: string;
+  name: string;
+  title: string;
+  bio: string;
+  expertise_areas: string[];
+  credentials?: string;
+  avatar_url?: string;
+  social_links?: {
+    linkedin?: string;
+    twitter?: string;
+    website?: string;
+  };
+}
+
+interface AuthorManagementProps {
+  shopId: string;
+}
+
+export default function AuthorManagement({ shopId }: AuthorManagementProps) {
+  const [authors, setAuthors] = useState<BlogAuthor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAuthor, setEditingAuthor] = useState<BlogAuthor | null>(null);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    title: '',
+    bio: '',
+    expertise_areas: '',
+    credentials: '',
+    avatar_url: '',
+    linkedin: '',
+    twitter: '',
+    website: ''
+  });
+
+  useEffect(() => {
+    loadAuthors();
+  }, [shopId]);
+
+  const loadAuthors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blog_authors')
+        .select('*')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAuthors((data || []) as BlogAuthor[]);
+    } catch (error) {
+      console.error('Error loading authors:', error);
+      toast.error('Erreur lors du chargement des auteurs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const authorData = {
+        shop_id: shopId,
+        name: formData.name,
+        title: formData.title,
+        bio: formData.bio,
+        expertise_areas: formData.expertise_areas.split(',').map(a => a.trim()).filter(Boolean),
+        credentials: formData.credentials || null,
+        avatar_url: formData.avatar_url || null,
+        social_links: {
+          linkedin: formData.linkedin || undefined,
+          twitter: formData.twitter || undefined,
+          website: formData.website || undefined
+        }
+      };
+
+      if (editingAuthor) {
+        const { error } = await supabase
+          .from('blog_authors')
+          .update(authorData)
+          .eq('id', editingAuthor.id);
+        
+        if (error) throw error;
+        toast.success('Auteur mis à jour avec succès');
+      } else {
+        const { error } = await supabase
+          .from('blog_authors')
+          .insert([authorData]);
+        
+        if (error) throw error;
+        toast.success('Auteur créé avec succès');
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+      loadAuthors();
+    } catch (error) {
+      console.error('Error saving author:', error);
+      toast.error('Erreur lors de la sauvegarde');
+    }
+  };
+
+  const handleEdit = (author: BlogAuthor) => {
+    setEditingAuthor(author);
+    setFormData({
+      name: author.name,
+      title: author.title,
+      bio: author.bio,
+      expertise_areas: author.expertise_areas.join(', '),
+      credentials: author.credentials || '',
+      avatar_url: author.avatar_url || '',
+      linkedin: author.social_links?.linkedin || '',
+      twitter: author.social_links?.twitter || '',
+      website: author.social_links?.website || ''
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet auteur ?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('blog_authors')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      toast.success('Auteur supprimé');
+      loadAuthors();
+    } catch (error) {
+      console.error('Error deleting author:', error);
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  const resetForm = () => {
+    setEditingAuthor(null);
+    setFormData({
+      name: '',
+      title: '',
+      bio: '',
+      expertise_areas: '',
+      credentials: '',
+      avatar_url: '',
+      linkedin: '',
+      twitter: '',
+      website: ''
+    });
+  };
+
+  if (loading) {
+    return <div className="text-center py-8">Chargement des auteurs...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Personas E-E-A-T</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gérez les profils d'auteurs pour renforcer l'expertise et la crédibilité
+          </p>
+        </div>
+        
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) resetForm();
+        }}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouvel auteur
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingAuthor ? 'Modifier l\'auteur' : 'Nouvel auteur'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nom complet *</label>
+                  <Input
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="Dr. Marie Dupont"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Titre/Fonction *</label>
+                  <Input
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    placeholder="Experte SEO & Marketing Digital"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bio professionnelle *</label>
+                <Textarea
+                  required
+                  rows={4}
+                  value={formData.bio}
+                  onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                  placeholder="Avec plus de 10 ans d'expérience en SEO..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Domaines d'expertise *</label>
+                <Input
+                  required
+                  value={formData.expertise_areas}
+                  onChange={(e) => setFormData({...formData, expertise_areas: e.target.value})}
+                  placeholder="SEO, Content Marketing, Analytics (séparés par des virgules)"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Certifications & Diplômes</label>
+                <Textarea
+                  rows={2}
+                  value={formData.credentials}
+                  onChange={(e) => setFormData({...formData, credentials: e.target.value})}
+                  placeholder="Master en Marketing Digital, Certification Google Analytics..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">URL de l'avatar</label>
+                <Input
+                  type="url"
+                  value={formData.avatar_url}
+                  onChange={(e) => setFormData({...formData, avatar_url: e.target.value})}
+                  placeholder="https://exemple.com/avatar.jpg"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Réseaux sociaux</label>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Linkedin className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="url"
+                      value={formData.linkedin}
+                      onChange={(e) => setFormData({...formData, linkedin: e.target.value})}
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Twitter className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="url"
+                      value={formData.twitter}
+                      onChange={(e) => setFormData({...formData, twitter: e.target.value})}
+                      placeholder="https://twitter.com/..."
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({...formData, website: e.target.value})}
+                      placeholder="https://monsite.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit">
+                  {editingAuthor ? 'Mettre à jour' : 'Créer'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {authors.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Aucun auteur créé</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Créez des profils d'auteurs experts pour renforcer la crédibilité de vos articles
+            </p>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Créer le premier auteur
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {authors.map((author) => (
+            <Card key={author.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    {author.avatar_url ? (
+                      <img 
+                        src={author.avatar_url} 
+                        alt={author.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <User className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <CardTitle className="text-lg">{author.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{author.title}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleEdit(author)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDelete(author.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground line-clamp-2">{author.bio}</p>
+                
+                <div className="flex flex-wrap gap-1">
+                  {author.expertise_areas.map((area, idx) => (
+                    <Badge key={idx} variant="secondary">
+                      {area}
+                    </Badge>
+                  ))}
+                </div>
+
+                {author.credentials && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <Award className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <p className="text-muted-foreground line-clamp-2">{author.credentials}</p>
+                  </div>
+                )}
+
+                {author.social_links && (
+                  <div className="flex gap-2">
+                    {author.social_links.linkedin && (
+                      <a href={author.social_links.linkedin} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Linkedin className="h-3 w-3" />
+                        </Button>
+                      </a>
+                    )}
+                    {author.social_links.twitter && (
+                      <a href={author.social_links.twitter} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Twitter className="h-3 w-3" />
+                        </Button>
+                      </a>
+                    )}
+                    {author.social_links.website && (
+                      <a href={author.social_links.website} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Globe className="h-3 w-3" />
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

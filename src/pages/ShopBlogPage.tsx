@@ -7,11 +7,13 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import TopicSuggestionsModal from '../components/blog/TopicSuggestionsModal';
+import AuthorManagement from '../components/blog/AuthorManagement';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ShopBlogPage() {
   const { id } = useParams();
@@ -40,6 +42,8 @@ export default function ShopBlogPage() {
     analyzedProducts?: number;
     analyzedCollections?: number;
   }>({});
+  const [authors, setAuthors] = useState<any[]>([]);
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
 
   useEffect(() => {
     const loadShop = async () => {
@@ -56,6 +60,7 @@ export default function ShopBlogPage() {
         if (shopData) {
           loadBlogPosts();
           loadCollections();
+          loadAuthors();
         }
       } catch (error) {
         console.error('Error loading shop:', error);
@@ -94,6 +99,21 @@ export default function ShopBlogPage() {
       setCollections(data || []);
     } catch (error) {
       console.error('Error loading collections:', error);
+    }
+  };
+
+  const loadAuthors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blog_authors')
+        .select('*')
+        .eq('shop_id', id)
+        .order('name');
+
+      if (error) throw error;
+      setAuthors(data || []);
+    } catch (error) {
+      console.error('Error loading authors:', error);
     }
   };
 
@@ -285,10 +305,23 @@ export default function ShopBlogPage() {
             )}
             
             <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Articles de blog</h2>
-                  <div className="flex items-center space-x-4">
+              <Tabs defaultValue="articles" className="w-full">
+                <TabsList className="m-6 mb-0">
+                  <TabsTrigger value="articles">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Articles
+                  </TabsTrigger>
+                  <TabsTrigger value="personas">
+                    <Users className="w-4 h-4 mr-2" />
+                    Personas E-E-A-T
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="articles" className="m-0">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-gray-900">Articles de blog</h2>
+                      <div className="flex items-center space-x-4">
                     <div className="relative">
                       <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
@@ -331,11 +364,10 @@ export default function ShopBlogPage() {
                       <Plus className="w-4 h-4 mr-2" />
                       Nouvel article SEO
                     </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-6">
                 {showForm ? (
                   <form onSubmit={handleGeneratePost} className="max-w-2xl mx-auto space-y-6">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -434,6 +466,29 @@ export default function ShopBlogPage() {
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           L'IA créera des liens internes vers ces collections
+                        </p>
+                      </div>
+                    )}
+
+                    {authors.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Auteur de l'article (E-E-A-T)
+                        </label>
+                        <select
+                          value={selectedAuthorId}
+                          onChange={(e) => setSelectedAuthorId(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                          <option value="">Aucun auteur</option>
+                          {authors.map((author) => (
+                            <option key={author.id} value={author.id}>
+                              {author.name} - {author.title}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Associez un auteur expert pour renforcer la crédibilité E-E-A-T
                         </p>
                       </div>
                     )}
@@ -559,9 +614,14 @@ export default function ShopBlogPage() {
                       ))}
                   </div>
                 )}
-              </div>
-            </div>
+              </TabsContent>
+
+              <TabsContent value="personas">
+                {id && <AuthorManagement shopId={id} />}
+              </TabsContent>
+            </Tabs>
           </div>
+        </div>
         </main>
       </div>
 

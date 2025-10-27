@@ -10,6 +10,7 @@ import { ArrowLeft, Save, Trash2, RefreshCw, Calendar, Eye } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BlogSEOScore } from '@/components/blog/BlogSEOScore';
+import AuthorCard from '@/components/blog/AuthorCard';
 
 export default function BlogPostDetailPage() {
   const { id: shopId, postId } = useParams();
@@ -44,7 +45,10 @@ export default function BlogPostDetailPage() {
         // Load blog post
         const { data: postData, error } = await supabase
           .from('blog_posts')
-          .select('*')
+          .select(`
+            *,
+            blog_authors (*)
+          `)
           .eq('id', postId)
           .single();
 
@@ -253,6 +257,11 @@ export default function BlogPostDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-6">
+                {/* Author Card */}
+                {post.blog_authors && (
+                  <AuthorCard author={post.blog_authors} />
+                )}
+                
                 {/* Subject Section */}
                 <div className="bg-card rounded-lg border p-6">
                   <div className="flex items-center justify-between mb-4">
