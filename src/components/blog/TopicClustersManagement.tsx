@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { ClusterGenerationModal } from './ClusterGenerationModal';
 import { ClusterArticleGenerator } from './ClusterArticleGenerator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface TopicCluster {
   id: string;
@@ -41,6 +42,8 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
   const [generationModalOpen, setGenerationModalOpen] = useState(false);
   const [articleGeneratorOpen, setArticleGeneratorOpen] = useState(false);
   const [selectedClusterForGeneration, setSelectedClusterForGeneration] = useState<TopicCluster | null>(null);
+  const [customArticleCount, setCustomArticleCount] = useState<number>(1);
+  const [showCustomCountDialog, setShowCustomCountDialog] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -98,9 +101,31 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
     setClusters(clustersWithCounts);
   };
 
-  const handleGenerateArticles = (cluster: TopicCluster) => {
+  const handleGenerateArticles = (cluster: TopicCluster, count: number) => {
     setSelectedClusterForGeneration(cluster);
+    setCustomArticleCount(count);
     setArticleGeneratorOpen(true);
+  };
+
+  const handleGenerateSingle = (cluster: TopicCluster) => {
+    handleGenerateArticles(cluster, 1);
+  };
+
+  const handleGenerateCustom = (cluster: TopicCluster) => {
+    setSelectedClusterForGeneration(cluster);
+    setShowCustomCountDialog(true);
+  };
+
+  const handleGenerateAll = (cluster: TopicCluster) => {
+    const count = cluster.remaining_articles || 1;
+    handleGenerateArticles(cluster, count);
+  };
+
+  const confirmCustomGeneration = () => {
+    if (selectedClusterForGeneration) {
+      setShowCustomCountDialog(false);
+      handleGenerateArticles(selectedClusterForGeneration, customArticleCount);
+    }
   };
 
   const loadPosts = async () => {
@@ -354,15 +379,36 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
                   </div>
                   <div className="flex gap-1">
                     {cluster.remaining_articles! > 0 && (
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => handleGenerateArticles(cluster)}
-                        className="bg-primary"
-                      >
-                        <Zap className="h-4 w-4 mr-1" />
-                        Générer articles
-                      </Button>
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleGenerateSingle(cluster)}
+                          title="Générer 1 article de test"
+                        >
+                          <Zap className="h-4 w-4 mr-1" />
+                          1
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleGenerateCustom(cluster)}
+                          title="Générer un nombre personnalisé d'articles"
+                        >
+                          <Zap className="h-4 w-4 mr-1" />
+                          X
+                        </Button>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => handleGenerateAll(cluster)}
+                          className="bg-primary"
+                          title={`Générer tous les articles restants (${cluster.remaining_articles})`}
+                        >
+                          <Zap className="h-4 w-4 mr-1" />
+                          Tout ({cluster.remaining_articles})
+                        </Button>
+                      </>
                     )}
                     <Button 
                       variant="ghost" 
@@ -433,10 +479,45 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
           clusterId={selectedClusterForGeneration.id}
           clusterName={selectedClusterForGeneration.name}
           shopId={shopId}
-          articleCount={selectedClusterForGeneration.remaining_articles || 6}
+          articleCount={customArticleCount}
           onComplete={loadClusters}
         />
       )}
+
+      <AlertDialog open={showCustomCountDialog} onOpenChange={setShowCustomCountDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Combien d'articles générer ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choisissez le nombre d'articles à générer pour ce cluster.
+              {selectedClusterForGeneration && (
+                <span className="block mt-2 text-sm">
+                  Articles restants suggérés : {selectedClusterForGeneration.remaining_articles}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              type="number"
+              min={1}
+              max={20}
+              value={customArticleCount}
+              onChange={(e) => setCustomArticleCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Durée estimée : ~{customArticleCount * 30}s - {customArticleCount * 60}s
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCustomGeneration}>
+              Générer {customArticleCount} article{customArticleCount > 1 ? 's' : ''}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -42,7 +42,7 @@ verify_jwt = false
 [functions.generate-blog-post]
 verify_jwt = false
 
-[functions.generate-cluster-articles]
+[functions.generate-single-cluster-article]
 verify_jwt = false
 
 [functions.run-seo-diagnostic]
