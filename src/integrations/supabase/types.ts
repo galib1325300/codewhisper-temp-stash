@@ -255,6 +255,7 @@ export type Database = {
       blog_posts: {
         Row: {
           author_id: string | null
+          cluster_id: string | null
           content: string | null
           created_at: string | null
           excerpt: string | null
@@ -262,6 +263,7 @@ export type Database = {
           featured_image: string | null
           focus_keyword: string | null
           id: string
+          is_pillar: boolean | null
           meta_description: string | null
           meta_title: string | null
           published_at: string | null
@@ -273,6 +275,7 @@ export type Database = {
         }
         Insert: {
           author_id?: string | null
+          cluster_id?: string | null
           content?: string | null
           created_at?: string | null
           excerpt?: string | null
@@ -280,6 +283,7 @@ export type Database = {
           featured_image?: string | null
           focus_keyword?: string | null
           id?: string
+          is_pillar?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string | null
@@ -291,6 +295,7 @@ export type Database = {
         }
         Update: {
           author_id?: string | null
+          cluster_id?: string | null
           content?: string | null
           created_at?: string | null
           excerpt?: string | null
@@ -298,6 +303,7 @@ export type Database = {
           featured_image?: string | null
           focus_keyword?: string | null
           id?: string
+          is_pillar?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string | null
@@ -313,6 +319,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "blog_authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "topic_clusters"
             referencedColumns: ["id"]
           },
           {
@@ -812,6 +825,60 @@ export type Database = {
           wp_username?: string | null
         }
         Relationships: []
+      }
+      topic_clusters: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          pillar_keyword: string
+          pillar_post_id: string | null
+          shop_id: string
+          status: string | null
+          target_keywords: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          pillar_keyword: string
+          pillar_post_id?: string | null
+          shop_id: string
+          status?: string | null
+          target_keywords?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          pillar_keyword?: string
+          pillar_post_id?: string | null
+          shop_id?: string
+          status?: string | null
+          target_keywords?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_clusters_pillar_post_id_fkey"
+            columns: ["pillar_post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_clusters_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tracked_keywords: {
         Row: {

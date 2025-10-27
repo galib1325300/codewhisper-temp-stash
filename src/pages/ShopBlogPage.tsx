@@ -7,12 +7,13 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users, Network } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import TopicSuggestionsModal from '../components/blog/TopicSuggestionsModal';
 import AuthorManagement from '../components/blog/AuthorManagement';
+import TopicClustersManagement from '../components/blog/TopicClustersManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ShopBlogPage() {
@@ -310,6 +311,10 @@ export default function ShopBlogPage() {
                   <TabsTrigger value="articles">
                     <FileText className="w-4 h-4 mr-2" />
                     Articles
+                  </TabsTrigger>
+                  <TabsTrigger value="clusters">
+                    <Network className="w-4 h-4 mr-2" />
+                    Topic Clusters
                   </TabsTrigger>
                   <TabsTrigger value="personas">
                     <Users className="w-4 h-4 mr-2" />
@@ -614,6 +619,10 @@ export default function ShopBlogPage() {
                       ))}
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="clusters">
+                {id && <TopicClustersManagement shopId={id} />}
               </TabsContent>
 
               <TabsContent value="personas">
