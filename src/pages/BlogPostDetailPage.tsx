@@ -25,10 +25,12 @@ export default function BlogPostDetailPage() {
     slug: '',
     meta_title: '',
     meta_description: '',
-    focus_keyword: ''
+    focus_keyword: '',
+    featured_image: ''
   });
   const [showPreview, setShowPreview] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [extractedImages, setExtractedImages] = useState<Array<{ url: string; alt: string }>>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,8 +57,21 @@ export default function BlogPostDetailPage() {
           slug: postData.slug || '',
           meta_title: postData.meta_title || '',
           meta_description: postData.meta_description || '',
-          focus_keyword: postData.focus_keyword || ''
+          focus_keyword: postData.focus_keyword || '',
+          featured_image: postData.featured_image || ''
         });
+
+        // Extract images from content
+        const imgRegex = /<img[^>]+src="([^">]+)"[^>]*alt="([^">]*)"[^>]*>/gi;
+        const images = [];
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(postData.content || '')) !== null) {
+          images.push({
+            url: imgMatch[1],
+            alt: imgMatch[2] || ''
+          });
+        }
+        setExtractedImages(images);
       } catch (error) {
         console.error('Error loading data:', error);
         toast.error('Erreur lors du chargement de l\'article');
@@ -396,6 +411,56 @@ export default function BlogPostDetailPage() {
                   {showPreview && (
                     <div className="mt-4 p-4 border rounded-lg prose prose-sm dark:prose-invert max-w-none bg-background max-h-[400px] overflow-y-auto">
                       <div dangerouslySetInnerHTML={{ __html: formData.content }} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Images Section */}
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="font-semibold mb-4">Images de l'article</h3>
+                  {extractedImages.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {extractedImages.length} image{extractedImages.length > 1 ? 's' : ''} détectée{extractedImages.length > 1 ? 's' : ''}
+                      </p>
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                        {extractedImages.map((image, index) => (
+                          <div key={index} className="border rounded-lg p-3 space-y-2">
+                            <div className="relative aspect-video bg-muted rounded overflow-hidden">
+                              <img 
+                                src={image.url} 
+                                alt={image.alt}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium">
+                                Image {index + 1}{index === 0 ? ' (Hero)' : ''}
+                              </p>
+                              <p className="text-xs text-muted-foreground break-all">
+                                <strong>Alt:</strong> {image.alt || 'Non défini'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="text-sm">Aucune image détectée dans l'article</p>
+                      <p className="text-xs mt-1">Les images sont générées automatiquement lors de la création de l'article</p>
+                    </div>
+                  )}
+                  {formData.featured_image && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs text-muted-foreground mb-2">Image à la une :</p>
+                      <div className="relative aspect-video bg-muted rounded overflow-hidden">
+                        <img 
+                          src={formData.featured_image} 
+                          alt="Image à la une"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

@@ -172,6 +172,17 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 - Sous-titres descriptifs (H2/H3)
 - Contenu scannable (gras, listes, espaces)
 
+🖼️ IMAGES & MULTIMÉDIA :
+- Des images seront automatiquement générées et insérées dans l'article
+- Laisse des espaces entre les sections H2 pour l'insertion d'images
+- Les images auront des alt text optimisés SEO
+
+📋 FORMATAGE ENRICHI (OBLIGATOIRE) :
+- Utilise des <strong> pour mettre en gras les mots-clés stratégiques et points importants
+- Inclus AU MOINS 1 tableau comparatif avec <table> (excellent pour Featured Snippets)
+- Utilise des listes <ul> et <ol> pour structurer l'information
+- Ajoute des <blockquote> pour les citations ou statistiques importantes
+
 ${serpAnalysis ? `
 💡 DIFFÉRENCIATION PAR RAPPORT AUX CONCURRENTS :
 - Ajouter des sections uniques non présentes chez les concurrents
@@ -187,12 +198,12 @@ Format de réponse JSON STRICT :
   "meta_description": "Meta description 155-160 caractères avec mot-clé + CTA",
   "focus_keyword": "Mot-clé principal exact",
   "excerpt": "Résumé accrocheur 150-200 caractères",
-  "content": "Contenu HTML complet 1200+ mots avec <h2>, <h3>, <p>, <ul>, <li>, <strong>, <a href='URL'>anchor text</a>",
+  "content": "Contenu HTML complet 1200+ mots avec <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <table>, <blockquote>, <a href='URL'>anchor text</a>. IMPORTANT : Inclure AU MOINS 1 tableau et utiliser <strong> pour les mots-clés importants.",
   "internal_links": ["Lien vers collection 1", "Lien vers collection 2"],
   "seo_score": 95
 }
 
-IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant.
+IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant. N'oublie pas d'inclure des tableaux et de mettre en gras les éléments clés !
 `;
 
     console.log('Calling Lovable AI for blog post generation...');
@@ -273,12 +284,109 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     console.log('Blog post saved successfully:', savedPost.id);
 
+    // Extract H2 sections from generated content for image generation
+    const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
+    const h2Sections: string[] = [];
+    let match;
+    while ((match = h2Regex.exec(blogPost.content)) !== null) {
+      // Remove HTML tags from H2 content
+      const cleanH2 = match[1].replace(/<[^>]*>/g, '').trim();
+      h2Sections.push(cleanH2);
+    }
+
+    console.log(`Extracted ${h2Sections.length} H2 sections for image generation`);
+
+    // Generate images for the article
+    let generatedImages = [];
+    try {
+      console.log('Calling generate-article-images function...');
+      const imagesResponse = await fetch(
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-article-images`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            postId: savedPost.id,
+            topic,
+            h2Sections,
+            niche: shop.name
+          })
+        }
+      );
+
+      if (imagesResponse.ok) {
+        const imagesData = await imagesResponse.json();
+        if (imagesData.success) {
+          generatedImages = imagesData.images;
+          console.log(`Successfully generated ${generatedImages.length} images`);
+
+          // Insert images into content
+          let updatedContent = blogPost.content;
+          
+          // Add hero image right after the first paragraph
+          if (generatedImages.length > 0 && generatedImages[0].section === 'hero') {
+            const heroImage = generatedImages[0];
+            const firstParagraphEnd = updatedContent.indexOf('</p>');
+            if (firstParagraphEnd !== -1) {
+              const heroImageHtml = `\n\n<figure style="margin: 2rem 0;">
+  <img src="${heroImage.url}" alt="${heroImage.alt}" style="width: 100%; height: auto; border-radius: 8px;" loading="eager" />
+  <figcaption style="margin-top: 0.5rem; font-size: 0.875rem; color: #666; text-align: center;">${heroImage.alt}</figcaption>
+</figure>\n\n`;
+              updatedContent = updatedContent.slice(0, firstParagraphEnd + 4) + heroImageHtml + updatedContent.slice(firstParagraphEnd + 4);
+            }
+          }
+
+          // Insert section images after their corresponding H2
+          for (let i = 1; i < generatedImages.length; i++) {
+            const image = generatedImages[i];
+            const correspondingH2Index = i - 1;
+            
+            if (correspondingH2Index < h2Sections.length) {
+              const h2Text = h2Sections[correspondingH2Index];
+              const h2Regex = new RegExp(`(<h2[^>]*>${h2Text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</h2>)`, 'i');
+              const imageHtml = `$1\n\n<figure style="margin: 2rem 0;">
+  <img src="${image.url}" alt="${image.alt}" style="width: 100%; height: auto; border-radius: 8px;" loading="lazy" />
+  <figcaption style="margin-top: 0.5rem; font-size: 0.875rem; color: #666; text-align: center;">${image.alt}</figcaption>
+</figure>\n\n`;
+              updatedContent = updatedContent.replace(h2Regex, imageHtml);
+            }
+          }
+
+          // Update the blog post with images
+          const { error: updateError } = await supabaseClient
+            .from('blog_posts')
+            .update({
+              content: updatedContent,
+              featured_image: generatedImages.length > 0 ? generatedImages[0].url : null
+            })
+            .eq('id', savedPost.id);
+
+          if (updateError) {
+            console.error('Error updating post with images:', updateError);
+          } else {
+            console.log('Post updated with images successfully');
+            blogPost.content = updatedContent;
+            savedPost.content = updatedContent;
+            savedPost.featured_image = generatedImages.length > 0 ? generatedImages[0].url : null;
+          }
+        }
+      } else {
+        console.error('Image generation failed:', await imagesResponse.text());
+      }
+    } catch (imageError) {
+      console.error('Error generating images (non-critical):', imageError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         post: {
           ...savedPost,
           ...blogPost,
+          images: generatedImages,
           serp_analysis: serpAnalysis ? {
             competitors_analyzed: serpAnalysis.top_results.length,
             target_word_count: serpAnalysis.recommended_structure.target_word_count,

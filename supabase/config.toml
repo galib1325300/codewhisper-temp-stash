@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.analyze-serp]
 verify_jwt = false
+
+[functions.generate-article-images]
+verify_jwt = false
