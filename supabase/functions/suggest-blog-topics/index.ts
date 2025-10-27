@@ -136,14 +136,21 @@ RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans commentaire):
             content: prompt
           }
         ],
-        temperature: 0.8,
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('Lovable AI error:', aiResponse.status, errorText);
-      throw new Error(`AI generation failed: ${aiResponse.status}`);
+      
+      // Handle specific error codes
+      if (aiResponse.status === 402) {
+        throw new Error('Crédits Lovable AI épuisés. Veuillez recharger vos crédits dans Settings → Workspace → Usage.');
+      } else if (aiResponse.status === 429) {
+        throw new Error('Limite de requêtes atteinte. Veuillez réessayer dans quelques instants.');
+      }
+      
+      throw new Error(`Erreur de l'API Lovable AI (${aiResponse.status}). Veuillez réessayer.`);
     }
 
     const aiData = await aiResponse.json();

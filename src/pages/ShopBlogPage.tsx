@@ -145,10 +145,19 @@ export default function ShopBlogPage() {
         });
         toast.success(`${data.suggestions.length} suggestions générées pour votre niche !`);
       } else {
-        toast.error(data.error || 'Erreur lors de la génération des suggestions');
+        const errorMessage = data.error || 'Erreur lors de la génération des suggestions';
+        toast.error(errorMessage, { duration: 8000 });
+        
+        // Show additional help for credits error
+        if (errorMessage.includes('Crédits Lovable AI')) {
+          setTimeout(() => {
+            toast.info('💡 Rechargez vos crédits dans Settings → Workspace → Usage', { duration: 10000 });
+          }, 500);
+        }
       }
     } catch (error) {
-      toast.error('Erreur lors de la génération des suggestions');
+      const errorMsg = error instanceof Error ? error.message : 'Erreur lors de la génération des suggestions';
+      toast.error(errorMsg, { duration: 8000 });
       console.error('Suggestions error:', error);
     } finally {
       setLoadingSuggestions(false);
