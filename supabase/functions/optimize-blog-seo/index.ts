@@ -61,10 +61,11 @@ ${issues.join('\n')}
 
 TÂCHE :
 Génère un meta_title (50-60 caractères) et une meta_description (150-160 caractères) qui :
-- **OBLIGATOIRE** : Incluent TOUJOURS le mot-clé focus "${post.focus_keyword}" en tout début
+- **CRITIQUE** : Le mot-clé focus "${post.focus_keyword}" DOIT apparaître dans les 10 premiers caractères du meta_title
+- **CRITIQUE** : Le mot-clé focus "${post.focus_keyword}" DOIT apparaître dans les 20 premiers caractères de la meta_description
 - Si le mot-clé est trop long (>40 caractères), utiliser une version raccourcie mais reconnaissable
 - Sont accrocheurs et incitent au clic
-- Respectent les longueurs optimales (priorité au mot-clé, puis compléter)
+- Respectent strictement les longueurs optimales (60 max pour titre, 160 max pour description)
 - Sont cohérents avec le contenu de l'article
 
 Fournis également une explication détaillée de tes choix.`;
@@ -373,23 +374,41 @@ Retourne un ensemble complet d'optimisations.`;
       throw new Error(`Catégorie d'optimisation non supportée: ${category}`);
     }
 
-    // Call Lovable AI
+    // Call Lovable AI with TIMEOUT
     console.log('Calling Lovable AI...');
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: prompt }
-        ],
-        tools: [toolDefinition],
-        tool_choice: { type: "function", function: { name: toolDefinition.function.name } }
-      }),
-    });
+    
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 seconds timeout
+    
+    let response;
+    try {
+      response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'user', content: prompt }
+          ],
+          tools: [toolDefinition],
+          tool_choice: { type: "function", function: { name: toolDefinition.function.name } }
+        }),
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('Request timeout');
+        throw new Error('La requête a pris trop de temps (>25s). Essayez une optimisation plus simple ou réessayez.');
+      }
+      throw fetchError;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

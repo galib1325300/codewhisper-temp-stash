@@ -188,12 +188,17 @@ IMPORTANT: Les questions doivent être VRAIMENT pertinentes pour le sujet et app
       throw new Error('Format de réponse invalide de l\'IA');
     }
 
-    // Détecter FAQ existante
-    const hasFaqSection = /<div[^>]*class\s*=\s*["'][^"']*faq-section[^"']*["'][^>]*>/i.test(content);
-    const hasFaqHeading = /<h[23][^>]*>.*?(faq|questions?\s+fr[eé]quentes?).*?<\/h[23]>/is.test(content);
+    // Détecter FAQ existante avec regex améliorée
+    const hasFaqSection = /<div[^>]*class\s*=\s*["'][^"']*faq[^"']*["'][^>]*>/i.test(content);
+    const hasFaqHeading = /<h[23][^>]*>.*?(faq|questions?\s+(fr[eé]quentes?|courantes?)|common\s+questions?).*?<\/h[23]>/is.test(content);
     const hasJsonLdFaq = content.includes('application/ld+json') && content.includes('FAQPage');
+    
+    // Détecter une structure FAQ (3+ questions-réponses consécutives)
+    const qaPattern = /<(h[3-6]|strong|b)[^>]*>.*?(\?|question).*?<\/\1>.*?<p[^>]*>.*?<\/p>/gis;
+    const qaMatches = content.match(qaPattern) || [];
+    const hasQAStructure = qaMatches.length >= 3;
 
-    if (hasFaqSection || hasFaqHeading) {
+    if (hasFaqSection || hasFaqHeading || hasQAStructure) {
       if (hasJsonLdFaq) {
         // FAQ complète déjà présente
         console.log('FAQ already exists with schema, skipping...');

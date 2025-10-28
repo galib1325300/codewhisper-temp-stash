@@ -144,14 +144,25 @@ export default function BlogPostDetailPage() {
 
       if (updateError) throw updateError;
 
-      // If WooCommerce shop, sync to WordPress
+      // If WooCommerce shop, sync to WordPress and update wordpress_slug
       if (shop.type === 'WooCommerce') {
         toast.info('📤 Publication en cours sur WordPress... Cela peut prendre quelques secondes.');
         
         try {
-          await supabase.functions.invoke('sync-wordpress-posts', {
+          const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-wordpress-posts', {
             body: { shopId: shop.id, postId: postId }
           });
+          
+          if (syncError) throw syncError;
+          
+          // Update wordpress_slug if returned from sync
+          if (syncData?.wordpress_slug) {
+            await supabase
+              .from('blog_posts')
+              .update({ wordpress_slug: syncData.wordpress_slug })
+              .eq('id', postId);
+          }
+          
           toast.success('✅ Article publié sur WordPress !');
         } catch (syncError) {
           console.error('WordPress sync error:', syncError);
@@ -433,7 +444,9 @@ export default function BlogPostDetailPage() {
                     variant="primary"
                     className="w-full mt-2"
                     onClick={() => {
-                      const articleUrl = `${shop.url}/${formData.slug}/`;
+                      // Use wordpress_slug if available, fallback to local slug
+                      const slug = post.wordpress_slug || formData.slug;
+                      const articleUrl = `${shop.url}/${slug}/`;
                       window.open(articleUrl, '_blank');
                     }}
                     disabled={post.status !== 'publish'}

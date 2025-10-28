@@ -272,6 +272,7 @@ export type Database = {
           status: string | null
           title: string
           updated_at: string | null
+          wordpress_slug: string | null
         }
         Insert: {
           author_id?: string | null
@@ -292,6 +293,7 @@ export type Database = {
           status?: string | null
           title: string
           updated_at?: string | null
+          wordpress_slug?: string | null
         }
         Update: {
           author_id?: string | null
@@ -312,6 +314,7 @@ export type Database = {
           status?: string | null
           title?: string
           updated_at?: string | null
+          wordpress_slug?: string | null
         }
         Relationships: [
           {
