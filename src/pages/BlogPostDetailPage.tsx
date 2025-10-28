@@ -146,8 +146,17 @@ export default function BlogPostDetailPage() {
 
       // If WooCommerce shop, sync to WordPress
       if (shop.type === 'WooCommerce') {
-        // TODO: Call WordPress publish API
-        toast.success('Article publié et synchronisé avec WordPress');
+        toast.info('📤 Publication en cours sur WordPress... Cela peut prendre quelques secondes.');
+        
+        try {
+          await supabase.functions.invoke('sync-wordpress-posts', {
+            body: { shopId: shop.id, postId: postId }
+          });
+          toast.success('✅ Article publié sur WordPress !');
+        } catch (syncError) {
+          console.error('WordPress sync error:', syncError);
+          toast.warning('⚠️ L\'article est sauvegardé mais la synchro WordPress a échoué. Réessayez plus tard.');
+        }
       } else {
         toast.success('Article publié');
       }
@@ -423,9 +432,22 @@ export default function BlogPostDetailPage() {
                   <Button
                     variant="primary"
                     className="w-full mt-2"
-                    onClick={() => {
-                      const articleUrl = `${shop.url}/${formData.slug}/`;
-                      window.open(articleUrl, '_blank');
+                    onClick={async () => {
+                      // Vérifier si l'article existe sur WordPress
+                      try {
+                        const articleUrl = `${shop.url}/${formData.slug}/`;
+                        const response = await fetch(articleUrl, { method: 'HEAD' });
+                        
+                        if (response.status === 404) {
+                          toast.error('⚠️ Article non publié sur WordPress. Utilisez le bouton Publier d\'abord.');
+                          return;
+                        }
+                        
+                        window.open(articleUrl, '_blank');
+                      } catch (error) {
+                        // En cas d'erreur de connexion, ouvrir quand même
+                        window.open(`${shop.url}/${formData.slug}/`, '_blank');
+                      }
                     }}
                     disabled={post.status !== 'publish'}
                   >

@@ -253,6 +253,18 @@ IMPORTANT: L'anchor_text doit correspondre à un texte qui existe déjà dans l'
       }
     }
 
+    // NETTOYAGE FINAL: Retirer tous les liens des titres H1/H2/H3
+    updatedContent = updatedContent.replace(
+      /<(h[123])[^>]*>(.*?)<\/h[123]>/gi,
+      (match, tag, content) => {
+        // Retirer tous les <a> mais garder leur texte
+        const cleanContent = content.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1');
+        return `<${tag}>${cleanContent}</${tag}>`;
+      }
+    );
+
+    console.log('Final cleanup: removed all links from H1/H2/H3 tags');
+
     // Update the blog post with internal links
     const { error: updateError } = await supabase
       .from('blog_posts')

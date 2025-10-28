@@ -90,7 +90,21 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
       setShowModal(true);
     } catch (error: any) {
       console.error('Error optimizing:', error);
-      toast.error(error.message || 'Erreur lors de l\'optimisation');
+      
+      // Messages d'erreur personnalisés
+      let errorMessage = 'Erreur lors de l\'optimisation';
+      
+      if (error.message?.includes('JSON') || error.message?.includes('parse')) {
+        errorMessage = '⚠️ L\'IA a retourné une réponse invalide. Veuillez réessayer.';
+      } else if (error.message?.includes('429')) {
+        errorMessage = '⏱️ Trop de requêtes. Attendez quelques secondes et réessayez.';
+      } else if (error.message?.includes('402')) {
+        errorMessage = '💳 Crédits Lovable AI épuisés. Rechargez vos crédits.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setOptimizing(null);
     }
@@ -509,16 +523,68 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
                         )}
                       </Badge>
                     )}
-                    {analysis.categories.advanced.score < analysis.categories.advanced.max * 0.8 && (
+                    {analysis.categories.advanced.score < analysis.categories.advanced.max && (
                       <Badge 
                         variant="outline" 
                         className="cursor-pointer hover:bg-primary/10 transition-colors"
-                        onClick={() => handleOptimize('faq')}
+                        onClick={async () => {
+                          setOptimizing('faq');
+                          try {
+                            const { data: post } = await supabase
+                              .from('blog_posts')
+                              .select('content, title, focus_keyword')
+                              .eq('id', postId)
+                              .single();
+
+                            if (!post) throw new Error('Article non trouvé');
+
+                            const { data, error } = await supabase.functions.invoke('add-blog-faq', {
+                              body: { 
+                                postId, 
+                                shopId,
+                                content: formData?.content || post.content,
+                                topic: post.title,
+                                focusKeyword: post.focus_keyword
+                              }
+                            });
+
+                            if (error) throw error;
+
+                            if (onOptimizationApplied && data.content) {
+                              onOptimizationApplied({
+                                content: data.content
+                              });
+                            }
+
+                            toast.success(`✅ ${data.faqCount} questions FAQ ajoutées avec schema.org !`);
+                            
+                            // Réanalyser après ajout
+                            setTimeout(() => {
+                              setAnalysis(null);
+                              analyzePost();
+                            }, 1000);
+                          } catch (error: any) {
+                            console.error('Error adding FAQ:', error);
+                            
+                            let errorMessage = 'Erreur lors de l\'ajout de la FAQ';
+                            if (error.message?.includes('429')) {
+                              errorMessage = '⏱️ Trop de requêtes. Attendez quelques secondes.';
+                            } else if (error.message?.includes('402')) {
+                              errorMessage = '💳 Crédits Lovable AI épuisés.';
+                            } else if (error.message) {
+                              errorMessage = error.message;
+                            }
+                            
+                            toast.error(errorMessage);
+                          } finally {
+                            setOptimizing(null);
+                          }
+                        }}
                       >
                         {optimizing === 'faq' ? (
-                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Ajout FAQ...</>
                         ) : (
-                          <>✨ Ajouter une FAQ</>
+                          <>📋 Ajouter FAQ avec schema</>
                         )}
                       </Badge>
                     )}

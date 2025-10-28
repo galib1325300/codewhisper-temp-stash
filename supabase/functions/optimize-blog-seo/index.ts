@@ -403,11 +403,18 @@ Retourne un ensemble complet d'optimisations.`;
     // Extract the tool call result
     const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall || !toolCall.function) {
-      console.error('No tool call in response:', JSON.stringify(aiResponse));
+      console.error('No tool call in response:', JSON.stringify(aiResponse, null, 2));
       throw new Error('L\'IA n\'a pas retourné de résultat valide');
     }
 
-    const optimizations = JSON.parse(toolCall.function.arguments);
+    let optimizations;
+    try {
+      optimizations = JSON.parse(toolCall.function.arguments);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Raw arguments:', toolCall.function.arguments);
+      throw new Error('Format de réponse invalide de l\'IA. Veuillez réessayer.');
+    }
     console.log('Optimizations parsed:', optimizations);
 
     // Return optimizations with original values for comparison
