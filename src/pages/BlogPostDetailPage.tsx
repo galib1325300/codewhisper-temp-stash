@@ -311,7 +311,7 @@ export default function BlogPostDetailPage() {
                     <textarea
                       value={formData.content}
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[500px] font-mono text-sm bg-muted/30"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[500px] max-h-[800px] overflow-y-auto font-mono text-sm bg-muted/30"
                       placeholder="Contenu HTML de l'article"
                     />
                   ) : (

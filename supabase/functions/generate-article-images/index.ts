@@ -43,7 +43,7 @@ serve(async (req) => {
     // Hero image (always included)
     imagePrompts.push({
       section: 'hero',
-      prompt: `Professional e-commerce hero image for article about "${topic}". ${niche ? `Related to ${niche} niche.` : ''} High quality, modern, clean, web-optimized. 16:9 aspect ratio. Ultra high resolution.`,
+      prompt: `Professional e-commerce hero image for article about "${topic}". ${niche ? `Related to ${niche} niche.` : ''} IMPORTANT: NO TEXT, NO WORDS, NO LETTERS on the image. Pure visual representation only. High quality, modern, clean, web-optimized. 16:9 aspect ratio. Ultra high resolution.`,
       alt_text: `${topic} - Image principale de l'article`
     });
 
@@ -52,7 +52,7 @@ serve(async (req) => {
     for (const section of sectionsToIllustrate) {
       imagePrompts.push({
         section: section.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        prompt: `Professional e-commerce illustration for section titled "${section}" in article about "${topic}". ${niche ? `Related to ${niche} niche.` : ''} High quality, informative, web-optimized. 16:9 aspect ratio. Ultra high resolution.`,
+        prompt: `Professional e-commerce illustration for section titled "${section}" in article about "${topic}". ${niche ? `Related to ${niche} niche.` : ''} IMPORTANT: NO TEXT, NO WORDS, NO LETTERS on the image. Pure visual illustration only. High quality, informative, web-optimized. 16:9 aspect ratio. Ultra high resolution.`,
         alt_text: `${section} - Illustration pour ${topic}`
       });
     }
