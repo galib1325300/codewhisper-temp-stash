@@ -142,6 +142,7 @@ CONSIGNES STRICTES:
 3. Privilégie la variété: mélange articles, collections, produits
 4. L'anchor text doit être naturel et descriptif (pas "cliquez ici")
 5. Les liens doivent s'intégrer naturellement dans des phrases existantes du contenu
+6. CRITIQUE: Ne JAMAIS suggérer de liens dans les titres (H1, H2, H3, H4, H5, H6), uniquement dans les paragraphes <p> et listes <li>
 
 Format JSON STRICT à retourner:
 {
@@ -229,10 +230,25 @@ IMPORTANT: L'anchor_text doit correspondre à un texte qui existe déjà dans l'
         // Use word boundaries to avoid partial matches
         const regex = new RegExp(`\\b${anchor_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
         
-        if (regex.test(updatedContent) && !updatedContent.includes(`>${anchor_text}</a>`)) {
-          updatedContent = updatedContent.replace(regex, linkHtml);
-          linksAdded++;
-          console.log(`✓ Added ${type} link: "${anchor_text}" → ${url}`);
+        // CRITICAL: Ne PAS insérer dans les headings (H1-H6), figcaption, ou tableaux
+        // On extrait les paragraphes <p> et listes <li> pour éviter les headings
+        const safeTagsRegex = /<(p|li)[^>]*>.*?<\/\1>/gis;
+        const safeSections = updatedContent.match(safeTagsRegex) || [];
+        
+        let replacementDone = false;
+        for (const section of safeSections) {
+          if (regex.test(section) && !section.includes(`>${anchor_text}</a>`)) {
+            const replacedSection = section.replace(regex, linkHtml);
+            updatedContent = updatedContent.replace(section, replacedSection);
+            linksAdded++;
+            replacementDone = true;
+            console.log(`✓ Added ${type} link: "${anchor_text}" → ${url}`);
+            break;
+          }
+        }
+        
+        if (!replacementDone) {
+          console.log(`⚠ Skipped link "${anchor_text}": not found in safe tags (p, li) or already linked`);
         }
       }
     }

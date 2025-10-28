@@ -403,7 +403,7 @@ export default function BlogPostDetailPage() {
                       disabled={saving}
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      {saving ? 'Enregistrement...' : 'Éditer'}
+                      {saving ? 'Enregistrement...' : 'Enregistrer'}
                     </Button>
                   </div>
                 </div>
@@ -659,6 +659,13 @@ export default function BlogPostDetailPage() {
                     <div>
                       <label className="text-sm text-muted-foreground block mb-1">
                         Meta Title
+                        <span className={`ml-2 text-xs font-semibold ${
+                          formData.meta_title.length <= 60 ? 'text-green-600' :
+                          formData.meta_title.length <= 70 ? 'text-orange-500' :
+                          'text-red-600'
+                        }`}>
+                          {formData.meta_title.length}/60
+                        </span>
                       </label>
                       <input
                         type="text"
@@ -671,6 +678,13 @@ export default function BlogPostDetailPage() {
                     <div>
                       <label className="text-sm text-muted-foreground block mb-1">
                         Meta Description
+                        <span className={`ml-2 text-xs font-semibold ${
+                          formData.meta_description.length <= 160 ? 'text-green-600' :
+                          formData.meta_description.length <= 170 ? 'text-orange-500' :
+                          'text-red-600'
+                        }`}>
+                          {formData.meta_description.length}/160
+                        </span>
                       </label>
                       <textarea
                         value={formData.meta_description}

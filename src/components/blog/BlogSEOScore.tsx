@@ -101,8 +101,27 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
       // Prepare updates based on what was optimized
       const updates: any = {};
       
-      if (optimizations.meta_title) updates.meta_title = optimizations.meta_title;
-      if (optimizations.meta_description) updates.meta_description = optimizations.meta_description;
+      // Helper pour nettoyer et tronquer
+      const cleanAndTruncate = (text: string, maxLength: number): string => {
+        if (!text) return '';
+        let clean = text.replace(/<[^>]*>/g, '').trim();
+        if (clean.length > maxLength) {
+          clean = clean.substring(0, maxLength);
+          const lastSpace = clean.lastIndexOf(' ');
+          if (lastSpace > maxLength - 20) {
+            clean = clean.substring(0, lastSpace);
+          }
+          clean = clean.trim();
+        }
+        return clean;
+      };
+      
+      if (optimizations.meta_title) {
+        updates.meta_title = cleanAndTruncate(optimizations.meta_title, 60);
+      }
+      if (optimizations.meta_description) {
+        updates.meta_description = cleanAndTruncate(optimizations.meta_description, 160);
+      }
       if (optimizations.content) updates.content = optimizations.content;
       if (optimizations.faq_html) {
         // Append FAQ to existing content
@@ -178,14 +197,30 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
 
       if (error) throw error;
 
-      // Appliquer toutes les modifications
+      // Appliquer toutes les modifications avec nettoyage des metas
       if (onOptimizationApplied) {
         const generated = (data && (data as any).post) ? (data as any).post : (data as any);
+        
+        // Helper pour nettoyer et tronquer
+        const cleanAndTruncate = (text: string, maxLength: number): string => {
+          if (!text) return '';
+          let clean = text.replace(/<[^>]*>/g, '').trim();
+          if (clean.length > maxLength) {
+            clean = clean.substring(0, maxLength);
+            const lastSpace = clean.lastIndexOf(' ');
+            if (lastSpace > maxLength - 20) {
+              clean = clean.substring(0, lastSpace);
+            }
+            clean = clean.trim();
+          }
+          return clean;
+        };
+        
         onOptimizationApplied({
           title: generated.title,
           content: generated.content,
-          meta_title: generated.seo_title,
-          meta_description: generated.meta_description,
+          meta_title: cleanAndTruncate(generated.seo_title || generated.meta_title, 60),
+          meta_description: cleanAndTruncate(generated.meta_description, 160),
           excerpt: generated.excerpt,
           focus_keyword: generated.focus_keyword,
           featured_image: generated.featured_image || formData?.featured_image

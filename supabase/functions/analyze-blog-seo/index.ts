@@ -395,9 +395,16 @@ function analyzeAdvancedFeatures(content: string) {
   const issues: string[] = [];
   const recommendations: string[] = [];
 
-  // FAQ schema (3 points)
-  if (content.includes('application/ld+json') && content.includes('FAQPage')) {
+  // FAQ schema (3 points) - amélioration de la détection
+  const hasJsonLdFaq = content.includes('application/ld+json') && content.includes('FAQPage');
+  const hasVisualFaq = /faq-section|<h[23][^>]*>.*?(faq|questions?\s+fr[eé]quentes?).*?<\/h[23]>/is.test(content);
+  
+  if (hasJsonLdFaq) {
     score += 3;
+  } else if (hasVisualFaq) {
+    // FAQ visuelle présente mais sans JSON-LD
+    score += 2;
+    recommendations.push('Section FAQ détectée. Ajoutez le schema markup JSON-LD FAQPage pour le score maximum et Featured Snippets');
   } else {
     recommendations.push('Ajoutez une section FAQ avec schema markup pour les featured snippets');
   }
@@ -408,6 +415,12 @@ function analyzeAdvancedFeatures(content: string) {
     score += 2;
   } else {
     recommendations.push('Utilisez des tableaux pour présenter des données comparatives');
+  }
+
+  // Warning si lien dans H1 (optionnel, n'affecte pas le score)
+  if (/<h1[^>]*>.*?<a\s.*?<\/a>.*?<\/h1>/is.test(content)) {
+    issues.push('⚠️ Lien détecté dans le titre H1 (mauvaise pratique SEO)');
+    recommendations.push('Retirez les liens du titre H1 pour améliorer l\'autorité de la page');
   }
 
   return { score, max, issues, recommendations };

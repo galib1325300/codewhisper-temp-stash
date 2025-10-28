@@ -392,6 +392,48 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     const slug = generateSlug(blogPost.title);
 
+    // === NETTOYAGE DES HEADINGS (pas de liens dans H1/H2/H3) ===
+    console.log('Cleaning headings (removing links)...');
+    let cleanedContent = blogPost.content;
+    
+    // Retirer tous les liens <a> des titres H1, H2, H3
+    cleanedContent = cleanedContent.replace(/<(h[123][^>]*)>(.*?)<\/\1>/gi, (match, tag, innerHtml) => {
+      const cleanInner = innerHtml.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1');
+      return `<${tag}>${cleanInner}</${tag}>`;
+    });
+    
+    blogPost.content = cleanedContent;
+
+    // === GARANTIES METAS (longueurs optimales) ===
+    console.log('Normalizing meta tags...');
+    
+    // Fonction helper pour nettoyer le HTML et tronquer
+    const cleanAndTruncate = (text: string, maxLength: number): string => {
+      if (!text) return '';
+      // Retirer le HTML
+      let clean = text.replace(/<[^>]*>/g, '').trim();
+      // Tronquer intelligemment (ne pas couper un mot)
+      if (clean.length > maxLength) {
+        clean = clean.substring(0, maxLength);
+        const lastSpace = clean.lastIndexOf(' ');
+        if (lastSpace > maxLength - 20) {
+          clean = clean.substring(0, lastSpace);
+        }
+        clean = clean.trim();
+      }
+      return clean;
+    };
+    
+    // Meta title: max 60 caractères
+    blogPost.seo_title = cleanAndTruncate(blogPost.seo_title || blogPost.title, 60);
+    
+    // Meta description: max 160 caractères
+    blogPost.meta_description = cleanAndTruncate(blogPost.meta_description, 160);
+
+    console.log('Meta tags normalized:', {
+      titleLength: blogPost.seo_title.length,
+      descLength: blogPost.meta_description.length
+    });
 
     console.log('Saving blog post to database...');
 
