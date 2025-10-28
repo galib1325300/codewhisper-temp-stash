@@ -151,17 +151,30 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
 
       toast.info('🔄 Régénération complète de l\'article en cours...');
 
-      // Appeler generate-blog-post avec contexte
-      const { data, error } = await supabase.functions.invoke('generate-blog-post', {
-        body: { 
-          shopId: shopId,
-          topic: post.title,
-          keywords: post.focus_keyword ? [post.focus_keyword] : [],
-          existingContent: post.content,
-          mode: 'regenerate',
-          analyzeCompetitors: true
+      // Appeler generate-blog-post avec contexte (avec retries)
+      const invokeGenerate = async () => {
+        return await supabase.functions.invoke('generate-blog-post', {
+          body: { 
+            shopId: shopId,
+            topic: post.title,
+            keywords: post.focus_keyword ? [post.focus_keyword] : [],
+            existingContent: post.content,
+            mode: 'regenerate',
+            analyzeCompetitors: true
+          }
+        });
+      };
+
+      let data: any, error: any;
+      const maxRetries = 2;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const res = await invokeGenerate();
+        data = res.data; error = res.error;
+        if (!error) break;
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
         }
-      });
+      }
 
       if (error) throw error;
 
