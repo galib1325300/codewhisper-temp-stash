@@ -4,13 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FileText, Plus, Loader2, Eye } from 'lucide-react';
+import { ArrowLeft, FileText, Plus, Loader2, Eye, TrendingUp, Link as LinkIcon, Target, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminNavbar from '@/components/AdminNavbar';
 import AdminSidebar from '@/components/AdminSidebar';
 import ShopNavigation from '@/components/ShopNavigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
+import { ClusterGraph } from '@/components/blog/ClusterGraph';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface TopicCluster {
   id: string;
@@ -53,6 +55,7 @@ export default function ClusterDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [articleCount, setArticleCount] = useState('1');
+  const [generatingMissing, setGeneratingMissing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -149,6 +152,54 @@ export default function ClusterDetailPage() {
     return text.split(/\s+/).filter(w => w.length > 0).length;
   };
 
+  const handleGenerateMissingArticles = async () => {
+    if (!cluster || missingCount === 0) return;
+
+    setGeneratingMissing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-cluster-articles', {
+        body: {
+          clusterId: cluster.id,
+          shopId,
+          count: missingCount
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success(`Génération de ${missingCount} article(s) manquant(s) lancée !`);
+      loadData();
+    } catch (error) {
+      console.error('Error generating missing articles:', error);
+      toast.error('Erreur lors de la génération des articles');
+    } finally {
+      setGeneratingMissing(false);
+    }
+  };
+
+  const calculateSEOStats = () => {
+    if (articles.length === 0) return { avgScore: 0, totalLinks: 0, keywordCoverage: 0 };
+
+    // Calculate average word count as SEO score proxy
+    const avgWords = articles.reduce((sum, a) => sum + getWordCount(a.content || ''), 0) / articles.length;
+    const avgScore = Math.min(100, Math.round((avgWords / 1200) * 100));
+
+    // Count internal links
+    const totalLinks = articles.reduce((sum, a) => {
+      const matches = (a.content || '').match(/<a\s+href=/g);
+      return sum + (matches?.length || 0);
+    }, 0);
+
+    // Calculate keyword coverage
+    const articlesWithKeyword = articles.filter(a => a.focus_keyword).length;
+    const keywordCoverage = Math.round((articlesWithKeyword / articles.length) * 100);
+
+    return { avgScore, totalLinks, keywordCoverage };
+  };
+
+  const seoStats = calculateSEOStats();
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -201,6 +252,45 @@ export default function ClusterDetailPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour aux Topic Clusters
           </Button>
+
+          {/* SEO Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Score SEO Moyen</p>
+                    <p className="text-3xl font-bold text-primary">{seoStats.avgScore}/100</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Liens Internes</p>
+                    <p className="text-3xl font-bold text-primary">{seoStats.totalLinks}</p>
+                  </div>
+                  <LinkIcon className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Couverture Keywords</p>
+                    <p className="text-3xl font-bold text-primary">{seoStats.keywordCoverage}%</p>
+                  </div>
+                  <Target className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Cluster Header */}
           <Card className="mb-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
@@ -266,8 +356,94 @@ export default function ClusterDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Articles List */}
-          <Card>
+          {/* Missing Articles Section */}
+          {missingCount > 0 && (
+            <Card className="mb-6 border-orange-200 bg-orange-50/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-orange-500" />
+                      Articles Manquants
+                    </CardTitle>
+                    <CardDescription>
+                      {missingCount} article(s) suggéré(s) non encore créé(s)
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    onClick={handleGenerateMissingArticles}
+                    disabled={generatingMissing}
+                    className="bg-orange-500 hover:bg-orange-600"
+                  >
+                    {generatingMissing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Générer tous les manquants ({missingCount})
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: Math.min(missingCount, 6) }).map((_, idx) => (
+                    <Card key={idx} className="border-dashed border-2 border-orange-300 bg-white">
+                      <CardContent className="p-4 text-center">
+                        <FileText className="h-8 w-8 mx-auto text-orange-400 mb-2" />
+                        <p className="text-sm text-muted-foreground">Article à générer</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {missingCount > 6 && (
+                    <Card className="border-dashed border-2 border-orange-300 bg-white">
+                      <CardContent className="p-4 text-center flex items-center justify-center">
+                        <p className="text-sm font-medium text-orange-600">+{missingCount - 6} autres</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Main Content Tabs */}
+          <Tabs defaultValue="list" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="list">
+                <FileText className="h-4 w-4 mr-2" />
+                Liste des articles
+              </TabsTrigger>
+              <TabsTrigger value="graph">
+                <Target className="h-4 w-4 mr-2" />
+                Visualisation
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="graph">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Réseau du Cluster</CardTitle>
+                  <CardDescription>
+                    Visualisation des articles et leurs interconnexions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ClusterGraph 
+                    articles={articles}
+                    clusterName={cluster.name}
+                    missingCount={missingCount}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="list">
+              <Card>
             <CardHeader>
               <CardTitle>Articles du cluster ({articles.length})</CardTitle>
               <CardDescription>
@@ -337,8 +513,10 @@ export default function ClusterDetailPage() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            </TabsContent>
+          </Tabs>
 
           {/* Generate Dialog */}
           <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
