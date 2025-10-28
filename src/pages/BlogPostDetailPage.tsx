@@ -10,6 +10,7 @@ import { ArrowLeft, Save, Trash2, RefreshCw, Calendar, Eye } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BlogSEOScore } from '@/components/blog/BlogSEOScore';
+import { SEOOptimizationHistory } from '@/components/blog/SEOOptimizationHistory';
 import AuthorCard from '@/components/blog/AuthorCard';
 
 export default function BlogPostDetailPage() {
@@ -513,10 +514,14 @@ export default function BlogPostDetailPage() {
               {/* SEO Score */}
               <BlogSEOScore 
                 postId={postId!}
+                shopId={shopId!}
                 onOptimizationApplied={(updates) => {
                   setFormData(prev => ({ ...prev, ...updates }));
                 }}
               />
+
+              {/* SEO Optimization History */}
+              <SEOOptimizationHistory postId={postId!} />
 
                 {/* SEO Optimization */}
                 <div className="bg-card rounded-lg border p-6">

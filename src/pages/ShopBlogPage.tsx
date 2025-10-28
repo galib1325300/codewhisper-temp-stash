@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import TopicSuggestionsModal from '../components/blog/TopicSuggestionsModal';
 import AuthorManagement from '../components/blog/AuthorManagement';
 import TopicClustersManagement from '../components/blog/TopicClustersManagement';
+import { BlogProactiveSuggestions } from '../components/blog/BlogProactiveSuggestions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -405,6 +406,13 @@ export default function ShopBlogPage() {
                         </Button>
                       </div>
                     </Card>
+                  )}
+
+                  {/* Proactive SEO Suggestions */}
+                  {!activeCluster && shop && (
+                    <div className="m-6 mb-0">
+                      <BlogProactiveSuggestions shopId={shop.id} />
+                    </div>
                   )}
                   
                   <div className="p-6 border-b border-gray-200">

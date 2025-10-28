@@ -12,6 +12,7 @@ import { SEOOptimizationModal } from './SEOOptimizationModal';
 
 interface SEOScoreProps {
   postId: string;
+  shopId: string;
   onOptimizationApplied?: (updates: any) => void;
 }
 
@@ -36,12 +37,13 @@ interface SEOAnalysis {
   grade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
 }
 
-export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
+export function BlogSEOScore({ postId, shopId, onOptimizationApplied }: SEOScoreProps) {
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState<string | null>(null);
   const [optimizationData, setOptimizationData] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  const [scoreBefore, setScoreBefore] = useState<number | null>(null);
 
   const analyzePost = async () => {
     setLoading(true);
@@ -64,6 +66,11 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
 
   const handleOptimize = async (category: string) => {
     setOptimizing(category);
+    // Save current score before optimization
+    if (analysis) {
+      setScoreBefore(analysis.score);
+    }
+    
     try {
       const { data, error } = await supabase.functions.invoke('optimize-blog-seo', {
         body: { 
@@ -85,7 +92,7 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
     }
   };
 
-  const handleApplyOptimization = (optimizations: any) => {
+  const handleApplyOptimization = async (optimizations: any) => {
     if (onOptimizationApplied) {
       // Prepare updates based on what was optimized
       const updates: any = {};
@@ -99,10 +106,29 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
       }
       
       onOptimizationApplied(updates);
+      
+      // Save optimization history
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        await supabase.from('seo_optimization_history').insert({
+          post_id: postId,
+          shop_id: shopId,
+          optimization_type: optimizationData?.category || 'unknown',
+          score_before: scoreBefore,
+          score_after: null, // Will be updated after re-analysis
+          changes_applied: optimizations,
+          applied_by: user?.id
+        });
+      } catch (error) {
+        console.error('Error saving optimization history:', error);
+      }
+      
       toast.success('✨ Optimisations appliquées ! N\'oubliez pas de sauvegarder.');
       
       // Reset analysis to force re-analysis
       setAnalysis(null);
+      setScoreBefore(null);
     }
   };
 

@@ -763,6 +763,45 @@ export type Database = {
           },
         ]
       }
+      seo_optimization_history: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          changes_applied: Json
+          id: string
+          optimization_type: string
+          performance_impact: Json | null
+          post_id: string
+          score_after: number | null
+          score_before: number | null
+          shop_id: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          changes_applied: Json
+          id?: string
+          optimization_type: string
+          performance_impact?: Json | null
+          post_id: string
+          score_after?: number | null
+          score_before?: number | null
+          shop_id: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          changes_applied?: Json
+          id?: string
+          optimization_type?: string
+          performance_impact?: Json | null
+          post_id?: string
+          score_after?: number | null
+          score_before?: number | null
+          shop_id?: string
+        }
+        Relationships: []
+      }
       shops: {
         Row: {
           analytics_enabled: boolean | null
