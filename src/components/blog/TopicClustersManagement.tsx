@@ -352,7 +352,7 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
               className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest('button')) return;
-                navigate(`/admin/shops/${shopId}/blog?cluster=${cluster.id}`);
+                navigate(`/admin/shops/${shopId}/clusters/${cluster.id}`);
               }}
             >
               <CardHeader>

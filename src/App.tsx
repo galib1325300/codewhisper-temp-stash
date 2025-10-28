@@ -20,6 +20,7 @@ import ShopCollectionsPage from './pages/ShopCollectionsPage';
 import ShopCollectionDetailPage from './pages/ShopCollectionDetailPage';
 import ShopBlogPage from './pages/ShopBlogPage';
 import BlogPostDetailPage from './pages/BlogPostDetailPage';
+import ClusterDetailPage from './pages/ClusterDetailPage';
 import ShopDiagnosticsPage from './pages/ShopDiagnosticsPage';
 import ShopDiagnosticDetailPage from './pages/ShopDiagnosticDetailPage';
 import IssueDetailPage from './pages/IssueDetailPage';
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/admin/shops/:id/collections/:collectionId" element={<ProtectedRoute><ShopCollectionDetailPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/blog" element={<ProtectedRoute><ShopBlogPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/blog/:postId" element={<ProtectedRoute><BlogPostDetailPage /></ProtectedRoute>} />
+            <Route path="/admin/shops/:id/clusters/:clusterId" element={<ProtectedRoute><ClusterDetailPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics" element={<ProtectedRoute><ShopDiagnosticsPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics/:diagnosticId" element={<ProtectedRoute><ShopDiagnosticDetailPage /></ProtectedRoute>} />
             <Route path="/admin/shops/:id/diagnostics/:diagnosticId/issue/:issueKey" element={<ProtectedRoute><IssueDetailPage /></ProtectedRoute>} />
