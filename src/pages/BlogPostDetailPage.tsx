@@ -6,7 +6,7 @@ import ShopNavigation from '../components/ShopNavigation';
 import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { Shop } from '../utils/types';
-import { ArrowLeft, Save, Trash2, RefreshCw, Calendar, Eye } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, RefreshCw, Calendar, Eye, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BlogSEOScore } from '@/components/blog/BlogSEOScore';
@@ -419,6 +419,25 @@ export default function BlogPostDetailPage() {
                     <Eye className="w-4 h-4 mr-2" />
                     {showPreview ? 'Masquer l\'aperçu' : 'Voir l\'aperçu'}
                   </Button>
+                  
+                  <Button
+                    variant="primary"
+                    className="w-full mt-2"
+                    onClick={() => {
+                      const articleUrl = `${shop.url}/${formData.slug}/`;
+                      window.open(articleUrl, '_blank');
+                    }}
+                    disabled={post.status !== 'publish'}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Voir sur le site
+                  </Button>
+                  {post.status !== 'publish' && (
+                    <p className="text-xs text-muted-foreground mt-1 text-center">
+                      Publiez l'article pour le voir sur votre site
+                    </p>
+                  )}
+                  
                   {showPreview && (
                     <div className="mt-4 p-4 border rounded-lg prose prose-sm dark:prose-invert max-w-none bg-background max-h-[400px] overflow-y-auto">
                       <div dangerouslySetInnerHTML={{ __html: formData.content }} />
