@@ -167,14 +167,15 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
 
       // Appliquer toutes les modifications
       if (onOptimizationApplied) {
+        const generated = (data && (data as any).post) ? (data as any).post : (data as any);
         onOptimizationApplied({
-          title: data.title,
-          content: data.content,
-          meta_title: data.seo_title,
-          meta_description: data.meta_description,
-          excerpt: data.excerpt,
-          focus_keyword: data.focus_keyword,
-          featured_image: data.featured_image || formData?.featured_image
+          title: generated.title,
+          content: generated.content,
+          meta_title: generated.seo_title,
+          meta_description: generated.meta_description,
+          excerpt: generated.excerpt,
+          focus_keyword: generated.focus_keyword,
+          featured_image: generated.featured_image || formData?.featured_image
         });
       }
 
@@ -188,11 +189,11 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
           optimization_type: 'full_regeneration',
           score_before: analysis?.score || null,
           score_after: null,
-          changes_applied: {
-            type: 'regeneration',
-            oldContent: post.content.substring(0, 200) + '...',
-            newContent: data.content.substring(0, 200) + '...'
-          },
+            changes_applied: {
+              type: 'regeneration',
+              oldContent: post.content.substring(0, 200) + '...',
+              newContent: ((data && (data as any).post ? (data as any).post.content : (data as any)?.content) || '').substring(0, 200) + '...'
+            },
           applied_by: user?.id
         });
       } catch (error) {
