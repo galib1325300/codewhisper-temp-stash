@@ -8,9 +8,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, TrendingUp, AlertTriangle, CheckCircle2, XCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { SEOOptimizationModal } from './SEOOptimizationModal';
 
 interface SEOScoreProps {
   postId: string;
+  onOptimizationApplied?: (updates: any) => void;
 }
 
 interface CategoryAnalysis {
@@ -34,9 +36,12 @@ interface SEOAnalysis {
   grade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
 }
 
-export function BlogSEOScore({ postId }: SEOScoreProps) {
+export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [optimizing, setOptimizing] = useState<string | null>(null);
+  const [optimizationData, setOptimizationData] = useState<any>(null);
+  const [showModal, setShowModal] = useState(false);
 
   const analyzePost = async () => {
     setLoading(true);
@@ -54,6 +59,36 @@ export function BlogSEOScore({ postId }: SEOScoreProps) {
       toast.error('Erreur lors de l\'analyse SEO');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOptimize = async (category: string) => {
+    setOptimizing(category);
+    try {
+      const { data, error } = await supabase.functions.invoke('optimize-blog-seo', {
+        body: { 
+          postId, 
+          category,
+          seoAnalysis: analysis
+        }
+      });
+
+      if (error) throw error;
+
+      setOptimizationData(data);
+      setShowModal(true);
+    } catch (error: any) {
+      console.error('Error optimizing:', error);
+      toast.error(error.message || 'Erreur lors de l\'optimisation');
+    } finally {
+      setOptimizing(null);
+    }
+  };
+
+  const handleApplyOptimization = (optimizations: any) => {
+    if (onOptimizationApplied) {
+      onOptimizationApplied(optimizations);
+      toast.success('✨ Optimisations appliquées ! N\'oubliez pas de sauvegarder.');
     }
   };
 
@@ -207,24 +242,57 @@ export function BlogSEOScore({ postId }: SEOScoreProps) {
                 {analysis.score < 85 && (
                   <>
                     {analysis.categories.metadata.score < analysis.categories.metadata.max * 0.8 && (
-                      <Badge variant="outline">Optimiser les métadonnées</Badge>
+                      <Badge 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary/10 transition-colors"
+                        onClick={() => handleOptimize('metadata')}
+                      >
+                        {optimizing === 'metadata' ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                        ) : (
+                          <>✨ Optimiser les métadonnées</>
+                        )}
+                      </Badge>
                     )}
                     {analysis.categories.keywords.score < analysis.categories.keywords.max * 0.8 && (
-                      <Badge variant="outline">Améliorer les mots-clés</Badge>
+                      <Badge 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary/10 transition-colors"
+                        onClick={() => handleOptimize('keywords')}
+                      >
+                        {optimizing === 'keywords' ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                        ) : (
+                          <>✨ Améliorer les mots-clés</>
+                        )}
+                      </Badge>
                     )}
                     {analysis.categories.media.score < analysis.categories.media.max * 0.8 && (
-                      <Badge variant="outline">Ajouter des images</Badge>
+                      <Badge variant="outline" className="opacity-50 cursor-not-allowed">
+                        Ajouter des images (bientôt)
+                      </Badge>
                     )}
                     {analysis.categories.links.score < analysis.categories.links.max * 0.8 && (
-                      <Badge variant="outline">Enrichir les liens</Badge>
+                      <Badge variant="outline" className="opacity-50 cursor-not-allowed">
+                        Enrichir les liens (bientôt)
+                      </Badge>
                     )}
                     {analysis.categories.advanced.score < analysis.categories.advanced.max * 0.8 && (
-                      <Badge variant="outline">Ajouter une FAQ</Badge>
+                      <Badge variant="outline" className="opacity-50 cursor-not-allowed">
+                        Ajouter une FAQ (bientôt)
+                      </Badge>
                     )}
                   </>
                 )}
               </div>
             </div>
+
+            <SEOOptimizationModal
+              open={showModal}
+              onClose={() => setShowModal(false)}
+              onApply={handleApplyOptimization}
+              data={optimizationData}
+            />
           </>
         )}
       </CardContent>

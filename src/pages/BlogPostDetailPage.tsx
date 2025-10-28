@@ -510,8 +510,13 @@ export default function BlogPostDetailPage() {
                   </div>
                 </div>
 
-                {/* SEO Score */}
-                <BlogSEOScore postId={postId!} />
+              {/* SEO Score */}
+              <BlogSEOScore 
+                postId={postId!}
+                onOptimizationApplied={(updates) => {
+                  setFormData(prev => ({ ...prev, ...updates }));
+                }}
+              />
 
                 {/* SEO Optimization */}
                 <div className="bg-card rounded-lg border p-6">

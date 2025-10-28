@@ -132,5 +132,8 @@ verify_jwt = false
 [functions.analyze-blog-seo]
 verify_jwt = false
 
+[functions.optimize-blog-seo]
+verify_jwt = false
+
 [functions.analyze-site-clusters]
 verify_jwt = false
