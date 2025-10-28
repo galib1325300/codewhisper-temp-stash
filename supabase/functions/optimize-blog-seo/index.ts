@@ -99,55 +99,91 @@ Fournis également une explication détaillée de tes choix.`;
       const issues = seoAnalysis?.categories?.keywords?.issues || [];
       const currentContent = post.content || '';
       const wordCount = currentContent.replace(/<[^>]*>/g, '').split(/\s+/).filter(w => w.length > 0).length;
-      const targetOccurrences = Math.ceil(wordCount * 0.015);
       
-      prompt = `Tu es un expert SEO. Optimise le contenu de cet article pour améliorer la densité et le placement des mots-clés.
+      // Calculer densité actuelle et cible
+      const keyword = (post.focus_keyword || '').toLowerCase();
+      const textContent = currentContent.replace(/<[^>]*>/g, '').toLowerCase();
+      const currentOccurrences = (textContent.match(new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')) || []).length;
+      const currentDensity = wordCount > 0 ? (currentOccurrences / wordCount) * 100 : 0;
+      const targetDensity = 1.5; // 1.5%
+      const targetOccurrences = Math.ceil(wordCount * (targetDensity / 100));
+      const missingOccurrences = Math.max(0, targetOccurrences - currentOccurrences);
+      
+      // Extraire seulement les 3000 premiers caractères pour contexte
+      const contentPreview = currentContent.substring(0, 3000);
+      
+      prompt = `Tu es un expert SEO. Analyse ce DÉBUT d'article et suggère où insérer le mot-clé focus.
 
-ARTICLE ACTUEL :
+ARTICLE (EXTRAIT - premiers 3000 caractères) :
 - Titre : ${post.title}
-- Mot-clé focus : ${post.focus_keyword || 'Aucun'}
-- Nombre de mots : ${wordCount}
-- Contenu actuel : ${currentContent}
+- Mot-clé focus : "${post.focus_keyword}"
+- Nombre total de mots : ${wordCount}
+- Occurrences actuelles du mot-clé : ${currentOccurrences}
+- Densité actuelle : ${currentDensity.toFixed(2)}%
+- Densité cible : ${targetDensity}%
+- **Il manque ${missingOccurrences} occurrences du mot-clé**
+
+EXTRAIT DU CONTENU :
+${contentPreview}
+${currentContent.length > 3000 ? '...(contenu tronqué)' : ''}
 
 PROBLÈMES DÉTECTÉS :
 ${issues.join('\n')}
 
 TÂCHE :
-Modifie le contenu HTML pour :
-- Placer le mot-clé "${post.focus_keyword}" dans le premier paragraphe s'il n'y est pas
-- Ajouter le mot-clé dans 2-3 balises <strong> de manière naturelle
-- Inclure le mot-clé dans au moins un H2 ou H3
-- **CRITIQUE** : Viser une densité de **1-2%** en insérant environ ${targetOccurrences} occurrences du mot-clé
-  * Répartir naturellement dans tout l'article (début, milieu, fin)
-  * Utiliser des variations et synonymes pour éviter la répétition exacte
-- **INTERDIT** : Ne jamais insérer de liens dans les titres (H1 à H6)
-- Garder le reste du contenu identique
+Suggère exactement ${Math.min(missingOccurrences, 10)} emplacements où insérer naturellement le mot-clé "${post.focus_keyword}" :
+1. Dans le premier paragraphe (si pas déjà présent)
+2. Dans 2-3 balises <strong>
+3. Dans au moins un H2 ou H3
+4. Réparti dans tout l'article (début, milieu, fin)
 
-Retourne le contenu HTML complet modifié et explique tes changements.`;
+**IMPORTANT** :
+- Ne retourne PAS le contenu complet de l'article
+- Retourne SEULEMENT une liste d'instructions d'insertion
+- Format : Fournir le texte exact à remplacer et le nouveau texte avec le mot-clé`;
 
       toolDefinition = {
         type: "function",
         function: {
-          name: "optimize_keywords",
-          description: "Optimise les mots-clés dans le contenu de l'article",
+          name: "suggest_keyword_insertions",
+          description: "Suggère des emplacements pour insérer le mot-clé",
           parameters: {
             type: "object",
             properties: {
-              content: { 
-                type: "string", 
-                description: "Le contenu HTML complet modifié avec les mots-clés optimisés"
-              },
-              changes: {
+              insertions: {
                 type: "array",
-                items: { type: "string" },
-                description: "Liste des modifications apportées"
+                items: {
+                  type: "object",
+                  properties: {
+                    target_text: { 
+                      type: "string",
+                      description: "Extrait exact du texte à cibler (15-50 caractères)"
+                    },
+                    replacement_text: {
+                      type: "string",
+                      description: "Nouveau texte incluant le mot-clé"
+                    },
+                    location: {
+                      type: "string",
+                      enum: ["début", "milieu", "fin"],
+                      description: "Position dans l'article"
+                    },
+                    tag_type: {
+                      type: "string",
+                      enum: ["p", "li", "h2", "h3", "strong"],
+                      description: "Type de balise où insérer"
+                    }
+                  },
+                  required: ["target_text", "replacement_text", "location", "tag_type"]
+                },
+                description: "Liste des insertions à effectuer"
               },
-              reasoning: { 
+              reasoning: {
                 type: "string",
-                description: "Explication des changements effectués"
+                description: "Explication de la stratégie"
               }
             },
-            required: ["content", "changes", "reasoning"]
+            required: ["insertions", "reasoning"]
           }
         }
       };
@@ -379,7 +415,7 @@ Retourne un ensemble complet d'optimisations.`;
     
     // Create abort controller for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
     
     let response;
     try {
@@ -403,7 +439,7 @@ Retourne un ensemble complet d'optimisations.`;
       clearTimeout(timeoutId);
       if (fetchError.name === 'AbortError') {
         console.error('Request timeout');
-        throw new Error('La requête a pris trop de temps (>25s). Essayez une optimisation plus simple ou réessayez.');
+        throw new Error('La requête a pris trop de temps (>30s). Essayez une optimisation plus simple ou réessayez.');
       }
       throw fetchError;
     } finally {
@@ -443,8 +479,58 @@ Retourne un ensemble complet d'optimisations.`;
     }
     console.log('Optimizations parsed:', optimizations);
 
+    // Traitement spécial pour les keywords : appliquer les insertions côté serveur
+    if (category === 'keywords' && optimizations.insertions && Array.isArray(optimizations.insertions)) {
+      console.log(`Applying ${optimizations.insertions.length} keyword insertions...`);
+      let modifiedContent = post.content || '';
+      let appliedCount = 0;
+      
+      for (const insertion of optimizations.insertions) {
+        const { target_text, replacement_text, tag_type } = insertion;
+        
+        // Créer un regex pour trouver le texte cible
+        const escapedTarget = target_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        // Remplacer uniquement dans les balises spécifiées (éviter les headings sauf h2/h3)
+        let regex;
+        if (tag_type === 'h2' || tag_type === 'h3') {
+          regex = new RegExp(`(<${tag_type}[^>]*>)(.*?${escapedTarget}.*?)(<\/${tag_type}>)`, 'gis');
+        } else {
+          regex = new RegExp(`(<(p|li|strong)[^>]*>)(.*?${escapedTarget}.*?)(<\/\\2>)`, 'gis');
+        }
+        
+        const beforeReplace = modifiedContent;
+        modifiedContent = modifiedContent.replace(regex, (match, openTag, tagName, content, closeTag) => {
+          // Ne remplacer qu'une seule fois pour éviter les doublons
+          const newContent = content.replace(target_text, replacement_text);
+          return `${openTag}${newContent}${closeTag}`;
+        });
+        
+        if (modifiedContent !== beforeReplace) {
+          appliedCount++;
+          console.log(`✓ Inserted keyword: "${target_text}" → "${replacement_text}"`);
+        } else {
+          console.log(`⚠ Could not find target text: "${target_text}"`);
+        }
+      }
+      
+      // Nettoyage des liens dans les titres H1-H6
+      modifiedContent = modifiedContent.replace(
+        /<(h[123456])[^>]*>(.*?)<\/h[123456]>/gi,
+        (match, tag, content) => {
+          const cleanContent = content.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1');
+          return `<${tag}>${cleanContent}</${tag}>`;
+        }
+      );
+      
+      optimizations.content = modifiedContent;
+      optimizations.changes = optimizations.changes || [];
+      optimizations.changes.push(`${appliedCount} insertions de mots-clés appliquées`);
+      console.log(`Applied ${appliedCount}/${optimizations.insertions.length} keyword insertions`);
+    }
+    
     // NETTOYAGE OBLIGATOIRE : Retirer tous les liens des titres H1-H6
-    if (optimizations.content) {
+    if (optimizations.content && category !== 'keywords') {
       optimizations.content = optimizations.content.replace(
         /<(h[123456])[^>]*>(.*?)<\/h[123456]>/gi,
         (match, tag, content) => {

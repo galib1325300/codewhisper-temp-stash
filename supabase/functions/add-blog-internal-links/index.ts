@@ -118,46 +118,52 @@ serve(async (req) => {
     // Use AI to suggest relevant internal links
     const prompt = `Tu es un expert SEO en maillage interne. Analyse ce contenu d'article de blog et suggère 3-5 liens internes pertinents et naturels.
 
-CONTENU DE L'ARTICLE (extrait des 800 premiers caractères):
+CONTENU DE L'ARTICLE (extrait):
 ${content.replace(/<[^>]*>/g, '').substring(0, 800)}...
 
-SUJET DE L'ARTICLE: ${topic || 'Non spécifié'}
+SUJET: ${topic || 'Non spécifié'}
 
-RESSOURCES DISPONIBLES POUR LIENS:
+RESSOURCES DISPONIBLES (URLs RÉELLES - NE PAS INVENTER D'AUTRES URLS):
 
-${postsContext.length > 0 ? `ARTICLES DE BLOG (${postsContext.length}):
-${postsContext.slice(0, 8).map((p, i) => `${i+1}. "${p.title}" - ${p.url}
-   Sujet: ${p.topic}`).join('\n')}` : ''}
+${postsContext.length > 0 ? `ARTICLES (${postsContext.length}):
+${postsContext.slice(0, 8).map((p, i) => `${i+1}. Titre: "${p.title}"
+   URL: ${p.url}
+   Sujet: ${p.topic}`).join('\n\n')}` : ''}
 
 ${collectionsContext.length > 0 ? `\nCOLLECTIONS (${collectionsContext.length}):
-${collectionsContext.slice(0, 10).map((c, i) => `${i+1}. "${c.title}" - ${c.url}
-   Description: ${c.description || 'N/A'}`).join('\n')}` : ''}
+${collectionsContext.slice(0, 10).map((c, i) => `${i+1}. Titre: "${c.title}"
+   URL: ${c.url}
+   Description: ${c.description || 'N/A'}`).join('\n\n')}` : ''}
 
-${productsContext.length > 0 ? `\nPRODUITS PHARES (${productsContext.length}):
-${productsContext.slice(0, 10).map((p, i) => `${i+1}. "${p.title}" - ${p.url}`).join('\n')}` : ''}
+${productsContext.length > 0 ? `\nPRODUITS (${productsContext.length}):
+${productsContext.slice(0, 10).map((p, i) => `${i+1}. Titre: "${p.title}"
+   URL: ${p.url}`).join('\n\n')}` : ''}
 
-CONSIGNES STRICTES:
-1. Suggère 3-5 liens internes maximum (ne pas surcharger)
-2. Chaque lien doit être VRAIMENT pertinent par rapport au contexte
-3. Privilégie la variété: mélange articles, collections, produits
-4. L'anchor text doit être naturel et descriptif (pas "cliquez ici")
-5. Les liens doivent s'intégrer naturellement dans des phrases existantes du contenu
-6. CRITIQUE: Ne JAMAIS suggérer de liens dans les titres (H1, H2, H3, H4, H5, H6), uniquement dans les paragraphes <p> et listes <li>
+RÈGLES STRICTES:
+1. ⚠️ **CRITIQUE** : Tu DOIS utiliser UNIQUEMENT les URLs listées ci-dessus
+2. ⚠️ **INTERDIT** : Ne JAMAIS inventer ou construire d'autres URLs
+3. Suggère 3-5 liens maximum
+4. L'anchor text doit exister dans le contenu de l'article
+5. Ne JAMAIS mettre de liens dans les titres (H1-H6)
+6. Privilégie la variété : mélange articles/collections/produits
+7. Score de pertinence minimum : 7/10
 
-Format JSON STRICT à retourner:
+VALIDATION OBLIGATOIRE:
+- Avant de suggérer un lien, vérifie que l'URL est dans la liste ci-dessus
+- Si aucune ressource n'est pertinente, retourne une liste vide
+
+Format JSON:
 {
   "links": [
     {
-      "anchor_text": "texte exact à transformer en lien (doit exister dans le contenu)",
-      "url": "URL complète du lien",
-      "context": "phrase ou paragraphe où insérer le lien",
-      "relevance_score": 9,
+      "anchor_text": "texte exact dans l'article",
+      "url": "URL EXACTE de la liste ci-dessus",
+      "context": "phrase contenant l'anchor text",
+      "relevance_score": 8,
       "type": "article|collection|product"
     }
   ]
-}
-
-IMPORTANT: L'anchor_text doit correspondre à un texte qui existe déjà dans l'article ou être une variation très proche. Ne propose que des liens vraiment pertinents.`;
+}`;
 
     console.log('Calling Lovable AI for link suggestions...');
 
@@ -207,14 +213,33 @@ IMPORTANT: L'anchor_text doit correspondre à un texte qui existe déjà dans l'
       throw new Error('Format de réponse invalide de l\'IA');
     }
 
+    // Valider que chaque URL suggérée existe dans nos ressources
+    const allValidUrls = [
+      ...postsContext.map(p => p.url),
+      ...collectionsContext.map(c => c.url),
+      ...productsContext.map(p => p.url)
+    ];
+    
+    console.log(`Valid URLs available: ${allValidUrls.length}`);
+
     // Insert links into content
     let updatedContent = content;
     let linksAdded = 0;
 
     if (linkSuggestions.links && Array.isArray(linkSuggestions.links)) {
+      // Valider et filtrer les liens
+      const validatedLinks = linkSuggestions.links.filter((link: any) => {
+        const isValid = allValidUrls.includes(link.url);
+        if (!isValid) {
+          console.warn(`⚠️ Lien invalide rejeté: ${link.url} (non trouvé dans les ressources)`);
+        }
+        return isValid && link.relevance_score >= 7;
+      });
+      
+      console.log(`Validated ${validatedLinks.length}/${linkSuggestions.links.length} links`);
+      
       // Sort by relevance score
-      const sortedLinks = linkSuggestions.links
-        .filter((link: any) => link.relevance_score >= 7)
+      const sortedLinks = validatedLinks
         .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
         .slice(0, 5); // Max 5 links
 
