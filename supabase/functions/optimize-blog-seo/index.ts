@@ -32,6 +32,15 @@ serve(async (req) => {
 
     console.log(`Post fetched: ${post.title}`);
 
+    // Fetch other posts for internal linking context
+    const { data: otherPosts } = await supabaseClient
+      .from('blog_posts')
+      .select('id, title, slug, focus_keyword')
+      .eq('shop_id', post.shop_id)
+      .neq('id', postId)
+      .eq('status', 'publish')
+      .limit(10);
+
     // Prepare AI prompt based on category
     let prompt = '';
     let toolDefinition: any = null;
@@ -134,6 +143,225 @@ Retourne le contenu HTML complet modifié et explique tes changements.`;
           }
         }
       };
+    } else if (category === 'content') {
+      const issues = seoAnalysis?.categories?.content?.issues || [];
+      
+      prompt = `Tu es un expert SEO. Optimise la structure et la qualité du contenu de cet article.
+
+ARTICLE ACTUEL :
+- Titre : ${post.title}
+- Nombre de mots : ${post.content?.split(/\s+/).length || 0}
+- Contenu : ${post.content || ''}
+
+PROBLÈMES DÉTECTÉS :
+${issues.join('\n')}
+
+TÂCHE :
+Améliore le contenu en :
+- Ajoutant des H2/H3 manquants pour une meilleure hiérarchie
+- Découpant les paragraphes trop longs (max 150 mots par paragraphe)
+- Ajoutant des listes à puces ou numérotées où c'est pertinent
+- Gardant le sens et les informations existantes
+- Visant 1500-2000 mots au total
+
+Retourne le contenu HTML complet optimisé.`;
+
+      toolDefinition = {
+        type: "function",
+        function: {
+          name: "optimize_content",
+          description: "Optimise la structure et la qualité du contenu",
+          parameters: {
+            type: "object",
+            properties: {
+              content: { 
+                type: "string", 
+                description: "Le contenu HTML complet restructuré"
+              },
+              changes: {
+                type: "array",
+                items: { type: "string" },
+                description: "Liste des améliorations structurelles"
+              },
+              reasoning: { 
+                type: "string",
+                description: "Explication des améliorations"
+              }
+            },
+            required: ["content", "changes", "reasoning"]
+          }
+        }
+      };
+    } else if (category === 'links') {
+      const issues = seoAnalysis?.categories?.links?.issues || [];
+      const otherPostsList = otherPosts?.map(p => `- ${p.title} (/${p.slug})`).join('\n') || 'Aucun autre article';
+      
+      prompt = `Tu es un expert SEO. Enrichis cet article avec des liens internes et externes pertinents.
+
+ARTICLE ACTUEL :
+- Titre : ${post.title}
+- Mot-clé : ${post.focus_keyword}
+- URL de la boutique : ${post.shop_url || 'Non spécifiée'}
+- Contenu : ${post.content || ''}
+
+AUTRES ARTICLES DISPONIBLES :
+${otherPostsList}
+
+PROBLÈMES DÉTECTÉS :
+${issues.join('\n')}
+
+TÂCHE :
+Ajoute des liens dans le contenu :
+- 3-5 liens internes vers d'autres articles pertinents (utilise les articles disponibles)
+- 2-3 liens externes vers des sources fiables et pertinentes
+- Utilise des ancres naturelles et descriptives
+- Insère les liens de manière contextuelle dans le texte existant
+
+Retourne le contenu HTML avec les liens ajoutés.`;
+
+      toolDefinition = {
+        type: "function",
+        function: {
+          name: "optimize_links",
+          description: "Ajoute des liens internes et externes",
+          parameters: {
+            type: "object",
+            properties: {
+              content: { 
+                type: "string", 
+                description: "Le contenu HTML avec les liens ajoutés"
+              },
+              internal_links: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    anchor: { type: "string" },
+                    url: { type: "string" }
+                  }
+                },
+                description: "Liste des liens internes ajoutés"
+              },
+              external_links: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    anchor: { type: "string" },
+                    url: { type: "string" }
+                  }
+                },
+                description: "Liste des liens externes ajoutés"
+              },
+              reasoning: { 
+                type: "string",
+                description: "Explication des liens ajoutés"
+              }
+            },
+            required: ["content", "internal_links", "external_links", "reasoning"]
+          }
+        }
+      };
+    } else if (category === 'faq') {
+      const issues = seoAnalysis?.categories?.advanced?.issues || [];
+      
+      prompt = `Tu es un expert SEO. Crée une section FAQ pour cet article.
+
+ARTICLE ACTUEL :
+- Titre : ${post.title}
+- Mot-clé : ${post.focus_keyword}
+- Contenu : ${post.content?.substring(0, 1000) || ''}
+
+PROBLÈMES DÉTECTÉS :
+${issues.join('\n')}
+
+TÂCHE :
+Crée une section FAQ avec :
+- 3-5 questions pertinentes que les lecteurs pourraient se poser
+- Réponses détaillées (50-100 mots par réponse)
+- Questions qui incluent des variations du mot-clé principal
+- Format HTML avec structure <h2>Questions fréquentes</h2> + divs pour chaque Q&A
+- Schema.org FAQPage markup en JSON-LD
+
+Cette section sera ajoutée à la fin de l'article existant.`;
+
+      toolDefinition = {
+        type: "function",
+        function: {
+          name: "optimize_faq",
+          description: "Crée une section FAQ avec schema.org",
+          parameters: {
+            type: "object",
+            properties: {
+              faq_html: { 
+                type: "string", 
+                description: "La section FAQ en HTML à ajouter à l'article"
+              },
+              schema_markup: { 
+                type: "string",
+                description: "Le schema.org FAQPage en JSON-LD (format string)"
+              },
+              questions_count: {
+                type: "number",
+                description: "Nombre de questions créées"
+              },
+              reasoning: { 
+                type: "string",
+                description: "Explication des questions choisies"
+              }
+            },
+            required: ["faq_html", "schema_markup", "questions_count", "reasoning"]
+          }
+        }
+      };
+    } else if (category === 'full') {
+      // Full optimization combines multiple improvements
+      prompt = `Tu es un expert SEO. Réalise une optimisation complète de cet article.
+
+ARTICLE ACTUEL :
+- Titre : ${post.title}
+- Meta titre : ${post.meta_title || 'Aucun'}
+- Meta description : ${post.meta_description || 'Aucune'}
+- Mot-clé : ${post.focus_keyword || 'Aucun'}
+- Contenu : ${post.content || ''}
+
+ANALYSE SEO :
+Score actuel : ${seoAnalysis?.score || 0}/100
+
+TÂCHE COMPLÈTE :
+Optimise TOUS les aspects en une seule fois :
+1. Métadonnées (titre + description optimaux)
+2. Mots-clés (densité et placement)
+3. Structure du contenu (H2/H3, paragraphes, listes)
+4. Liens (internes + externes)
+5. FAQ (3-5 questions avec schema.org)
+
+Retourne un ensemble complet d'optimisations.`;
+
+      toolDefinition = {
+        type: "function",
+        function: {
+          name: "optimize_full",
+          description: "Optimisation complète de l'article",
+          parameters: {
+            type: "object",
+            properties: {
+              meta_title: { type: "string" },
+              meta_description: { type: "string" },
+              content: { type: "string" },
+              faq_html: { type: "string" },
+              schema_markup: { type: "string" },
+              changes_summary: {
+                type: "array",
+                items: { type: "string" },
+                description: "Résumé de tous les changements"
+              },
+              reasoning: { type: "string" }
+            },
+            required: ["meta_title", "meta_description", "content", "changes_summary", "reasoning"]
+          }
+        }
+      };
     } else {
       throw new Error(`Catégorie d'optimisation non supportée: ${category}`);
     }
@@ -183,17 +411,25 @@ Retourne le contenu HTML complet modifié et explique tes changements.`;
     console.log('Optimizations parsed:', optimizations);
 
     // Return optimizations with original values for comparison
+    let original: any = {};
+    
+    if (category === 'metadata' || category === 'full') {
+      original.meta_title = post.meta_title;
+      original.meta_description = post.meta_description;
+    }
+    
+    if (category === 'keywords' || category === 'content' || category === 'links' || category === 'full') {
+      original.content = post.content;
+    }
+    
+    if (category === 'faq' || category === 'full') {
+      original.has_faq = post.content?.includes('Questions fréquentes') || false;
+    }
+
     const result = {
       category,
       optimizations,
-      original: category === 'metadata' 
-        ? {
-            meta_title: post.meta_title,
-            meta_description: post.meta_description
-          }
-        : {
-            content: post.content
-          }
+      original
     };
 
     return new Response(JSON.stringify(result), {

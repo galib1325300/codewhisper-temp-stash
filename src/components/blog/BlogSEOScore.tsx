@@ -87,9 +87,27 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
 
   const handleApplyOptimization = (optimizations: any) => {
     if (onOptimizationApplied) {
-      onOptimizationApplied(optimizations);
+      // Prepare updates based on what was optimized
+      const updates: any = {};
+      
+      if (optimizations.meta_title) updates.meta_title = optimizations.meta_title;
+      if (optimizations.meta_description) updates.meta_description = optimizations.meta_description;
+      if (optimizations.content) updates.content = optimizations.content;
+      if (optimizations.faq_html) {
+        // Append FAQ to existing content
+        updates.content = (optimizations.content || '') + '\n\n' + optimizations.faq_html;
+      }
+      
+      onOptimizationApplied(updates);
       toast.success('✨ Optimisations appliquées ! N\'oubliez pas de sauvegarder.');
+      
+      // Reset analysis to force re-analysis
+      setAnalysis(null);
     }
+  };
+
+  const handleFullOptimization = async () => {
+    await handleOptimize('full');
   };
 
   const getGradeColor = (grade: string) => {
@@ -140,10 +158,24 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {!analysis ? (
-          <Button onClick={analyzePost} disabled={loading} className="w-full">
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? 'Analyse en cours...' : 'Analyser le SEO'}
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={analyzePost} disabled={loading} className="w-full">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading ? 'Analyse en cours...' : 'Analyser le SEO'}
+            </Button>
+            <Button 
+              onClick={handleFullOptimization} 
+              disabled={optimizing === 'full'} 
+              variant="outline"
+              className="w-full"
+            >
+              {optimizing === 'full' ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Optimisation complète en cours...</>
+              ) : (
+                <>✨ Optimiser automatiquement (sans analyse)</>
+              )}
+            </Button>
+          </div>
         ) : (
           <>
             {/* Overall Score */}
@@ -234,10 +266,23 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
             </div>
 
             {/* Quick Actions */}
-            <div className="pt-4 border-t">
-              <p className="text-sm text-muted-foreground mb-3">
-                Améliorez rapidement votre score :
-              </p>
+            <div className="pt-4 border-t space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Améliorez rapidement votre score :
+                </p>
+                <Button 
+                  size="sm"
+                  onClick={handleFullOptimization}
+                  disabled={optimizing === 'full'}
+                >
+                  {optimizing === 'full' ? (
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                  ) : (
+                    <>✨ Tout optimiser</>
+                  )}
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {analysis.score < 85 && (
                   <>
@@ -267,19 +312,43 @@ export function BlogSEOScore({ postId, onOptimizationApplied }: SEOScoreProps) {
                         )}
                       </Badge>
                     )}
-                    {analysis.categories.media.score < analysis.categories.media.max * 0.8 && (
-                      <Badge variant="outline" className="opacity-50 cursor-not-allowed">
-                        Ajouter des images (bientôt)
+                    {analysis.categories.content.score < analysis.categories.content.max * 0.8 && (
+                      <Badge 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary/10 transition-colors"
+                        onClick={() => handleOptimize('content')}
+                      >
+                        {optimizing === 'content' ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                        ) : (
+                          <>✨ Améliorer le contenu</>
+                        )}
                       </Badge>
                     )}
                     {analysis.categories.links.score < analysis.categories.links.max * 0.8 && (
-                      <Badge variant="outline" className="opacity-50 cursor-not-allowed">
-                        Enrichir les liens (bientôt)
+                      <Badge 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary/10 transition-colors"
+                        onClick={() => handleOptimize('links')}
+                      >
+                        {optimizing === 'links' ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                        ) : (
+                          <>✨ Enrichir les liens</>
+                        )}
                       </Badge>
                     )}
                     {analysis.categories.advanced.score < analysis.categories.advanced.max * 0.8 && (
-                      <Badge variant="outline" className="opacity-50 cursor-not-allowed">
-                        Ajouter une FAQ (bientôt)
+                      <Badge 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary/10 transition-colors"
+                        onClick={() => handleOptimize('faq')}
+                      >
+                        {optimizing === 'faq' ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                        ) : (
+                          <>✨ Ajouter une FAQ</>
+                        )}
                       </Badge>
                     )}
                   </>

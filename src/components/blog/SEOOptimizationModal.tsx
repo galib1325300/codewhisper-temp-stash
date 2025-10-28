@@ -22,7 +22,8 @@ const categoryLabels: Record<string, string> = {
   content: "Contenu",
   media: "Médias",
   links: "Liens",
-  faq: "FAQ"
+  faq: "FAQ",
+  full: "Optimisation complète"
 };
 
 export function SEOOptimizationModal({ open, onClose, onApply, data }: SEOOptimizationModalProps) {
@@ -120,7 +121,7 @@ export function SEOOptimizationModal({ open, onClose, onApply, data }: SEOOptimi
               </>
             )}
 
-            {category === 'keywords' && (
+            {(category === 'keywords' || category === 'content') && (
               <div className="space-y-4">
                 <Alert>
                   <Info className="h-4 w-4" />
@@ -141,6 +142,109 @@ export function SEOOptimizationModal({ open, onClose, onApply, data }: SEOOptimi
                       className="prose prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: optimizations.content?.substring(0, 1000) + '...' }}
                     />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {category === 'links' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Liens internes ajoutés</h4>
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
+                      <ul className="space-y-2">
+                        {optimizations.internal_links?.map((link: any, index: number) => (
+                          <li key={index} className="text-sm">
+                            <span className="font-medium">{link.anchor}</span>
+                            <div className="text-muted-foreground text-xs">{link.url}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Liens externes ajoutés</h4>
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
+                      <ul className="space-y-2">
+                        {optimizations.external_links?.map((link: any, index: number) => (
+                          <li key={index} className="text-sm">
+                            <span className="font-medium">{link.anchor}</span>
+                            <div className="text-muted-foreground text-xs">{link.url}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Aperçu du contenu avec liens</h4>
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-md max-h-96 overflow-y-auto">
+                    <div 
+                      className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: optimizations.content?.substring(0, 1000) + '...' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {category === 'faq' && (
+              <div className="space-y-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <span className="font-semibold">{optimizations.questions_count} questions créées</span> avec schema.org FAQPage
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Section FAQ à ajouter</h4>
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-md max-h-96 overflow-y-auto">
+                    <div 
+                      className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: optimizations.faq_html }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {category === 'full' && (
+              <div className="space-y-4">
+                <Alert>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertDescription>
+                    <span className="font-semibold">Optimisation complète réalisée :</span>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      {optimizations.changes_summary?.map((change: string, index: number) => (
+                        <li key={index} className="text-sm">{change}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Nouvelles métadonnées</h4>
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md text-sm">
+                      <div className="mb-2">
+                        <span className="font-medium">Titre :</span> {optimizations.meta_title}
+                      </div>
+                      <div>
+                        <span className="font-medium">Description :</span> {optimizations.meta_description}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Aperçu du contenu</h4>
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md max-h-32 overflow-y-auto">
+                      <div 
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: optimizations.content?.substring(0, 500) + '...' }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
