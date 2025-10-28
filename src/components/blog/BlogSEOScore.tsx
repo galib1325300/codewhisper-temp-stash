@@ -13,6 +13,7 @@ import { SEOOptimizationModal } from './SEOOptimizationModal';
 interface SEOScoreProps {
   postId: string;
   shopId: string;
+  formData?: any;
   onOptimizationApplied?: (updates: any) => void;
 }
 
@@ -37,7 +38,7 @@ interface SEOAnalysis {
   grade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
 }
 
-export function BlogSEOScore({ postId, shopId, onOptimizationApplied }: SEOScoreProps) {
+export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }: SEOScoreProps) {
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState<string | null>(null);
@@ -49,7 +50,10 @@ export function BlogSEOScore({ postId, shopId, onOptimizationApplied }: SEOScore
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-blog-seo', {
-        body: { postId }
+        body: { 
+          postId,
+          formContent: formData // Analyser le contenu du formulaire si disponible
+        }
       });
 
       if (error) throw error;
@@ -132,8 +136,99 @@ export function BlogSEOScore({ postId, shopId, onOptimizationApplied }: SEOScore
     }
   };
 
+  const regenerateArticle = async () => {
+    setOptimizing('full');
+    
+    try {
+      // Récupérer l'article actuel pour contexte
+      const { data: post } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (!post) throw new Error('Article non trouvé');
+
+      toast.info('🔄 Régénération complète de l\'article en cours...');
+
+      // Appeler generate-blog-post avec contexte
+      const { data, error } = await supabase.functions.invoke('generate-blog-post', {
+        body: { 
+          shopId: shopId,
+          topic: post.title,
+          keywords: post.focus_keyword ? [post.focus_keyword] : [],
+          existingContent: post.content,
+          mode: 'regenerate',
+          analyzeCompetitors: true
+        }
+      });
+
+      if (error) throw error;
+
+      // Appliquer toutes les modifications
+      if (onOptimizationApplied) {
+        onOptimizationApplied({
+          title: data.title,
+          content: data.content,
+          meta_title: data.seo_title,
+          meta_description: data.meta_description,
+          excerpt: data.excerpt,
+          focus_keyword: data.focus_keyword,
+          featured_image: data.featured_image || formData?.featured_image
+        });
+      }
+
+      // Sauvegarder l'historique
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        await supabase.from('seo_optimization_history').insert({
+          post_id: postId,
+          shop_id: shopId,
+          optimization_type: 'full_regeneration',
+          score_before: analysis?.score || null,
+          score_after: null,
+          changes_applied: {
+            type: 'regeneration',
+            oldContent: post.content.substring(0, 200) + '...',
+            newContent: data.content.substring(0, 200) + '...'
+          },
+          applied_by: user?.id
+        });
+      } catch (error) {
+        console.error('Error saving optimization history:', error);
+      }
+
+      toast.success('✨ Article complètement régénéré ! N\'oubliez pas de sauvegarder.');
+      
+      // Réanalyser après un court délai
+      setTimeout(() => {
+        setAnalysis(null);
+        analyzePost();
+      }, 2000);
+    } catch (error: any) {
+      console.error('Erreur régénération:', error);
+      toast.error(error.message || 'Erreur lors de la régénération');
+    } finally {
+      setOptimizing(null);
+    }
+  };
+
   const handleFullOptimization = async () => {
-    await handleOptimize('full');
+    if (!analysis) {
+      // Pas d'analyse : régénération complète
+      await regenerateArticle();
+      return;
+    }
+
+    if (analysis.score <= 60) {
+      // Score mauvais → régénération complète
+      toast.info('Score trop faible, régénération complète de l\'article...');
+      await regenerateArticle();
+    } else {
+      // Score correct → optimisation ciblée
+      await handleOptimize('full');
+    }
   };
 
   const getGradeColor = (grade: string) => {
@@ -303,9 +398,10 @@ export function BlogSEOScore({ postId, shopId, onOptimizationApplied }: SEOScore
                   disabled={optimizing === 'full'}
                 >
                   {optimizing === 'full' ? (
-                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Optimisation...</>
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> 
+                    {!analysis || analysis.score <= 60 ? 'Régénération...' : 'Optimisation...'}</>
                   ) : (
-                    <>✨ Tout optimiser</>
+                    <>✨ {!analysis || analysis.score <= 60 ? 'Régénérer l\'article' : 'Tout optimiser'}</>
                   )}
                 </Button>
               </div>

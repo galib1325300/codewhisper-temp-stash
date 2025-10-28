@@ -515,8 +515,10 @@ export default function BlogPostDetailPage() {
               <BlogSEOScore 
                 postId={postId!}
                 shopId={shopId!}
+                formData={formData}
                 onOptimizationApplied={(updates) => {
                   setFormData(prev => ({ ...prev, ...updates }));
+                  toast.success('Optimisations appliquées au formulaire');
                 }}
               />
 

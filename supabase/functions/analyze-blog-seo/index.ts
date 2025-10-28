@@ -12,21 +12,30 @@ serve(async (req) => {
   }
 
   try {
-    const { postId } = await req.json();
+    const { postId, formContent } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get blog post
-    const { data: post, error: postError } = await supabase
-      .from('blog_posts')
-      .select('*')
-      .eq('id', postId)
-      .single();
+    let post;
+    if (formContent) {
+      // Analyser le contenu du formulaire (modifications non sauvegardées)
+      post = formContent;
+      console.log('Analyzing form content (unsaved changes)');
+    } else {
+      // Analyser depuis la DB
+      const { data, error: postError } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
 
-    if (postError || !post) {
-      throw new Error('Article introuvable');
+      if (postError || !data) {
+        throw new Error('Article introuvable');
+      }
+      post = data;
+      console.log('Analyzing saved content from DB');
     }
 
     const analysis = analyzeSEO(post);

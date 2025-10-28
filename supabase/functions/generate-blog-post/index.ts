@@ -28,7 +28,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { shopId, topic, keywords = [], collectionIds = [], analyzeCompetitors = false } = await req.json();
+    const { 
+      shopId, 
+      topic, 
+      keywords = [], 
+      collectionIds = [], 
+      analyzeCompetitors = false,
+      existingContent = null,
+      mode = 'create'
+    } = await req.json();
 
     // Get shop data
     const { data: shop, error: shopError } = await supabaseClient
@@ -121,6 +129,31 @@ ${topCompetitors}
 `;
     }
 
+    // Contexte de régénération si mode regenerate
+    let regenerateContext = '';
+    if (mode === 'regenerate' && existingContent) {
+      const plainText = existingContent.replace(/<[^>]*>/g, ' ').trim();
+      const excerpt = plainText.substring(0, 500);
+      
+      regenerateContext = `
+
+⚠️ MODE RÉGÉNÉRATION :
+Cet article existe déjà mais est de MAUVAISE qualité SEO (score ≤ 60/100). Tu dois le RÉÉCRIRE COMPLÈTEMENT en :
+
+1. GARDANT les informations factuelles importantes de l'ancien contenu
+2. RESTRUCTURANT totalement la présentation avec une structure SEO optimale
+3. AJOUTANT beaucoup plus de contenu (1500+ mots minimum)
+4. OPTIMISANT 100% pour le SEO (tableaux, FAQ schema, liens internes, etc.)
+5. Utilisant un ton professionnel et engageant
+
+ANCIEN CONTENU (pour référence uniquement - NE PAS COPIER) :
+${excerpt}...
+
+❌ NE COPIE PAS l'ancien contenu tel quel
+✅ RÉÉCRIS-LE complètement avec une approche SEO moderne et des éléments riches (tableaux, FAQ, structure avancée)
+      `;
+    }
+
     const systemPrompt = serpAnalysis 
       ? "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T. IMPORTANT: Tu as analysé les concurrents en top 3 de Google - ton objectif est de créer un contenu MEILLEUR qui les surpasse en qualité, profondeur, et utilité pour l'utilisateur."
       : "Tu es un expert SEO senior et content strategist spécialisé en e-commerce. Tu crées des articles 100% optimisés pour Google avec une expertise avancée en on-page SEO, sémantique et expérience utilisateur. Tous tes contenus respectent les dernières guidelines Google E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness).";
@@ -136,6 +169,7 @@ CONTEXTE BOUTIQUE :
 ${keywordsText}
 ${collectionsContext}
 ${serpContext}
+${regenerateContext}
 
 CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 
