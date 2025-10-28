@@ -76,6 +76,15 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
     }
     
     try {
+      // Récupérer les données depuis la DB si formData n'est pas disponible
+      const { data: post } = await supabase
+        .from('blog_posts')
+        .select('content, title, shop_id')
+        .eq('id', postId)
+        .single();
+
+      if (!post) throw new Error('Article non trouvé');
+
       const { data, error } = await supabase.functions.invoke('optimize-blog-seo', {
         body: { 
           postId, 
@@ -94,17 +103,64 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
       // Messages d'erreur personnalisés
       let errorMessage = 'Erreur lors de l\'optimisation';
       
-      if (error.message?.includes('JSON') || error.message?.includes('parse')) {
+      if (error.message?.includes('Failed to send a request') || error.message?.includes('ERR_CONNECTION_CLOSED')) {
+        errorMessage = '⚠️ Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.';
+      } else if (error.message?.includes('JSON') || error.message?.includes('parse')) {
         errorMessage = '⚠️ L\'IA a retourné une réponse invalide. Veuillez réessayer.';
       } else if (error.message?.includes('429')) {
-        errorMessage = '⏱️ Trop de requêtes. Attendez quelques secondes et réessayez.';
+        errorMessage = '⏱️ Trop de requêtes. Attendez 30 secondes et réessayez.';
       } else if (error.message?.includes('402')) {
-        errorMessage = '💳 Crédits Lovable AI épuisés. Rechargez vos crédits.';
+        errorMessage = '💳 Crédits Lovable AI épuisés. Rechargez vos crédits dans Settings.';
       } else if (error.message) {
         errorMessage = error.message;
       }
       
       toast.error(errorMessage);
+    } finally {
+      setOptimizing(null);
+    }
+  };
+
+  const handleAddFAQ = async () => {
+    setOptimizing('faq');
+    
+    try {
+      const { data: post } = await supabase
+        .from('blog_posts')
+        .select('content, title, focus_keyword')
+        .eq('id', postId)
+        .single();
+
+      if (!post) throw new Error('Article non trouvé');
+
+      const { data, error } = await supabase.functions.invoke('add-blog-faq', {
+        body: { 
+          postId, 
+          shopId,
+          content: formData?.content || post.content,
+          topic: post.title,
+          focusKeyword: post.focus_keyword
+        }
+      });
+
+      if (error) throw error;
+
+      if (onOptimizationApplied && data.content) {
+        onOptimizationApplied({
+          content: data.content
+        });
+      }
+
+      toast.success(`✅ ${data.faqCount} questions FAQ ajoutées avec schema.org !`);
+      
+      // Réanalyser après ajout
+      setTimeout(() => {
+        setAnalysis(null);
+        analyzePost();
+      }, 1000);
+    } catch (error: any) {
+      console.error('Error adding FAQ:', error);
+      toast.error(error.message || 'Erreur lors de l\'ajout de la FAQ');
     } finally {
       setOptimizing(null);
     }
@@ -469,6 +525,19 @@ export function BlogSEOScore({ postId, shopId, formData, onOptimizationApplied }
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
+                {analysis.categories.advanced.score < analysis.categories.advanced.max && (
+                  <Badge 
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-primary/10 transition-colors"
+                    onClick={() => handleAddFAQ()}
+                  >
+                    {optimizing === 'faq' ? (
+                      <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Ajout FAQ...</>
+                    ) : (
+                      <>📋 Ajouter FAQ avec schema</>
+                    )}
+                  </Badge>
+                )}
                 {analysis.score < 85 && (
                   <>
                     {analysis.categories.metadata.score < analysis.categories.metadata.max * 0.8 && (

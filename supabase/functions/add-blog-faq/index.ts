@@ -188,6 +188,59 @@ IMPORTANT: Les questions doivent être VRAIMENT pertinentes pour le sujet et app
       throw new Error('Format de réponse invalide de l\'IA');
     }
 
+    // Détecter FAQ existante
+    const hasFaqSection = /<div[^>]*class\s*=\s*["'][^"']*faq-section[^"']*["'][^>]*>/i.test(content);
+    const hasFaqHeading = /<h[23][^>]*>.*?(faq|questions?\s+fr[eé]quentes?).*?<\/h[23]>/is.test(content);
+    const hasJsonLdFaq = content.includes('application/ld+json') && content.includes('FAQPage');
+
+    if (hasFaqSection || hasFaqHeading) {
+      if (hasJsonLdFaq) {
+        // FAQ complète déjà présente
+        console.log('FAQ already exists with schema, skipping...');
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Une FAQ avec schema est déjà présente',
+          content: content,
+          faqCount: 0
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } else {
+        // FAQ visuelle présente mais sans JSON-LD → ajouter seulement le schema
+        console.log('FAQ exists but missing JSON-LD, adding schema only...');
+        const schemaScript = `\n\n<script type="application/ld+json">\n${JSON.stringify(faqData.schema_json_ld, null, 2)}\n</script>`;
+        const updatedContent = content + schemaScript;
+        
+        // Update the blog post with schema
+        const { error: updateError } = await supabase
+          .from('blog_posts')
+          .update({ 
+            content: updatedContent,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', postId);
+
+        if (updateError) {
+          console.error('Error updating post with schema:', updateError);
+          return new Response(JSON.stringify({ error: updateError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(JSON.stringify({ 
+          success: true,
+          content: updatedContent,
+          faqCount: faqData.faq.questions.length,
+          questions: faqData.faq.questions,
+          schema: faqData.schema_json_ld,
+          message: `Schema JSON-LD ajouté pour ${faqData.faq.questions.length} questions FAQ existantes`
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Insert FAQ section before the conclusion or at the end
     let updatedContent = content;
     

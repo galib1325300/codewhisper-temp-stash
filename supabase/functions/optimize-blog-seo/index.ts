@@ -61,9 +61,10 @@ ${issues.join('\n')}
 
 TÂCHE :
 Génère un meta_title (50-60 caractères) et une meta_description (150-160 caractères) qui :
-- Incluent le mot-clé focus "${post.focus_keyword}" en début si possible
+- **OBLIGATOIRE** : Incluent TOUJOURS le mot-clé focus "${post.focus_keyword}" en tout début
+- Si le mot-clé est trop long (>40 caractères), utiliser une version raccourcie mais reconnaissable
 - Sont accrocheurs et incitent au clic
-- Respectent les longueurs optimales
+- Respectent les longueurs optimales (priorité au mot-clé, puis compléter)
 - Sont cohérents avec le contenu de l'article
 
 Fournis également une explication détaillée de tes choix.`;
@@ -96,12 +97,15 @@ Fournis également une explication détaillée de tes choix.`;
     } else if (category === 'keywords') {
       const issues = seoAnalysis?.categories?.keywords?.issues || [];
       const currentContent = post.content || '';
+      const wordCount = currentContent.replace(/<[^>]*>/g, '').split(/\s+/).filter(w => w.length > 0).length;
+      const targetOccurrences = Math.ceil(wordCount * 0.015);
       
       prompt = `Tu es un expert SEO. Optimise le contenu de cet article pour améliorer la densité et le placement des mots-clés.
 
 ARTICLE ACTUEL :
 - Titre : ${post.title}
 - Mot-clé focus : ${post.focus_keyword || 'Aucun'}
+- Nombre de mots : ${wordCount}
 - Contenu actuel : ${currentContent}
 
 PROBLÈMES DÉTECTÉS :
@@ -112,7 +116,10 @@ Modifie le contenu HTML pour :
 - Placer le mot-clé "${post.focus_keyword}" dans le premier paragraphe s'il n'y est pas
 - Ajouter le mot-clé dans 2-3 balises <strong> de manière naturelle
 - Inclure le mot-clé dans au moins un H2 ou H3
-- Viser une densité de 1-2% (naturelle, pas de bourrage)
+- **CRITIQUE** : Viser une densité de **1-2%** en insérant environ ${targetOccurrences} occurrences du mot-clé
+  * Répartir naturellement dans tout l'article (début, milieu, fin)
+  * Utiliser des variations et synonymes pour éviter la répétition exacte
+- **INTERDIT** : Ne jamais insérer de liens dans les titres (H1 à H6)
 - Garder le reste du contenu identique
 
 Retourne le contenu HTML complet modifié et explique tes changements.`;
@@ -416,6 +423,34 @@ Retourne un ensemble complet d'optimisations.`;
       throw new Error('Format de réponse invalide de l\'IA. Veuillez réessayer.');
     }
     console.log('Optimizations parsed:', optimizations);
+
+    // NETTOYAGE OBLIGATOIRE : Retirer tous les liens des titres H1-H6
+    if (optimizations.content) {
+      optimizations.content = optimizations.content.replace(
+        /<(h[123456])[^>]*>(.*?)<\/h[123456]>/gi,
+        (match, tag, content) => {
+          const cleanContent = content.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1');
+          return `<${tag}>${cleanContent}</${tag}>`;
+        }
+      );
+    }
+
+    // Validation : Vérifier que le mot-clé est présent dans les métadonnées
+    if (category === 'metadata' && post.focus_keyword) {
+      const keyword = post.focus_keyword.toLowerCase();
+      if (optimizations.meta_title && !optimizations.meta_title.toLowerCase().includes(keyword)) {
+        // Forcer l'insertion en début
+        const shortened = optimizations.meta_title.substring(0, 50 - keyword.length - 3);
+        optimizations.meta_title = `${post.focus_keyword} - ${shortened}...`;
+        console.log('Keyword forced in meta_title:', optimizations.meta_title);
+      }
+      if (optimizations.meta_description && !optimizations.meta_description.toLowerCase().includes(keyword)) {
+        // Forcer l'insertion en début
+        const shortened = optimizations.meta_description.substring(0, 150 - keyword.length - 3);
+        optimizations.meta_description = `${post.focus_keyword} - ${shortened}...`;
+        console.log('Keyword forced in meta_description:', optimizations.meta_description);
+      }
+    }
 
     // Return optimizations with original values for comparison
     let original: any = {};

@@ -432,22 +432,9 @@ export default function BlogPostDetailPage() {
                   <Button
                     variant="primary"
                     className="w-full mt-2"
-                    onClick={async () => {
-                      // Vérifier si l'article existe sur WordPress
-                      try {
-                        const articleUrl = `${shop.url}/${formData.slug}/`;
-                        const response = await fetch(articleUrl, { method: 'HEAD' });
-                        
-                        if (response.status === 404) {
-                          toast.error('⚠️ Article non publié sur WordPress. Utilisez le bouton Publier d\'abord.');
-                          return;
-                        }
-                        
-                        window.open(articleUrl, '_blank');
-                      } catch (error) {
-                        // En cas d'erreur de connexion, ouvrir quand même
-                        window.open(`${shop.url}/${formData.slug}/`, '_blank');
-                      }
+                    onClick={() => {
+                      const articleUrl = `${shop.url}/${formData.slug}/`;
+                      window.open(articleUrl, '_blank');
                     }}
                     disabled={post.status !== 'publish'}
                   >
@@ -534,11 +521,26 @@ export default function BlogPostDetailPage() {
                     <Button
                       variant="secondary"
                       className="w-full"
-                      onClick={handleSync}
-                      disabled={syncing}
+                      onClick={async () => {
+                        if (!shop) return;
+                        setSyncing(true);
+                        toast.info('⏳ Synchronisation avec WordPress...');
+                        try {
+                          await supabase.functions.invoke('sync-wordpress-posts', {
+                            body: { shopId: shop.id, postId: postId }
+                          });
+                          toast.success('✅ Article synchronisé sur WordPress !');
+                        } catch (error) {
+                          console.error('WordPress sync error:', error);
+                          toast.error('❌ Erreur de synchronisation. Vérifiez votre connexion WordPress.');
+                        } finally {
+                          setSyncing(false);
+                        }
+                      }}
+                      disabled={syncing || post.status !== 'publish'}
                     >
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      {syncing ? 'Synchronisation...' : 'Synchroniser les données'}
+                      {syncing ? 'Synchronisation...' : 'Synchroniser avec WordPress'}
                     </Button>
 
                     <Button
