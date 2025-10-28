@@ -57,6 +57,17 @@ serve(async (req) => {
       throw new Error(`Failed to fetch shop: ${shopError.message}`);
     }
 
+    // Get existing cluster articles for internal linking
+    const { data: clusterArticles, error: articlesError } = await supabaseClient
+      .from('blog_posts')
+      .select('id, title, slug')
+      .eq('cluster_id', clusterId)
+      .limit(5);
+    
+    if (articlesError) {
+      console.log('Warning: Could not fetch cluster articles:', articlesError);
+    }
+
     // Generate article with AI
     const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!aiApiKey) {
@@ -68,13 +79,18 @@ serve(async (req) => {
       ? targetKeywords[Math.floor(Math.random() * targetKeywords.length)]
       : cluster.pillar_keyword;
 
+    // Build internal links context
+    const internalLinksContext = clusterArticles && clusterArticles.length > 0
+      ? `\n\nARTICLES DU CLUSTER EXISTANTS (pour liens internes):\n${clusterArticles.map(a => `- "${a.title}" (/${a.slug})`).join('\n')}`
+      : '';
+
     const prompt = `Tu es un expert en rédaction SEO pour e-commerce. Génère UN SEUL article de blog complet et optimisé SEO.
 
 INFORMATIONS DU CLUSTER:
 - Nom du cluster: ${cluster.name}
 - Mot-clé pilier: ${cluster.pillar_keyword}
 - Description: ${cluster.description || 'N/A'}
-- Mots-clés cibles: ${targetKeywords.join(', ') || 'N/A'}
+- Mots-clés cibles: ${targetKeywords.join(', ') || 'N/A'}${internalLinksContext}
 
 INFORMATIONS DE LA BOUTIQUE:
 - Nom: ${shop.name}
@@ -87,15 +103,18 @@ CONSIGNES:
 4. Inclus des exemples concrets et pratiques
 5. Longueur: 1200-1800 mots minimum
 6. Ton: Professionnel et accessible
+7. ${clusterArticles && clusterArticles.length > 0 ? `IMPORTANT: Inclus 2-3 liens internes HTML vers les articles existants du cluster dans le contenu (utilise <a href="/${shop.url}/slug-article">texte du lien</a>)` : 'Pas de liens internes disponibles pour le moment'}
+8. Ajoute une section FAQ en fin d'article (3-4 questions/réponses pertinentes)
 
 RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans balises):
 {
   "title": "Titre accrocheur avec mot-clé",
   "slug": "url-slug-optimise",
   "meta_description": "Description SEO 150-160 caractères",
-  "content": "Contenu HTML complet avec <h2>, <h3>, <p>, <ul>, <li>",
+  "content": "Contenu HTML complet avec <h2>, <h3>, <p>, <ul>, <li> et liens internes",
   "excerpt": "Résumé court 100-150 mots",
-  "focus_keyword": "${randomKeyword}"
+  "focus_keyword": "${randomKeyword}",
+  "image_prompt": "Description courte pour générer une image featured (ex: 'Photo professionnelle d'un bureau moderne avec ordinateur')"
 }`;
 
     console.log('Calling AI API...');
@@ -149,6 +168,45 @@ RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans balises):
       throw new Error('Invalid JSON response from AI');
     }
 
+    // Generate featured image with Nano banana
+    let featuredImageUrl = null;
+    if (articleData.image_prompt) {
+      console.log('Generating featured image...');
+      try {
+        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${aiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image-preview',
+            messages: [
+              {
+                role: 'user',
+                content: articleData.image_prompt || `Image professionnelle pour article: ${articleData.title}`
+              }
+            ],
+            modalities: ['image', 'text']
+          }),
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          if (imageUrl) {
+            featuredImageUrl = imageUrl;
+            console.log('Featured image generated successfully');
+          }
+        } else {
+          console.log('Image generation failed, continuing without image');
+        }
+      } catch (imageError) {
+        console.error('Error generating image:', imageError);
+        // Continue without image - don't fail the whole article
+      }
+    }
+
     // Insert article into database
     const { data: insertedArticle, error: insertError } = await supabaseClient
       .from('blog_posts')
@@ -161,6 +219,7 @@ RÉPONDS UNIQUEMENT EN JSON (sans markdown, sans balises):
         excerpt: articleData.excerpt,
         meta_description: articleData.meta_description,
         focus_keyword: articleData.focus_keyword,
+        featured_image: featuredImageUrl,
         status: 'draft',
         author_id: cluster.created_by || null,
       })

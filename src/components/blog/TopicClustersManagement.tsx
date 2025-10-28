@@ -436,22 +436,14 @@ export default function TopicClustersManagement({ shopId }: TopicClustersManagem
                         </Button>
                       </>
                     )}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => navigate(`/admin/shops/${shopId}/blog?cluster=${cluster.id}`)}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Voir les articles de ce cluster</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => navigate(`/admin/shops/${shopId}/blog?cluster=${cluster.id}`)}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Voir articles
+                    </Button>
                     <Button 
                       variant="ghost" 
                       size="sm"

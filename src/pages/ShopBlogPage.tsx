@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
 import AdminSidebar from '../components/AdminSidebar';
 import ShopNavigation from '../components/ShopNavigation';
@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users, Network } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users, Network, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -15,13 +15,18 @@ import TopicSuggestionsModal from '../components/blog/TopicSuggestionsModal';
 import AuthorManagement from '../components/blog/AuthorManagement';
 import TopicClustersManagement from '../components/blog/TopicClustersManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 export default function ShopBlogPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clusterId = searchParams.get('cluster');
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [blogPosts, setBlogPosts] = useState<any[]>([]);
+  const [activeCluster, setActiveCluster] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -62,6 +67,9 @@ export default function ShopBlogPage() {
           loadBlogPosts();
           loadCollections();
           loadAuthors();
+          if (clusterId) {
+            loadCluster();
+          }
         }
       } catch (error) {
         console.error('Error loading shop:', error);
@@ -71,7 +79,39 @@ export default function ShopBlogPage() {
     };
 
     loadShop();
-  }, [id]);
+  }, [id, clusterId]);
+
+  const loadCluster = async () => {
+    if (!clusterId) {
+      setActiveCluster(null);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('topic_clusters')
+        .select('*')
+        .eq('id', clusterId)
+        .single();
+      
+      if (error) throw error;
+      
+      // Count posts in this cluster
+      const { count } = await supabase
+        .from('blog_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('cluster_id', clusterId);
+      
+      setActiveCluster({
+        ...data,
+        posts_count: count || 0,
+        target_keywords: Array.isArray(data.target_keywords) ? data.target_keywords : []
+      });
+    } catch (error) {
+      console.error('Error loading cluster:', error);
+      toast.error('Erreur lors du chargement du cluster');
+    }
+  };
 
   const loadBlogPosts = async () => {
     try {
@@ -323,9 +363,55 @@ export default function ShopBlogPage() {
                 </TabsList>
 
                 <TabsContent value="articles" className="m-0">
+                  {activeCluster && (
+                    <Card className="m-6 mb-0 p-4 bg-primary/5 border-primary/20">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Network className="h-5 w-5 text-primary" />
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Cluster : {activeCluster.name}
+                            </h3>
+                            <Badge variant="secondary" className="font-mono">
+                              {activeCluster.pillar_keyword}
+                            </Badge>
+                          </div>
+                          {activeCluster.description && (
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {activeCluster.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-sm text-muted-foreground">
+                              📊 {activeCluster.posts_count} article{activeCluster.posts_count > 1 ? 's' : ''}
+                            </span>
+                            {activeCluster.target_keywords && activeCluster.target_keywords.length > 0 && (
+                              <span className="text-sm text-muted-foreground">
+                                🎯 {activeCluster.target_keywords.slice(0, 3).join(', ')}
+                                {activeCluster.target_keywords.length > 3 && ` +${activeCluster.target_keywords.length - 3}`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setSearchParams({});
+                            setActiveCluster(null);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+                  
                   <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-semibold text-gray-900">Articles de blog</h2>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {activeCluster ? `Articles du cluster "${activeCluster.name}"` : 'Articles de blog'}
+                      </h2>
                       <div className="flex items-center space-x-4">
                     <div className="relative">
                       <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -559,11 +645,18 @@ export default function ShopBlogPage() {
                 ) : (
                   <div className="space-y-4">
                     {blogPosts
-                      .filter(post => 
-                        !searchQuery || 
-                        post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
-                      )
+                      .filter(post => {
+                        // Filter by cluster if active
+                        if (activeCluster && post.cluster_id !== activeCluster.id) {
+                          return false;
+                        }
+                        // Filter by search query
+                        if (searchQuery) {
+                          return post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                 post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase());
+                        }
+                        return true;
+                      })
                       .map((post) => (
                         <div 
                           key={post.id} 
