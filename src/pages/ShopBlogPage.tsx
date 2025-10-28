@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import { getShopById } from '../utils/shops';
 import { SEOContentService } from '../utils/seoContent';
 import { Shop } from '../utils/types';
-import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users, Network, X } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2, Calendar, Search, AlertTriangle, Settings, Lightbulb, Users, Network, X, CheckSquare, Square, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -51,6 +51,7 @@ export default function ShopBlogPage() {
   }>({});
   const [authors, setAuthors] = useState<any[]>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
+  const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -289,6 +290,104 @@ export default function ShopBlogPage() {
     return badges[status as keyof typeof badges] || badges.draft;
   };
 
+  const handleSelectAll = () => {
+    const filteredPosts = blogPosts.filter(post => {
+      if (activeCluster && post.cluster_id !== activeCluster.id) return false;
+      if (searchQuery) {
+        return post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      return true;
+    });
+    
+    if (selectedPosts.length === filteredPosts.length) {
+      setSelectedPosts([]);
+    } else {
+      setSelectedPosts(filteredPosts.map(p => p.id));
+    }
+  };
+
+  const handleTogglePost = (postId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedPosts.includes(postId)) {
+      setSelectedPosts(selectedPosts.filter(id => id !== postId));
+    } else {
+      setSelectedPosts([...selectedPosts, postId]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedPosts.length === 0) return;
+    
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedPosts.length} article(s) ?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('blog_posts')
+        .delete()
+        .in('id', selectedPosts);
+      
+      if (error) throw error;
+      
+      toast.success(`${selectedPosts.length} article(s) supprimé(s)`);
+      setSelectedPosts([]);
+      loadBlogPosts();
+    } catch (error) {
+      console.error('Error deleting posts:', error);
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  const handleBulkRegenerate = async () => {
+    if (selectedPosts.length === 0) return;
+    
+    if (!confirm(`Voulez-vous régénérer ${selectedPosts.length} article(s) ? Cette action peut prendre plusieurs minutes.`)) return;
+    
+    toast.info(`Régénération de ${selectedPosts.length} article(s) en cours...`);
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const postId of selectedPosts) {
+      try {
+        const post = blogPosts.find(p => p.id === postId);
+        if (!post) continue;
+        
+        const { data, error } = await supabase.functions.invoke('generate-blog-post', {
+          body: {
+            shopId: shop?.id,
+            topic: post.title,
+            keywords: post.focus_keyword ? [post.focus_keyword] : [],
+            collectionIds: [],
+            analyzeCompetitors: false,
+            postId: postId // Pour mettre à jour l'article existant
+          }
+        });
+        
+        if (error) throw error;
+        
+        if (data.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        console.error(`Error regenerating post ${postId}:`, error);
+        errorCount++;
+      }
+    }
+    
+    setSelectedPosts([]);
+    loadBlogPosts();
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} article(s) régénéré(s) avec succès`);
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} article(s) ont échoué`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -466,6 +565,44 @@ export default function ShopBlogPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Barre d'outils de sélection multiple */}
+                {selectedPosts.length > 0 && (
+                  <div className="mx-6 mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CheckSquare className="w-5 h-5 text-indigo-600" />
+                      <span className="font-medium text-indigo-900">
+                        {selectedPosts.length} article(s) sélectionné(s)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleBulkRegenerate}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Régénérer
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setSelectedPosts([])}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {showForm ? (
                   <form onSubmit={handleGeneratePost} className="max-w-2xl mx-auto space-y-6">
@@ -651,7 +788,30 @@ export default function ShopBlogPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="p-6">
+                    {/* Checkbox "Tout sélectionner" */}
+                    <div className="mb-4 flex items-center gap-2">
+                      <button
+                        onClick={handleSelectAll}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        {selectedPosts.length === blogPosts.filter(post => {
+                          if (activeCluster && post.cluster_id !== activeCluster.id) return false;
+                          if (searchQuery) {
+                            return post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                   post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase());
+                          }
+                          return true;
+                        }).length && selectedPosts.length > 0 ? (
+                          <CheckSquare className="w-4 h-4 text-indigo-600" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                        <span>Tout sélectionner</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
                     {blogPosts
                       .filter(post => {
                         // Filter by cluster if active
@@ -671,7 +831,19 @@ export default function ShopBlogPage() {
                           className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
                           onClick={() => navigate(`/admin/shops/${id}/blog/${post.id}`)}
                         >
-                          <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-4">
+                            {/* Checkbox de sélection */}
+                            <div 
+                              className="mt-1"
+                              onClick={(e) => handleTogglePost(post.id, e)}
+                            >
+                              {selectedPosts.includes(post.id) ? (
+                                <CheckSquare className="w-5 h-5 text-indigo-600" />
+                              ) : (
+                                <Square className="w-5 h-5 text-gray-400 hover:text-indigo-600" />
+                              )}
+                            </div>
+
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-lg font-semibold text-gray-900">{post.title}</h3>
@@ -708,16 +880,36 @@ export default function ShopBlogPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                              <button 
+                                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/admin/shops/${id}/blog/${post.id}`);
+                                }}
+                              >
                                 <Edit className="w-4 h-4" />
                               </button>
-                              <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                              <button 
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) return;
+                                  try {
+                                    await supabase.from('blog_posts').delete().eq('id', post.id);
+                                    toast.success('Article supprimé');
+                                    loadBlogPosts();
+                                  } catch (error) {
+                                    toast.error('Erreur lors de la suppression');
+                                  }
+                                }}
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
                         </div>
                       ))}
+                  </div>
                   </div>
                 )}
               </TabsContent>
