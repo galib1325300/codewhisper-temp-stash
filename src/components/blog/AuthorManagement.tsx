@@ -400,11 +400,11 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
                         <img 
                           src={author.avatar_url} 
                           alt={author.name}
-                          className="w-12 h-12 rounded-full object-cover"
+                          className="w-20 h-20 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <User className="h-6 w-6 text-muted-foreground" />
+                        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                          <User className="h-10 w-10 text-muted-foreground" />
                         </div>
                       )}
                       <button

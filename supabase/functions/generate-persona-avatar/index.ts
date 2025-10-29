@@ -44,11 +44,25 @@ serve(async (req) => {
 
     console.log(`Génération d'avatar pour ${persona.name}`);
 
-    // Déterminer le genre basé sur le prénom (heuristique simple)
+    // Déterminer le genre basé sur le prénom
     const firstName = persona.name.split(' ')[0].toLowerCase();
-    const femaleNames = ['marie', 'sophie', 'claire', 'julie', 'emma', 'camille', 'lucie', 'laura', 'sarah', 'léa'];
-    const isFemale = femaleNames.some(name => firstName.includes(name));
-    const gender = isFemale ? 'female' : 'male';
+    const femaleNames = [
+      'marie', 'sophie', 'claire', 'julie', 'emma', 'camille', 'lucie', 'laura', 'sarah', 'léa',
+      'nathalie', 'isabelle', 'catherine', 'patricia', 'christine', 'véronique', 'sylvie',
+      'florence', 'valérie', 'audrey', 'marion', 'elise', 'charlotte', 'alice', 'léna',
+      'manon', 'anaïs', 'marine', 'pauline', 'cécile', 'hélène', 'amélie', 'émilie'
+    ];
+    const maleNames = [
+      'marc', 'jean', 'pierre', 'paul', 'jacques', 'michel', 'philippe', 'alain', 'bernard',
+      'jérôme', 'nicolas', 'julien', 'thomas', 'alexandre', 'maxime', 'antoine', 'françois',
+      'laurent', 'david', 'stéphane', 'olivier', 'vincent', 'sébastien', 'frédéric'
+    ];
+    
+    const isFemale = femaleNames.some(name => firstName.includes(name) || name.includes(firstName));
+    const isMale = maleNames.some(name => firstName.includes(name) || name.includes(firstName));
+    
+    // Si détection claire, utiliser le genre. Sinon, par défaut 'male'
+    const gender = isFemale && !isMale ? 'female' : 'male';
 
     // Appel à Lovable AI pour générer l'image
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
