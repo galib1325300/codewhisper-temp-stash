@@ -146,3 +146,6 @@ verify_jwt = false
 
 [functions.generate-persona-voice]
 verify_jwt = false
+
+[functions.add-author-signature]
+verify_jwt = false

@@ -622,6 +622,75 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       console.error('Error adding internal links (non-critical):', linksError);
     }
 
+    // Add author signature if author is assigned
+    if (selectedAuthorId) {
+      try {
+        console.log('Adding author signature...');
+        const signatureResponse = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-author-signature`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+            },
+            body: JSON.stringify({
+              content: savedPost.content,
+              authorId: selectedAuthorId,
+              shopId: shopId,
+              postTitle: blogPost.title
+            })
+          }
+        );
+
+        if (signatureResponse.ok) {
+          const signatureData = await signatureResponse.json();
+          if (signatureData.success) {
+            savedPost.content = signatureData.content;
+            console.log('✓ Author signature added successfully');
+          }
+        } else {
+          console.error('Signature addition failed (non-critical):', await signatureResponse.text());
+        }
+      } catch (signatureError) {
+        console.error('Error adding signature (non-critical):', signatureError);
+      }
+    }
+
+    // Add FAQ section
+    try {
+      console.log('Generating FAQ section...');
+      const faqResponse = await fetch(
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-faq`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            postId: savedPost.id,
+            shopId: shopId,
+            content: savedPost.content,
+            topic: blogPost.title,
+            focusKeyword: blogPost.focus_keyword
+          })
+        }
+      );
+
+      if (faqResponse.ok) {
+        const faqData = await faqResponse.json();
+        if (faqData.success && faqData.faqCount > 0) {
+          savedPost.content = faqData.content;
+          console.log(`✓ Added ${faqData.faqCount} FAQ items successfully`);
+        }
+      } else {
+        console.error('FAQ generation failed (non-critical):', await faqResponse.text());
+      }
+    } catch (faqError) {
+      console.error('Error generating FAQ (non-critical):', faqError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 

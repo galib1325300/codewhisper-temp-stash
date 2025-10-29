@@ -2,21 +2,71 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// Voice mapping based on gender and persona characteristics
+// Voice mapping based on gender and persona characteristics with dynamic settings
 const VOICE_MAPPINGS = {
   female: [
-    { id: "9BWtsMINqrJLrRacOk9x", name: "Aria", style: "professional, clear" },
-    { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", style: "warm, expert" },
-    { id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte", style: "dynamic, modern" },
-    { id: "pFZP5JQG7iQjIQuC4Bku", name: "Lily", style: "friendly, approachable" },
-    { id: "XrExE9yKIg1WjnnlVkGX", name: "Matilda", style: "confident, authoritative" },
+    { 
+      id: "9BWtsMINqrJLrRacOk9x", 
+      name: "Aria", 
+      style: "professional, clear",
+      settings: { stability: 0.65, similarity_boost: 0.80, speed: 1.0 }
+    },
+    { 
+      id: "EXAVITQu4vr4xnSDxMaL", 
+      name: "Sarah", 
+      style: "warm, expert",
+      settings: { stability: 0.55, similarity_boost: 0.85, speed: 1.05 }
+    },
+    { 
+      id: "XB0fDUnXU5powFXDhCwa", 
+      name: "Charlotte", 
+      style: "dynamic, modern",
+      settings: { stability: 0.45, similarity_boost: 0.75, speed: 1.15 }
+    },
+    { 
+      id: "pFZP5JQG7iQjIQuC4Bku", 
+      name: "Lily", 
+      style: "friendly, approachable",
+      settings: { stability: 0.60, similarity_boost: 0.78, speed: 1.08 }
+    },
+    { 
+      id: "XrExE9yKIg1WjnnlVkGX", 
+      name: "Matilda", 
+      style: "confident, authoritative",
+      settings: { stability: 0.70, similarity_boost: 0.82, speed: 1.0 }
+    },
   ],
   male: [
-    { id: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam", style: "professional, confident" },
-    { id: "IKne3meq5aSn9XLyUdCD", name: "Charlie", style: "friendly, expert" },
-    { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel", style: "calm, authoritative" },
-    { id: "nPczCjzI2devNBz1zQrb", name: "Brian", style: "trustworthy, clear" },
-    { id: "bIHbv24MWmeRgasZH58o", name: "Will", style: "dynamic, engaging" },
+    { 
+      id: "TX3LPaxmHKxFdv7VOQHJ", 
+      name: "Liam", 
+      style: "professional, confident",
+      settings: { stability: 0.70, similarity_boost: 0.80, speed: 1.0 }
+    },
+    { 
+      id: "IKne3meq5aSn9XLyUdCD", 
+      name: "Charlie", 
+      style: "friendly, expert",
+      settings: { stability: 0.58, similarity_boost: 0.76, speed: 1.10 }
+    },
+    { 
+      id: "onwK4e9ZLuTAKqWW03F9", 
+      name: "Daniel", 
+      style: "calm, authoritative",
+      settings: { stability: 0.75, similarity_boost: 0.85, speed: 0.98 }
+    },
+    { 
+      id: "nPczCjzI2devNBz1zQrb", 
+      name: "Brian", 
+      style: "trustworthy, clear",
+      settings: { stability: 0.68, similarity_boost: 0.79, speed: 1.05 }
+    },
+    { 
+      id: "bIHbv24MWmeRgasZH58o", 
+      name: "Will", 
+      style: "dynamic, engaging",
+      settings: { stability: 0.50, similarity_boost: 0.73, speed: 1.18 }
+    },
   ],
 };
 
@@ -92,10 +142,16 @@ serve(async (req) => {
     console.log(`Available voices: ${voiceOptions.map(v => v.name).join(', ')}`);
     console.log(`Selected NEW voice: ${selectedVoice.name} (${selectedVoice.id}) - ${selectedVoice.style} for ${gender}`);
 
-    // Generate presentation text
-    const presentationText = `Bonjour, je suis ${persona.name}, ${persona.title}. ${persona.bio.slice(0, 200)}`;
+    // Generate enhanced presentation text with expertise
+    const expertiseText = persona.expertise_areas && persona.expertise_areas.length > 0 
+      ? ` spécialisé${isMale ? '' : 'e'} en ${persona.expertise_areas.slice(0, 2).join(' et ')}`
+      : '';
 
-    console.log("Calling ElevenLabs API...");
+    const presentationText = `Bonjour, je suis ${persona.name}, ${persona.title}${expertiseText}. ` +
+      `Avec plusieurs années d'expérience, je partage régulièrement des conseils pratiques et des analyses approfondies. ` +
+      `Découvrez mes articles pour mieux comprendre ${persona.expertise_areas?.[0] || 'ce domaine'}.`;
+
+    console.log("Calling ElevenLabs API with optimized voice settings...");
 
     // Call ElevenLabs API
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
@@ -115,10 +171,7 @@ serve(async (req) => {
         body: JSON.stringify({
           text: presentationText,
           model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-          },
+          voice_settings: selectedVoice.settings,
         }),
       }
     );
@@ -190,7 +243,7 @@ serve(async (req) => {
     const voiceSampleUrl = `${publicUrlData.publicUrl}?v=${cacheBuster}`;
     console.log(`Audio uploaded successfully: ${voiceSampleUrl}`);
 
-    // Update persona with voice information including voice name
+    // Update persona with voice information including voice name and dynamic settings
     const { error: updateError } = await supabaseClient
       .from("blog_authors")
       .update({
@@ -198,8 +251,7 @@ serve(async (req) => {
         voice_provider: "elevenlabs",
         voice_sample_url: voiceSampleUrl,
         voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
+          ...selectedVoice.settings,
           model: "eleven_turbo_v2_5",
           voiceName: selectedVoice.name,
           voiceStyle: selectedVoice.style,

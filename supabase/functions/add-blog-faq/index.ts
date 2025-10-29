@@ -43,6 +43,35 @@ serve(async (req) => {
       });
     }
 
+    // Get post data to retrieve author
+    const { data: blogPost } = await supabase
+      .from('blog_posts')
+      .select('author_id')
+      .eq('id', postId)
+      .single();
+
+    // Get author data if available
+    let author = null;
+    let authorContext = '';
+    if (blogPost?.author_id) {
+      const { data: authorData } = await supabase
+        .from('blog_authors')
+        .select('*')
+        .eq('id', blogPost.author_id)
+        .single();
+      
+      if (authorData) {
+        author = authorData;
+        authorContext = `
+AUTEUR DE L'ARTICLE:
+- Nom: ${author.name}
+- Titre: ${author.title}
+- Expertise: ${author.expertise_areas?.join(', ') || 'Non spécifiée'}
+
+Important: Intègre l'expertise de l'auteur dans les réponses FAQ quand pertinent.`;
+      }
+    }
+
     // Extract key topics from content for better FAQ generation
     const cleanContent = content.replace(/<[^>]*>/g, '').substring(0, 1500);
 
@@ -57,6 +86,7 @@ CONTEXTE BOUTIQUE:
 - Nom: ${shop.name}
 - Type: ${shop.type}
 - Langue: ${shop.language}
+${authorContext}
 
 MISSION: Génère 5-7 questions/réponses FAQ optimisées SEO pour cet article.
 
@@ -90,6 +120,7 @@ CRITÈRES OBLIGATOIRES (Featured Snippets optimized):
 EXEMPLE DE STRUCTURE ATTENDUE:
 <div class="faq-section" itemscope itemtype="https://schema.org/FAQPage">
   <h2>Questions Fréquentes</h2>
+  ${author ? `<p class="faq-author" style="font-style: italic; color: #666; margin-bottom: 1.5rem;"><em>Répondu par ${author.name}, ${author.title}</em></p>` : ''}
   
   <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
     <h3 itemprop="name">Comment choisir le bon produit X pour Y ?</h3>

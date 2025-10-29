@@ -717,6 +717,45 @@ export default function BlogPostDetailPage() {
                       ❓ {syncing ? 'Génération...' : 'Générer une FAQ'}
                     </Button>
                     
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          setSyncing(true);
+                          toast.info('Ajout de la signature auteur...');
+                          
+                          const { data, error } = await supabase.functions.invoke('add-author-signature', {
+                            body: {
+                              content: formData.content,
+                              authorId: post.author_id,
+                              shopId: shopId,
+                              postTitle: formData.title
+                            }
+                          });
+
+                          if (error) throw error;
+
+                          if (data.success) {
+                            setFormData({ ...formData, content: data.content });
+                            await supabase
+                              .from('blog_posts')
+                              .update({ content: data.content, updated_at: new Date().toISOString() })
+                              .eq('id', postId);
+                            toast.success('✅ Signature auteur ajoutée !');
+                          }
+                        } catch (error) {
+                          console.error('Error adding signature:', error);
+                          toast.error('Erreur lors de l\'ajout de la signature');
+                        } finally {
+                          setSyncing(false);
+                        }
+                      }}
+                      disabled={syncing || !post.author_id}
+                    >
+                      ✍️ {syncing ? 'Ajout en cours...' : 'Ajouter la signature auteur'}
+                    </Button>
+                    
                     <div className="pt-2 space-y-1">
                       <p className="text-xs text-muted-foreground">
                         🔗 Liens internes: 3-5 liens vers articles, collections et produits
