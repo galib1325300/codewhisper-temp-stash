@@ -253,38 +253,89 @@ export default function ShopBlogPage() {
     setIsGenerationLocked(true);
     setGenerating(true);
     
-    try {
-      const keywords = formData.keywords.split(',').map(k => k.trim()).filter(k => k);
-      
-      console.log('🚀 Génération article avec:', {
-        topic: formData.topic,
-        keywords,
-        authorId: selectedAuthorId || 'auto'
-      });
-      
-      const { data, error } = await supabase.functions.invoke('generate-blog-post', {
+    // Générer un ID de corrélation unique pour tracer la requête
+    const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    
+    const keywords = formData.keywords.split(',').map(k => k.trim()).filter(k => k);
+    
+    console.log(`🚀 [${requestId}] Génération article avec:`, {
+      topic: formData.topic,
+      keywords,
+      authorId: selectedAuthorId || 'auto'
+    });
+    
+    const toastId = toast.loading('🔄 Génération de l\'article en cours...');
+    
+    // Fonction d'appel à l'edge function
+    const callGenerateFunction = async () => {
+      return await supabase.functions.invoke('generate-blog-post', {
         body: {
           shopId: shop.id,
           topic: formData.topic,
           keywords,
           collectionIds: formData.collectionIds,
-          analyzeCompetitors: formData.analyzeCompetitors
+          analyzeCompetitors: formData.analyzeCompetitors,
+          authorId: selectedAuthorId || null,
+          requestId
         }
       });
+    };
+    
+    try {
+      let result;
+      
+      try {
+        // Première tentative
+        result = await callGenerateFunction();
+      } catch (networkError: any) {
+        // Détection d'erreur réseau spécifique
+        const isNetworkError = 
+          networkError.name === 'FunctionsFetchError' ||
+          networkError.message?.includes('Failed to fetch') ||
+          networkError.message?.includes('ERR_CONNECTION_CLOSED') ||
+          networkError.message?.includes('Failed to send a request');
+        
+        if (isNetworkError) {
+          console.warn(`⚠️ [${requestId}] Erreur réseau détectée, retry dans 800ms...`);
+          toast.loading('⚠️ Connexion perdue, nouvelle tentative...', { id: toastId });
+          
+          // Attendre 800ms puis retenter
+          await new Promise(resolve => setTimeout(resolve, 800));
+          result = await callGenerateFunction();
+        } else {
+          throw networkError;
+        }
+      }
+
+      const { data, error } = result;
 
       if (error) throw error;
-      
-      if (data.success && data.post) {
-        toast.success('✅ Article SEO optimisé généré avec succès !');
+
+      if (data.success) {
+        if (data.message?.includes('dupliquée détectée')) {
+          toast.info('ℹ️ Article déjà généré récemment', { id: toastId });
+        } else {
+          toast.success('✅ Article généré avec succès !', { id: toastId });
+        }
+        
         setShowForm(false);
         setFormData({ topic: '', keywords: '', collectionIds: [], analyzeCompetitors: true });
-        loadBlogPosts();
+        
+        // Recharger immédiatement
+        await loadBlogPosts();
       } else {
         throw new Error(data.error || 'Erreur lors de la génération');
       }
     } catch (error: any) {
-      console.error('❌ Erreur génération:', error);
-      toast.error(error.message || 'Erreur lors de la génération de l\'article');
+      console.error(`❌ [${requestId}] Erreur génération:`, error);
+      toast.error(error.message || 'Erreur lors de la génération de l\'article', { id: toastId });
+      
+      // Même en cas d'erreur, rafraîchir la liste après un délai
+      // (la génération a peut-être réussi côté serveur)
+      setTimeout(() => {
+        console.log(`🔄 [${requestId}] Rafraîchissement de la liste des articles...`);
+        loadBlogPosts();
+      }, 1500);
     } finally {
       // DÉVERROUILLER après 3 secondes minimum (sécurité)
       setTimeout(() => {

@@ -35,33 +35,45 @@ serve(async (req) => {
       collectionIds = [], 
       analyzeCompetitors = false,
       existingContent = null,
-      mode = 'create'
+      mode = 'create',
+      authorId = null,
+      requestId = null
     } = await req.json();
 
-    // PROTECTION ANTI-DOUBLON : Vérifier si un article identique a été créé récemment
+    const logPrefix = requestId ? `[${requestId}]` : '';
+    console.log(`${logPrefix} 📝 Blog post generation request:`, { shopId, topic, mode, authorId });
+
+    if (!shopId || !topic) {
+      throw new Error('shopId and topic are required');
+    }
+
+    // ANTI-DOUBLON ROBUSTE : vérifier par slug candidat
     if (mode === 'create') {
+      const slugCandidate = generateSlug(topic);
+      console.log(`${logPrefix} 🔍 Vérification anti-doublon avec slug: ${slugCandidate}`);
+      
       const { data: recentPost } = await supabaseClient
         .from('blog_posts')
-        .select('id, title, created_at')
+        .select('id, created_at, title, slug')
         .eq('shop_id', shopId)
-        .eq('title', topic)
-        .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Dernière minute
+        .ilike('slug', `${slugCandidate}%`)
+        .gte('created_at', new Date(Date.now() - 180000).toISOString()) // 3 minutes
         .maybeSingle();
       
       if (recentPost) {
-        console.warn(`⚠️ Article "${topic}" déjà généré il y a moins d'1 minute (ID: ${recentPost.id})`);
+        console.log(`${logPrefix} ⚠️ Article similaire déjà généré récemment (slug: ${recentPost.slug}), génération annulée`);
         return new Response(
           JSON.stringify({ 
             success: true, 
             post: recentPost,
-            message: 'Article déjà existant (génération dupliquée détectée et évitée)'
+            message: 'Génération dupliquée détectée (article similaire récent)'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // Get shop data
+    // Récupérer les informations de la boutique
     const { data: shop, error: shopError } = await supabaseClient
       .from('shops')
       .select('*')
@@ -69,38 +81,58 @@ serve(async (req) => {
       .single();
 
     if (shopError || !shop) {
-      throw new Error('Boutique non trouvée');
+      throw new Error('Shop not found');
     }
 
-    console.log('Generating blog post for shop:', shop.name);
+    console.log(`${logPrefix} 🏪 Shop loaded:`, shop.name);
 
-    // Sélectionner l'auteur le plus pertinent
-    const { data: authors, error: authorsError } = await supabaseClient
-      .from('blog_authors')
-      .select('id, name, expertise_areas')
-      .eq('shop_id', shopId);
-
+    // RESPECT DE L'AUTEUR SÉLECTIONNÉ
     let selectedAuthorId = null;
-    if (authors && authors.length > 0) {
-      // Sélection simple : prendre l'auteur avec le moins d'articles récents (équilibrage)
-      const authorPostCounts = await Promise.all(
-        authors.map(async (author) => {
-          const { count } = await supabaseClient
-            .from('blog_posts')
-            .select('*', { count: 'exact', head: true })
-            .eq('author_id', author.id);
-          return { authorId: author.id, count: count || 0 };
-        })
-      );
-
-      // Trier par nombre d'articles (du moins au plus) et prendre le premier
-      authorPostCounts.sort((a, b) => a.count - b.count);
-      selectedAuthorId = authorPostCounts[0].authorId;
+    
+    if (authorId) {
+      // Si un auteur est explicitement demandé, le vérifier et l'utiliser
+      const { data: requestedAuthor } = await supabaseClient
+        .from('blog_authors')
+        .select('id, name, bio, expertise_areas')
+        .eq('id', authorId)
+        .eq('shop_id', shopId)
+        .single();
       
-      const selectedAuthor = authors.find(a => a.id === selectedAuthorId);
-      console.log(`✅ Auteur sélectionné: ${selectedAuthor?.name} (${authorPostCounts[0].count} articles)`);
-    } else {
-      console.log('⚠️ Aucun auteur E-E-A-T disponible pour cette boutique');
+      if (requestedAuthor) {
+        selectedAuthorId = requestedAuthor.id;
+        console.log(`${logPrefix} ✍️ Auteur demandé:`, requestedAuthor.name);
+      } else {
+        console.warn(`${logPrefix} ⚠️ Auteur ${authorId} non trouvé, fallback sur équilibrage`);
+      }
+    }
+    
+    // Si pas d'auteur spécifié ou introuvable, équilibrage automatique
+    if (!selectedAuthorId) {
+      const { data: authors } = await supabaseClient
+        .from('blog_authors')
+        .select('id, name, bio, expertise_areas')
+        .eq('shop_id', shopId);
+
+      if (authors && authors.length > 0) {
+        const authorPostCounts = await Promise.all(
+          authors.map(async (author) => {
+            const { count } = await supabaseClient
+              .from('blog_posts')
+              .select('*', { count: 'exact', head: true })
+              .eq('author_id', author.id);
+            return { authorId: author.id, count: count || 0 };
+          })
+        );
+
+        // Trier par nombre d'articles (du moins au plus) et prendre le premier
+        authorPostCounts.sort((a, b) => a.count - b.count);
+        selectedAuthorId = authorPostCounts[0].authorId;
+        
+        const selectedAuthor = authors.find(a => a.id === selectedAuthorId);
+        console.log(`${logPrefix} ✍️ Auteur auto-sélectionné:`, selectedAuthor?.name, '(équilibrage)');
+      } else {
+        console.log(`${logPrefix} ⚠️ Aucun auteur E-E-A-T disponible`);
+      }
     }
 
     // Get Lovable AI API key (automatically provisioned)
@@ -112,7 +144,7 @@ serve(async (req) => {
     // Analyze competitors if requested
     let serpAnalysis = null;
     if (analyzeCompetitors && keywords.length > 0) {
-      console.log('Analyzing SERP competitors for:', keywords[0]);
+      console.log(`${logPrefix} Analyzing SERP competitors for:`, keywords[0]);
       try {
         const analysisResponse = await fetch(
           `${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-serp`,
@@ -133,14 +165,14 @@ serve(async (req) => {
           const analysisData = await analysisResponse.json();
           if (analysisData?.success) {
             serpAnalysis = analysisData.analysis;
-            console.log('SERP analysis completed:', {
+            console.log(`${logPrefix} SERP analysis completed:`, {
               topResults: serpAnalysis.top_results.length,
               targetWordCount: serpAnalysis.recommended_structure.target_word_count
             });
           }
         }
       } catch (analysisError) {
-        console.error('SERP analysis failed, continuing without:', analysisError);
+        console.error(`${logPrefix} SERP analysis failed, continuing without:`, analysisError);
       }
     }
 
@@ -301,7 +333,7 @@ Format de réponse JSON STRICT :
 IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, naturel et engageant. N'oublie pas d'inclure des tableaux, de mettre en gras les éléments clés, ET une section FAQ complète avec structured data schema.org pour maximiser les chances de Featured Snippets !
 `;
 
-    console.log('Calling Lovable AI for blog post generation...');
+    console.log(`${logPrefix} Calling Lovable AI for blog post generation...`);
 
     // Call Lovable AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -363,9 +395,9 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     if (toolCall?.function?.name === 'compose_blog_post' && toolCall.function.arguments) {
       try {
         blogPost = JSON.parse(toolCall.function.arguments);
-        console.log('Parsed blog post from tool call.');
+        console.log(`${logPrefix} Parsed blog post from tool call.`);
       } catch (e) {
-        console.error('Tool call arguments parse error:', e);
+        console.error(`${logPrefix} Tool call arguments parse error:`, e);
       }
     }
 
@@ -373,7 +405,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     if (!blogPost) {
       const generatedContent = aiData?.choices?.[0]?.message?.content?.trim();
       if (generatedContent) {
-        console.log('AI response received, parsing JSON (fallback)...');
+        console.log(`${logPrefix} AI response received, parsing JSON (fallback)...`);
         try {
           const cleanedContent = generatedContent
             .replace(/```json\n?/g, '')
@@ -393,7 +425,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     // Fallback 2: Ask for HTML-only article and build metadata ourselves
     if (!blogPost) {
-      console.log('Falling back to HTML-only generation...');
+      console.log(`${logPrefix} Falling back to HTML-only generation...`);
       const htmlOnlyPrompt = `Crée un article de blog SEO EN FRANÇAIS pour le sujet: "${topic}"\n\nExigences STRICTES:\n- Retourne UNIQUEMENT le HTML complet de l'article entre <article>...</article> (aucun JSON, aucun markdown, aucun commentaire)\n- Inclus H1, H2/H3, paragraphes, listes, tableau, blockquote, gras (<strong>)\n- 1200+ mots, naturel et engageant, optimisé pour SEO\n- Pas d'en-têtes meta, seulement le corps de l'article`;
 
       const aiResponse2 = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -487,7 +519,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       descLength: blogPost.meta_description.length
     });
 
-    console.log('Saving blog post to database...');
+    console.log(`${logPrefix} Saving blog post to database...`);
 
     // Save blog post to database
     const { data: savedPost, error: saveError } = await supabaseClient
@@ -524,12 +556,12 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       h2Sections.push(cleanH2);
     }
 
-    console.log(`Extracted ${h2Sections.length} H2 sections for image generation`);
+    console.log(`${logPrefix} Extracted ${h2Sections.length} H2 sections for image generation`);
 
     // Generate images for the article
     let generatedImages = [];
     try {
-      console.log('Calling generate-article-images function...');
+      console.log(`${logPrefix} Calling generate-article-images function...`);
       const imagesResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-article-images`,
         {
@@ -551,7 +583,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         const imagesData = await imagesResponse.json();
         if (imagesData.success) {
           generatedImages = imagesData.images;
-          console.log(`Successfully generated ${generatedImages.length} images`);
+          console.log(`${logPrefix} Successfully generated ${generatedImages.length} images`);
 
           // Insert images into content
           let updatedContent = blogPost.content;
@@ -613,7 +645,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     // Add internal links to the content
     let internalLinksAdded = 0;
     try {
-      console.log('Adding internal links to blog post...');
+      console.log(`${logPrefix} Adding internal links to blog post...`);
       const linksResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-internal-links`,
         {
@@ -670,7 +702,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
           const signatureData = await signatureResponse.json();
           if (signatureData.success) {
             savedPost.content = signatureData.content;
-            console.log('✓ Author signature added successfully');
+            console.log(`${logPrefix} ✓ Author signature added successfully`);
           }
         } else {
           console.error('Signature addition failed (non-critical):', await signatureResponse.text());
@@ -682,7 +714,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     // Add FAQ section
     try {
-      console.log('Generating FAQ section...');
+      console.log(`${logPrefix} Generating FAQ section...`);
       const faqResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-faq`,
         {
@@ -735,7 +767,8 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     );
 
   } catch (error) {
-    console.error('Error generating blog post:', error);
+    const logPrefix = (error as any).requestId ? `[${(error as any).requestId}]` : '';
+    console.error(`${logPrefix} ❌ Error generating blog post:`, error);
     return new Response(
       JSON.stringify({ 
         success: false, 
