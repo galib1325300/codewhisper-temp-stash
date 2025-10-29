@@ -51,6 +51,35 @@ serve(async (req) => {
 
     console.log('Generating blog post for shop:', shop.name);
 
+    // Sélectionner l'auteur le plus pertinent
+    const { data: authors, error: authorsError } = await supabaseClient
+      .from('blog_authors')
+      .select('id, name, expertise_areas')
+      .eq('shop_id', shopId);
+
+    let selectedAuthorId = null;
+    if (authors && authors.length > 0) {
+      // Sélection simple : prendre l'auteur avec le moins d'articles récents (équilibrage)
+      const authorPostCounts = await Promise.all(
+        authors.map(async (author) => {
+          const { count } = await supabaseClient
+            .from('blog_posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('author_id', author.id);
+          return { authorId: author.id, count: count || 0 };
+        })
+      );
+
+      // Trier par nombre d'articles (du moins au plus) et prendre le premier
+      authorPostCounts.sort((a, b) => a.count - b.count);
+      selectedAuthorId = authorPostCounts[0].authorId;
+      
+      const selectedAuthor = authors.find(a => a.id === selectedAuthorId);
+      console.log(`✅ Auteur sélectionné: ${selectedAuthor?.name} (${authorPostCounts[0].count} articles)`);
+    } else {
+      console.log('⚠️ Aucun auteur E-E-A-T disponible pour cette boutique');
+    }
+
     // Get Lovable AI API key (automatically provisioned)
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
@@ -449,6 +478,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         meta_description: blogPost.meta_description,
         meta_title: blogPost.seo_title || blogPost.title,
         focus_keyword: blogPost.focus_keyword || keywords[0] || null,
+        author_id: selectedAuthorId,
         status: 'draft',
       })
       .select()

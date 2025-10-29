@@ -220,6 +220,35 @@ Format attendu :
 
     console.log(`✅ ${insertedPersonas.length} personas insérés en base`);
 
+    // Générer automatiquement les avatars pour tous les personas
+    console.log('Génération automatique des avatars...');
+    const avatarPromises = insertedPersonas.map(async (persona) => {
+      try {
+        const avatarResponse = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-persona-avatar`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+            },
+            body: JSON.stringify({ personaId: persona.id })
+          }
+        );
+
+        if (avatarResponse.ok) {
+          console.log(`✅ Avatar généré pour ${persona.name}`);
+        } else {
+          console.error(`❌ Échec génération avatar pour ${persona.name}`);
+        }
+      } catch (error) {
+        console.error(`Erreur génération avatar pour ${persona.name}:`, error);
+      }
+    });
+
+    // Attendre que tous les avatars soient générés (mais ne pas bloquer la réponse)
+    await Promise.all(avatarPromises);
+
     return new Response(
       JSON.stringify({ 
         success: true,

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe, Sparkles, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe, Sparkles, RefreshCw, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BlogAuthor {
@@ -34,6 +34,7 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAuthor, setEditingAuthor] = useState<BlogAuthor | null>(null);
   const [generatingPersonas, setGeneratingPersonas] = useState(false);
+  const [generatingAvatar, setGeneratingAvatar] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -168,6 +169,29 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
       toast.error(error.message || 'Erreur lors de la génération des auteurs');
     } finally {
       setGeneratingPersonas(false);
+    }
+  };
+
+  const handleGenerateAvatar = async (authorId: string) => {
+    setGeneratingAvatar(authorId);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-persona-avatar', {
+        body: { personaId: authorId }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Avatar généré avec succès !');
+        loadAuthors();
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération de l\'avatar');
+      }
+    } catch (error) {
+      console.error('Error generating avatar:', error);
+      toast.error('Erreur lors de la génération de l\'avatar');
+    } finally {
+      setGeneratingAvatar(null);
     }
   };
 
@@ -367,21 +391,38 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {authors.map((author) => (
-            <Card key={author.id}>
+             <Card key={author.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    {author.avatar_url ? (
-                      <img 
-                        src={author.avatar_url} 
-                        alt={author.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                        <User className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
+                    <div className="relative group">
+                      {author.avatar_url ? (
+                        <img 
+                          src={author.avatar_url} 
+                          alt={author.name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                          <User className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGenerateAvatar(author.id);
+                        }}
+                        disabled={generatingAvatar === author.id}
+                        className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        title="Générer l'avatar"
+                      >
+                        {generatingAvatar === author.id ? (
+                          <RefreshCw className="h-5 w-5 text-white animate-spin" />
+                        ) : (
+                          <Camera className="h-5 w-5 text-white" />
+                        )}
+                      </button>
+                    </div>
                     <div>
                       <CardTitle className="text-lg">{author.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{author.title}</p>

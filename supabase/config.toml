@@ -140,3 +140,6 @@ verify_jwt = false
 
 [functions.generate-eeat-personas]
 verify_jwt = false
+
+[functions.generate-persona-avatar]
+verify_jwt = false

@@ -56,6 +56,50 @@ serve(async (req) => {
 
     console.log('Generating blog post for shop:', shop.name);
 
+    // Sélectionner l'auteur le plus pertinent pour le cluster
+    const { data: authors, error: authorsError } = await supabaseClient
+      .from('blog_authors')
+      .select('id, name, expertise_areas')
+      .eq('shop_id', shopId);
+
+    let selectedAuthorId = null;
+    if (authors && authors.length > 0) {
+      // Pour les clusters, garder le même auteur pour tous les articles (cohérence)
+      // Vérifier si un article du cluster existe déjà avec un auteur
+      const { data: existingArticles } = await supabaseClient
+        .from('blog_posts')
+        .select('author_id')
+        .eq('cluster_id', clusterId)
+        .not('author_id', 'is', null)
+        .limit(1);
+
+      if (existingArticles && existingArticles.length > 0 && existingArticles[0].author_id) {
+        // Utiliser le même auteur que les articles existants du cluster
+        selectedAuthorId = existingArticles[0].author_id;
+        const selectedAuthor = authors.find(a => a.id === selectedAuthorId);
+        console.log(`✅ Auteur du cluster: ${selectedAuthor?.name}`);
+      } else {
+        // Sinon, sélectionner l'auteur avec le moins d'articles (équilibrage)
+        const authorPostCounts = await Promise.all(
+          authors.map(async (author) => {
+            const { count } = await supabaseClient
+              .from('blog_posts')
+              .select('*', { count: 'exact', head: true })
+              .eq('author_id', author.id);
+            return { authorId: author.id, count: count || 0 };
+          })
+        );
+
+        authorPostCounts.sort((a, b) => a.count - b.count);
+        selectedAuthorId = authorPostCounts[0].authorId;
+        
+        const selectedAuthor = authors.find(a => a.id === selectedAuthorId);
+        console.log(`✅ Nouvel auteur pour cluster: ${selectedAuthor?.name} (${authorPostCounts[0].count} articles)`);
+      }
+    } else {
+      console.log('⚠️ Aucun auteur E-E-A-T disponible pour cette boutique');
+    }
+
     // Get Lovable AI API key (automatically provisioned)
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
@@ -352,6 +396,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         meta_description: articleData.meta_description,
         meta_title: articleData.seo_title || articleData.title,
         focus_keyword: articleData.focus_keyword || randomKeyword,
+        author_id: selectedAuthorId,
         status: 'draft',
       })
       .select()
