@@ -54,28 +54,46 @@ serve(async (req) => {
       console.log(`Génération d'avatar pour ${persona.name}`);
     }
 
+    // Fonction pour normaliser les accents
+    const normalizeString = (str: string) => {
+      return str.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
     // Déterminer le genre basé sur le prénom
-    const firstName = persona.name.split(' ')[0].toLowerCase();
+    const firstName = persona.name.split(' ')[0];
+    const normalizedFirstName = normalizeString(firstName);
+    
     const femaleNames = [
-      'marie', 'sophie', 'claire', 'julie', 'emma', 'camille', 'lucie', 'laura', 'sarah', 'léa',
-      'nathalie', 'isabelle', 'catherine', 'patricia', 'christine', 'véronique', 'sylvie',
-      'florence', 'valérie', 'audrey', 'marion', 'elise', 'charlotte', 'alice', 'léna',
-      'manon', 'anaïs', 'marine', 'pauline', 'cécile', 'hélène', 'amélie', 'émilie',
-      'chloé', 'inès', 'zoé', 'jade', 'lisa', 'clara', 'lola', 'juliette', 'lou'
+      'marie', 'sophie', 'claire', 'julie', 'emma', 'camille', 'lucie', 'laura', 'sarah', 'lea',
+      'nathalie', 'isabelle', 'catherine', 'patricia', 'christine', 'veronique', 'sylvie',
+      'florence', 'valerie', 'audrey', 'marion', 'elise', 'charlotte', 'alice', 'lena',
+      'manon', 'anais', 'marine', 'pauline', 'cecile', 'helene', 'amelie', 'emilie',
+      'chloe', 'ines', 'zoe', 'jade', 'lisa', 'clara', 'lola', 'juliette', 'lou',
+      'thea', 'leonie', 'nina', 'margaux', 'oceane', 'melanie', 'noemie',
+      'elodie', 'ludivine', 'justine', 'mathilde', 'estelle', 'celine', 'morgane',
+      'jessica', 'maeva', 'melissa', 'aurore', 'angelique', 'delphine', 'eloise',
+      'valentine', 'clemence', 'diane', 'agathe', 'romane', 'jeanne', 'adele'
     ];
+    
     const maleNames = [
       'marc', 'jean', 'pierre', 'paul', 'jacques', 'michel', 'philippe', 'alain', 'bernard',
-      'jérôme', 'nicolas', 'julien', 'thomas', 'alexandre', 'maxime', 'antoine', 'françois',
-      'laurent', 'david', 'stéphane', 'olivier', 'vincent', 'sébastien', 'frédéric',
-      'théo', 'hugo', 'louis', 'arthur', 'gabriel', 'raphaël', 'tom', 'lucas', 'nathan',
-      'mathis', 'enzo', 'léo', 'noah'
+      'jerome', 'nicolas', 'julien', 'thomas', 'alexandre', 'maxime', 'antoine', 'francois',
+      'laurent', 'david', 'stephane', 'olivier', 'vincent', 'sebastien', 'frederic',
+      'theo', 'hugo', 'louis', 'arthur', 'gabriel', 'raphael', 'tom', 'lucas', 'nathan',
+      'mathis', 'enzo', 'leo', 'noah', 'etienne', 'baptiste', 'simon', 'romain',
+      'clement', 'florian', 'quentin', 'benjamin', 'kevin', 'anthony', 'dylan',
+      'axel', 'damien', 'samuel', 'xavier', 'yannick', 'fabien', 'cedric', 'ludovic',
+      'gaspard', 'eliott', 'victor', 'felix', 'oscar', 'jules', 'martin'
     ];
     
-    const isFemale = femaleNames.some(name => firstName.includes(name) || name.includes(firstName));
-    const isMale = maleNames.some(name => firstName.includes(name) || name.includes(firstName));
+    // Correspondance exacte pour éviter les faux positifs
+    const isFemale = femaleNames.includes(normalizedFirstName);
+    const isMale = maleNames.includes(normalizedFirstName);
     
     // Si détection claire, utiliser le genre. Sinon, par défaut 'male'
-    const gender = isFemale && !isMale ? 'female' : 'male';
+    const gender = isFemale ? 'female' : (isMale ? 'male' : 'male');
 
     // Appel à Lovable AI pour générer l'image
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
