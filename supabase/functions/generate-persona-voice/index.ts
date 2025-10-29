@@ -56,17 +56,41 @@ serve(async (req) => {
 
     console.log(`Generating voice for persona: ${persona.name}`);
 
-    // Determine gender from name
+    // Determine gender from name with exhaustive list
     const firstName = persona.name.split(" ")[0].toLowerCase();
-    const maleNames = ["jean", "pierre", "marc", "françois", "laurent", "michel", "philippe", "andré", "bernard", "jacques", "claude", "eric", "david", "christophe", "olivier"];
+    const maleNames = [
+      "théo", "clément", "maxime", "lucas", "antoine", "thomas", "hugo", "léo", 
+      "louis", "raphaël", "arthur", "jules", "gabriel", "noah", "adam", "paul",
+      "jean", "pierre", "marc", "françois", "laurent", "michel", "philippe", 
+      "andré", "bernard", "jacques", "claude", "eric", "david", "christophe", 
+      "olivier", "stéphane", "nicolas", "julien", "sébastien", "matthieu", "alexandre",
+      "etienne", "romain", "benjamin", "valentin", "guillaume", "florian", "quentin",
+      "vincent", "simon", "axel", "tom", "mathis", "enzo", "nathan", "timéo"
+    ];
     const isMale = maleNames.some(name => firstName.includes(name));
     const gender = isMale ? "male" : "female";
 
-    // Select a voice randomly from the appropriate gender
-    const voiceOptions = VOICE_MAPPINGS[gender];
-    const selectedVoice = voiceOptions[Math.floor(Math.random() * voiceOptions.length)];
+    console.log(`Persona: ${persona.name}, First name: ${firstName}, Detected gender: ${gender}`);
+    console.log(`Current voice_id: ${persona.voice_id || 'none'}`);
 
-    console.log(`Selected voice: ${selectedVoice.name} (${selectedVoice.style}) for ${gender}`);
+    // Select a voice randomly from the appropriate gender, excluding current voice
+    let voiceOptions = VOICE_MAPPINGS[gender];
+    
+    // If regenerating, exclude the current voice to ensure a different one
+    if (persona.voice_id) {
+      voiceOptions = voiceOptions.filter(voice => voice.id !== persona.voice_id);
+      console.log(`Excluding current voice: ${persona.voice_id}`);
+    }
+    
+    // If all voices filtered out (shouldn't happen), use all voices
+    if (voiceOptions.length === 0) {
+      console.log("No alternative voices found, using all voices");
+      voiceOptions = VOICE_MAPPINGS[gender];
+    }
+
+    const selectedVoice = voiceOptions[Math.floor(Math.random() * voiceOptions.length)];
+    console.log(`Available voices: ${voiceOptions.map(v => v.name).join(', ')}`);
+    console.log(`Selected NEW voice: ${selectedVoice.name} (${selectedVoice.id}) - ${selectedVoice.style} for ${gender}`);
 
     // Generate presentation text
     const presentationText = `Bonjour, je suis ${persona.name}, ${persona.title}. ${persona.bio.slice(0, 200)}`;
@@ -157,15 +181,16 @@ serve(async (req) => {
       throw new Error(`Failed to upload audio: ${uploadError.message}`);
     }
 
-    // Get public URL
+    // Get public URL with cache-buster to force browser reload
     const { data: publicUrlData } = supabaseClient.storage
       .from("blog-images")
       .getPublicUrl(filePath);
 
-    const voiceSampleUrl = publicUrlData.publicUrl;
+    const cacheBuster = Date.now();
+    const voiceSampleUrl = `${publicUrlData.publicUrl}?v=${cacheBuster}`;
     console.log(`Audio uploaded successfully: ${voiceSampleUrl}`);
 
-    // Update persona with voice information
+    // Update persona with voice information including voice name
     const { error: updateError } = await supabaseClient
       .from("blog_authors")
       .update({
@@ -176,6 +201,8 @@ serve(async (req) => {
           stability: 0.5,
           similarity_boost: 0.75,
           model: "eleven_turbo_v2_5",
+          voiceName: selectedVoice.name,
+          voiceStyle: selectedVoice.style,
         },
       })
       .eq("id", personaId);

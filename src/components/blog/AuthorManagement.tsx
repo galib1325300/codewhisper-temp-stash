@@ -24,6 +24,8 @@ interface BlogAuthor {
     stability?: number;
     similarity_boost?: number;
     model?: string;
+    voiceName?: string;
+    voiceStyle?: string;
   };
   social_links?: {
     linkedin?: string;
@@ -291,7 +293,9 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
       return;
     }
 
-    const audio = new Audio(author.voice_sample_url);
+    // Add cache-buster to force reload of new audio
+    const audioUrl = `${author.voice_sample_url}${author.voice_sample_url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    const audio = new Audio(audioUrl);
     audio.addEventListener('ended', () => {
       setPlayingVoice(null);
       setAudioElement(null);
@@ -566,6 +570,12 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
                     <div>
                       <CardTitle className="text-lg">{author.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{author.title}</p>
+                      {author.voice_id && author.voice_settings?.voiceName && (
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          <Mic className="h-3 w-3 mr-1" />
+                          Voix : {author.voice_settings.voiceName}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-1">
