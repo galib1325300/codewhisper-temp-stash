@@ -238,74 +238,194 @@ Retourne le contenu HTML complet optimisé.`;
       };
     } else if (category === 'links') {
       const issues = seoAnalysis?.categories?.links?.issues || [];
-      const otherPostsList = otherPosts?.map(p => `- ${p.title} (/${p.slug})`).join('\n') || 'Aucun autre article';
       
-      prompt = `Tu es un expert SEO. Enrichis cet article avec des liens internes et externes pertinents.
+      // 1️⃣ Récupérer les ressources réelles (articles, collections, produits)
+      const { data: otherBlogPosts } = await supabaseClient
+        .from('blog_posts')
+        .select('id, title, slug, focus_keyword, cluster_id')
+        .eq('shop_id', post.shop_id)
+        .eq('status', 'published')
+        .neq('id', postId)
+        .limit(20);
+        
+      const { data: collections } = await supabaseClient
+        .from('collections')
+        .select('id, name, slug, description')
+        .eq('shop_id', post.shop_id)
+        .limit(10);
+        
+      const { data: products } = await supabaseClient
+        .from('products')
+        .select('id, name, slug')
+        .eq('shop_id', post.shop_id)
+        .eq('featured', true)
+        .limit(10);
+      
+      // 2️⃣ Vérifier si l'article fait partie d'un cluster
+      let clusterInfo = null;
+      let clusterArticles: any[] = [];
+      
+      if (post.cluster_id) {
+        const { data: cluster } = await supabaseClient
+          .from('topic_clusters')
+          .select('name, pillar_keyword')
+          .eq('id', post.cluster_id)
+          .single();
+          
+        if (cluster) {
+          clusterInfo = cluster;
+          // Limiter aux articles du même cluster
+          clusterArticles = (otherBlogPosts || [])
+            .filter(p => p.cluster_id === post.cluster_id)
+            .map(p => ({
+              title: p.title,
+              url: `/${p.slug}`,
+              keyword: p.focus_keyword
+            }));
+          
+          console.log(`📚 Article dans le cluster "${cluster.name}" - ${clusterArticles.length} articles disponibles`);
+        }
+      }
+      
+      // 3️⃣ Construire le contexte des ressources disponibles
+      const postsContext = clusterInfo 
+        ? clusterArticles  // Si dans un cluster, seulement les articles du cluster
+        : (otherBlogPosts || []).map(p => ({
+            title: p.title,
+            url: `/${p.slug}`,
+            keyword: p.focus_keyword
+          }));
+      
+      const collectionsContext = (collections || []).map(c => ({
+        title: c.name,
+        url: `/collections/${c.slug}`,
+        description: c.description
+      }));
+      
+      const productsContext = (products || []).map(p => ({
+        title: p.name,
+        url: `/products/${p.slug}`
+      }));
+      
+      const allValidUrls = [
+        ...postsContext.map(p => p.url),
+        ...collectionsContext.map(c => c.url),
+        ...productsContext.map(p => p.url)
+      ];
+      
+      // 4️⃣ Extraire seulement un aperçu du contenu
+      const contentPreview = (post.content || '').substring(0, 3000);
+      const wordCount = (post.content || '').replace(/<[^>]*>/g, '').split(/\s+/).filter(w => w.length > 0).length;
+      
+      // 5️⃣ Construire le prompt avec ressources valides UNIQUEMENT
+      prompt = `Tu es un expert SEO en maillage interne. Analyse cet extrait d'article et suggère où insérer des liens internes pertinents.
 
-ARTICLE ACTUEL :
+ARTICLE (EXTRAIT - 500 premiers mots) :
 - Titre : ${post.title}
-- Mot-clé : ${post.focus_keyword}
-- URL de la boutique : ${post.shop_url || 'Non spécifiée'}
-- Contenu : ${post.content || ''}
+- Mot-clé : ${post.focus_keyword || 'N/A'}
+- Nombre total de mots : ${wordCount}
 
-AUTRES ARTICLES DISPONIBLES :
-${otherPostsList}
+EXTRAIT DU CONTENU :
+${contentPreview}${contentPreview.length < (post.content || '').length ? '...(contenu tronqué)' : ''}
+
+${clusterInfo ? `
+⚠️ CET ARTICLE FAIT PARTIE DU CLUSTER "${clusterInfo.name}"
+→ Privilégie UNIQUEMENT les liens vers les articles du cluster ci-dessous
+→ Mot-clé pilier du cluster : ${clusterInfo.pillar_keyword}
+
+ARTICLES DU CLUSTER (${clusterArticles.length}) :
+${clusterArticles.map((a, i) => `${i+1}. "${a.title}" → ${a.url} (Mot-clé: ${a.keyword || 'N/A'})`).join('\n')}
+` : ''}
+
+RESSOURCES DISPONIBLES (URLs RÉELLES - NE PAS INVENTER D'AUTRES URLS) :
+
+${postsContext.length > 0 && !clusterInfo ? `ARTICLES (${postsContext.length}) :
+${postsContext.map((p, i) => `${i+1}. "${p.title}" → ${p.url} (Mot-clé: ${p.keyword || 'N/A'})`).join('\n')}
+` : ''}
+
+${collectionsContext.length > 0 ? `COLLECTIONS (${collectionsContext.length}) :
+${collectionsContext.map((c, i) => `${i+1}. "${c.title}" → ${c.url}`).join('\n')}
+` : ''}
+
+${productsContext.length > 0 ? `PRODUITS (${productsContext.length}) :
+${productsContext.map((p, i) => `${i+1}. "${p.title}" → ${p.url}`).join('\n')}
+` : ''}
+
+${postsContext.length === 0 && collectionsContext.length === 0 && productsContext.length === 0 ? 'Aucune ressource disponible pour le maillage interne' : ''}
 
 PROBLÈMES DÉTECTÉS :
 ${issues.join('\n')}
 
-TÂCHE :
-Ajoute des liens dans le contenu :
-- 3-5 liens internes vers d'autres articles pertinents (utilise les articles disponibles)
-- 2-3 liens externes vers des sources fiables et pertinentes
-- Utilise des ancres naturelles et descriptives
-- Insère les liens de manière contextuelle dans le texte existant
+RÈGLES STRICTES :
+1. ⚠️ **CRITIQUE** : Tu DOIS utiliser UNIQUEMENT les URLs listées ci-dessus
+2. ⚠️ **INTERDIT** : Ne JAMAIS inventer ou construire d'autres URLs
+3. Suggère 3-5 liens internes maximum
+4. L'anchor text doit être naturel et contextuel (10-50 caractères)
+5. Ne JAMAIS mettre de liens dans les titres (H1-H6)
+6. Score de pertinence minimum : 7/10
+7. Place les liens dans des paragraphes <p> ou listes <li>, jamais dans les headings
 
-Retourne le contenu HTML avec les liens ajoutés.`;
+TÂCHE :
+- Identifie 3-5 emplacements où insérer des liens internes pertinents
+- Pour chaque lien, fournis :
+  * Le texte exact à transformer en lien (anchor text, 10-50 caractères)
+  * L'URL de la ressource (parmi celles listées ci-dessus)
+  * Le contexte (phrase complète contenant le texte)
+  * Le score de pertinence (7-10)
+
+Ne retourne PAS le contenu complet, seulement les suggestions d'insertion.`;
 
       toolDefinition = {
         type: "function",
         function: {
-          name: "optimize_links",
-          description: "Ajoute des liens internes et externes",
+          name: "suggest_link_insertions",
+          description: "Suggère des emplacements pour insérer des liens internes",
           parameters: {
             type: "object",
             properties: {
-              content: { 
-                type: "string", 
-                description: "Le contenu HTML avec les liens ajoutés"
-              },
-              internal_links: {
+              insertions: {
                 type: "array",
                 items: {
                   type: "object",
                   properties: {
-                    anchor: { type: "string" },
-                    url: { type: "string" }
-                  }
+                    anchor_text: {
+                      type: "string",
+                      description: "Texte exact à transformer en lien (10-50 car)"
+                    },
+                    url: {
+                      type: "string",
+                      description: "URL de la ressource (DOIT être dans la liste fournie)"
+                    },
+                    context: {
+                      type: "string",
+                      description: "Phrase contenant l'anchor text"
+                    },
+                    relevance_score: {
+                      type: "number",
+                      description: "Score de pertinence 7-10"
+                    },
+                    type: {
+                      type: "string",
+                      enum: ["article", "collection", "product"],
+                      description: "Type de ressource"
+                    }
+                  },
+                  required: ["anchor_text", "url", "context", "relevance_score", "type"]
                 },
-                description: "Liste des liens internes ajoutés"
+                description: "Liste des liens à insérer"
               },
-              external_links: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    anchor: { type: "string" },
-                    url: { type: "string" }
-                  }
-                },
-                description: "Liste des liens externes ajoutés"
-              },
-              reasoning: { 
+              reasoning: {
                 type: "string",
-                description: "Explication des liens ajoutés"
+                description: "Explication de la stratégie de maillage"
               }
             },
-            required: ["content", "internal_links", "external_links", "reasoning"]
+            required: ["insertions", "reasoning"]
           }
         }
       };
+      
+      // 6️⃣ Stocker les URLs valides pour validation post-IA
+      (toolDefinition.function as any).validUrls = allValidUrls;
     } else if (category === 'faq') {
       const issues = seoAnalysis?.categories?.advanced?.issues || [];
       
@@ -527,6 +647,72 @@ Retourne un ensemble complet d'optimisations.`;
       optimizations.changes = optimizations.changes || [];
       optimizations.changes.push(`${appliedCount} insertions de mots-clés appliquées`);
       console.log(`Applied ${appliedCount}/${optimizations.insertions.length} keyword insertions`);
+    }
+    
+    // Traitement spécial pour les liens : valider et appliquer les insertions côté serveur
+    if (category === 'links' && optimizations.insertions) {
+      let modifiedContent = post.content || '';
+      
+      // Récupérer les URLs valides depuis le toolDefinition
+      const validUrls = (toolDefinition.function as any)?.validUrls || [];
+      
+      // Filtrer les liens invalides
+      const validInsertions = optimizations.insertions.filter((link: any) => {
+        const isValid = validUrls.includes(link.url);
+        if (!isValid) {
+          console.warn(`⚠️ Lien invalide rejeté: ${link.url} (non trouvé dans les ressources)`);
+        }
+        return isValid && link.relevance_score >= 7;
+      });
+      
+      console.log(`✅ Validated ${validInsertions.length}/${optimizations.insertions.length} links`);
+      
+      // Appliquer les liens validés
+      let linksAddedCount = 0;
+      for (const link of validInsertions) {
+        const { anchor_text, url } = link;
+        
+        // Échapper les caractères spéciaux dans l'anchor text
+        const escapedAnchor = anchor_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        // Remplacer uniquement dans les paragraphes <p> et listes <li>, PAS dans les titres
+        // Regex pour matcher le texte dans un <p> ou <li> qui n'est pas déjà dans un lien
+        const regex = new RegExp(
+          `(<(?:p|li)[^>]*>)((?:(?!<\\/(?:p|li)>).)*?)(\\b${escapedAnchor}\\b)((?:(?!<\\/(?:p|li)>).)*?)(<\\/(?:p|li)>)`,
+          'is'
+        );
+        
+        const beforeReplace = modifiedContent;
+        modifiedContent = modifiedContent.replace(regex, (match, openTag, before, anchorText, after, closeTag) => {
+          // Vérifier que le texte n'est pas déjà dans un lien
+          if (before.includes('<a') || after.includes('</a>')) {
+            return match; // Ne pas remplacer si déjà dans un lien
+          }
+          return `${openTag}${before}<a href="${url}" title="${anchor_text}">${anchorText}</a>${after}${closeTag}`;
+        });
+        
+        if (modifiedContent !== beforeReplace) {
+          linksAddedCount++;
+          console.log(`✓ Inserted link: "${anchor_text}" → ${url}`);
+        } else {
+          console.log(`⚠ Could not find anchor text in safe location: "${anchor_text}"`);
+        }
+      }
+      
+      // Nettoyage final : supprimer tous les liens des titres H1-H6
+      modifiedContent = modifiedContent.replace(
+        /<(h[123456])[^>]*>(.*?)<\/h[123456]>/gi,
+        (match, tag, content) => {
+          const cleanContent = content.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1');
+          return `<${tag}>${cleanContent}</${tag}>`;
+        }
+      );
+      
+      optimizations.content = modifiedContent;
+      optimizations.links_added = linksAddedCount;
+      optimizations.changes = optimizations.changes || [];
+      optimizations.changes.push(`${linksAddedCount} liens internes ajoutés`);
+      console.log(`Applied ${linksAddedCount}/${validInsertions.length} link insertions`);
     }
     
     // NETTOYAGE OBLIGATOIRE : Retirer tous les liens des titres H1-H6

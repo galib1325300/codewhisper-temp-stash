@@ -149,44 +149,67 @@ export function SEOOptimizationModal({ open, onClose, onApply, data }: SEOOptimi
 
             {category === 'links' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">Liens internes ajoutés</h4>
-                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
-                      <ul className="space-y-2">
-                        {optimizations.internal_links?.map((link: any, index: number) => (
-                          <li key={index} className="text-sm">
-                            <span className="font-medium">{link.anchor}</span>
-                            <div className="text-muted-foreground text-xs">{link.url}</div>
-                          </li>
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <span className="font-semibold">{optimizations.links_added || optimizations.insertions?.length || 0} liens internes ajoutés</span>
+                    {optimizations.changes && (
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        {optimizations.changes.map((change: string, index: number) => (
+                          <li key={index} className="text-sm">{change}</li>
                         ))}
                       </ul>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">Liens externes ajoutés</h4>
-                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
-                      <ul className="space-y-2">
-                        {optimizations.external_links?.map((link: any, index: number) => (
-                          <li key={index} className="text-sm">
-                            <span className="font-medium">{link.anchor}</span>
-                            <div className="text-muted-foreground text-xs">{link.url}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
 
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Aperçu du contenu avec liens</h4>
-                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-md max-h-96 overflow-y-auto">
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: optimizations.content?.substring(0, 1000) + '...' }}
-                    />
+                {optimizations.insertions && optimizations.insertions.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Liens à insérer ({optimizations.insertions.length})</h4>
+                    <div className="space-y-3">
+                      {optimizations.insertions.map((link: any, index: number) => (
+                        <div key={index} className="p-3 bg-primary/5 border border-primary/20 rounded-md">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={link.type === 'article' ? 'default' : 'secondary'}>
+                                {link.type === 'article' ? '📄 Article' : link.type === 'collection' ? '📁 Collection' : '🛍️ Produit'}
+                              </Badge>
+                              <Badge variant="outline">
+                                Score: {link.relevance_score}/10
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">Texte à lier:</span>
+                              <span className="ml-2 font-medium">{link.anchor_text}</span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">URL:</span>
+                              <code className="ml-2 text-xs bg-muted px-1 py-0.5 rounded">{link.url}</code>
+                            </div>
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">Contexte:</span>
+                              <p className="mt-1 text-xs italic text-muted-foreground">&ldquo;{link.context}&rdquo;</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {optimizations.content && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Aperçu du contenu avec liens</h4>
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-md max-h-96 overflow-y-auto">
+                      <div 
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: optimizations.content?.substring(0, 1000) + '...' }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
