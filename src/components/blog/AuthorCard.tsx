@@ -1,11 +1,13 @@
 import React from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Award, Linkedin, Twitter, Globe } from 'lucide-react';
+import { User, Award, Linkedin, Twitter, Globe, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AuthorCardProps {
   author: {
+    id?: string;
     name: string;
     title: string;
     bio: string;
@@ -21,6 +23,9 @@ interface AuthorCardProps {
 }
 
 export default function AuthorCard({ author }: AuthorCardProps) {
+  const navigate = useNavigate();
+  const { id: shopId } = useParams();
+
   return (
     <Card className="border-2">
       <CardContent className="pt-6">
@@ -39,7 +44,18 @@ export default function AuthorCard({ author }: AuthorCardProps) {
           
           <div className="flex-1 space-y-3">
             <div>
-              <h3 className="text-xl font-bold text-foreground">{author.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-bold text-foreground">{author.name}</h3>
+                {author.id && shopId && (
+                  <button
+                    onClick={() => navigate(`/admin/shops/${shopId}/authors/${author.id}`)}
+                    className="text-primary hover:text-primary/80 transition-colors"
+                    title="Voir le profil complet"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">{author.title}</p>
             </div>
 
@@ -64,7 +80,7 @@ export default function AuthorCard({ author }: AuthorCardProps) {
               <div className="flex gap-2">
                 {author.social_links.linkedin && (
                   <a href={author.social_links.linkedin} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="sm">
+                    <Button variant="secondary" size="sm">
                       <Linkedin className="h-4 w-4 mr-2" />
                       LinkedIn
                     </Button>
@@ -72,7 +88,7 @@ export default function AuthorCard({ author }: AuthorCardProps) {
                 )}
                 {author.social_links.twitter && (
                   <a href={author.social_links.twitter} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="sm">
+                    <Button variant="secondary" size="sm">
                       <Twitter className="h-4 w-4 mr-2" />
                       Twitter
                     </Button>
@@ -80,7 +96,7 @@ export default function AuthorCard({ author }: AuthorCardProps) {
                 )}
                 {author.social_links.website && (
                   <a href={author.social_links.website} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="sm">
+                    <Button variant="secondary" size="sm">
                       <Globe className="h-4 w-4 mr-2" />
                       Site web
                     </Button>

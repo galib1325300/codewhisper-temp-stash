@@ -919,7 +919,22 @@ export default function ShopBlogPage() {
               </TabsContent>
 
               <TabsContent value="personas">
-                {id && <AuthorManagement shopId={id} />}
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">Gestion des auteurs E-E-A-T</h3>
+                      <p className="text-sm text-muted-foreground">Créez et gérez vos personas d'experts pour améliorer votre crédibilité SEO</p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => navigate(`/admin/shops/${id}/authors`)}
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      Voir la page publique
+                    </Button>
+                  </div>
+                  {id && <AuthorManagement shopId={id} />}
+                </div>
               </TabsContent>
             </Tabs>
           </div>

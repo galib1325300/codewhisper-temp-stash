@@ -278,9 +278,48 @@ export default function BlogPostDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Author Card */}
+                {/* Enhanced Author Card with Schema.org */}
                 {post.blog_authors && (
-                  <AuthorCard author={post.blog_authors} />
+                  <article itemScope itemType="https://schema.org/BlogPosting">
+                    <AuthorCard author={post.blog_authors} />
+                    
+                    {/* Hidden Schema.org markup for SEO */}
+                    <div className="hidden">
+                      <h1 itemProp="headline">{formData.title}</h1>
+                      <meta itemProp="description" content={formData.meta_description || formData.excerpt} />
+                      <meta itemProp="keywords" content={formData.focus_keyword || ''} />
+                      <time itemProp="datePublished" dateTime={post.created_at}>
+                        {new Date(post.created_at).toISOString()}
+                      </time>
+                      {post.published_at && (
+                        <time itemProp="dateModified" dateTime={post.updated_at}>
+                          {new Date(post.updated_at).toISOString()}
+                        </time>
+                      )}
+                      <div itemProp="author" itemScope itemType="https://schema.org/Person">
+                        <span itemProp="name">{post.blog_authors.name}</span>
+                        <span itemProp="jobTitle">{post.blog_authors.title}</span>
+                        {post.blog_authors.avatar_url && (
+                          <link itemProp="image" href={post.blog_authors.avatar_url} />
+                        )}
+                        {post.blog_authors.social_links?.linkedin && (
+                          <link itemProp="sameAs" href={post.blog_authors.social_links.linkedin} />
+                        )}
+                        {post.blog_authors.social_links?.twitter && (
+                          <link itemProp="sameAs" href={post.blog_authors.social_links.twitter} />
+                        )}
+                        {post.blog_authors.social_links?.website && (
+                          <link itemProp="url" href={post.blog_authors.social_links.website} />
+                        )}
+                      </div>
+                      {shop && (
+                        <div itemProp="publisher" itemScope itemType="https://schema.org/Organization">
+                          <span itemProp="name">{shop.name}</span>
+                          <link itemProp="url" href={shop.url} />
+                        </div>
+                      )}
+                    </div>
+                  </article>
                 )}
                 
                 {/* Subject Section */}
@@ -750,6 +789,51 @@ export default function BlogPostDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* JSON-LD Schema for Article and Author */}
+      {post.blog_authors && shop && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BlogPosting",
+              "headline": formData.title,
+              "description": formData.meta_description || formData.excerpt,
+              "keywords": formData.focus_keyword || '',
+              "datePublished": post.created_at,
+              "dateModified": post.updated_at,
+              "image": formData.featured_image || extractedImages[0]?.url,
+              "author": {
+                "@type": "Person",
+                "name": post.blog_authors.name,
+                "jobTitle": post.blog_authors.title,
+                "description": post.blog_authors.bio,
+                "image": post.blog_authors.avatar_url,
+                "url": `${window.location.origin}/admin/shops/${shopId}/authors/${post.blog_authors.id}`,
+                "sameAs": [
+                  post.blog_authors.social_links?.linkedin,
+                  post.blog_authors.social_links?.twitter,
+                  post.blog_authors.social_links?.website
+                ].filter(Boolean),
+                "knowsAbout": post.blog_authors.expertise_areas,
+                "hasCredential": post.blog_authors.credentials
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": shop.name,
+                "url": shop.url
+              },
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": `${shop.url}/${post.wordpress_slug || formData.slug}/`
+              },
+              "articleBody": formData.content.replace(/<[^>]*>/g, ''),
+              "wordCount": wordCount
+            })
+          }}
+        />
+      )}
     </div>
   );
 }
