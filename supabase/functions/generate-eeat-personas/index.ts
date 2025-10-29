@@ -30,7 +30,7 @@ serve(async (req) => {
     // Récupérer les informations de la boutique
     const { data: shop, error: shopError } = await supabase
       .from('shops')
-      .select('name, shop_url, shop_type')
+      .select('name, url, type')
       .eq('id', shopId)
       .single();
 
@@ -60,7 +60,7 @@ serve(async (req) => {
     const categories = (collections || []).map(c => c.name).join(', ') || 'Non défini';
     const productExamples = (products || []).slice(0, 5).map(p => p.name).join(', ') || 'Non défini';
 
-    console.log(`Génération de personas pour ${shop.name} (${shop.shop_url})`);
+    console.log(`Génération de personas pour ${shop.name} (${shop.url})`);
 
     // Appel à Lovable AI
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -83,8 +83,8 @@ RÈGLES STRICTES :
 
     const userPrompt = `CONTEXTE DE LA BOUTIQUE :
 - Nom : ${shop.name}
-- URL : ${shop.shop_url}
-- Type : ${shop.shop_type || 'E-commerce'}
+- URL : ${shop.url}
+- Type : ${shop.type || 'E-commerce'}
 - Principales catégories : ${categories}
 - Exemples de produits : ${productExamples}
 
