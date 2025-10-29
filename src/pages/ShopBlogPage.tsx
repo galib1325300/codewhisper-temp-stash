@@ -52,6 +52,7 @@ export default function ShopBlogPage() {
   const [authors, setAuthors] = useState<any[]>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
+  const [isGenerationLocked, setIsGenerationLocked] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -236,14 +237,30 @@ export default function ShopBlogPage() {
 
   const handleGeneratePost = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // PROTECTION CONTRE DOUBLE GÉNÉRATION
+    if (isGenerationLocked || generating) {
+      console.warn('⚠️ Génération déjà en cours, requête ignorée');
+      return;
+    }
+    
     if (!shop || !formData.topic) {
       toast.error('Veuillez renseigner un sujet pour l\'article');
       return;
     }
     
+    // VERROUILLER la génération
+    setIsGenerationLocked(true);
     setGenerating(true);
+    
     try {
       const keywords = formData.keywords.split(',').map(k => k.trim()).filter(k => k);
+      
+      console.log('🚀 Génération article avec:', {
+        topic: formData.topic,
+        keywords,
+        authorId: selectedAuthorId || 'auto'
+      });
       
       const { data, error } = await supabase.functions.invoke('generate-blog-post', {
         body: {
@@ -258,18 +275,22 @@ export default function ShopBlogPage() {
       if (error) throw error;
       
       if (data.success && data.post) {
-        toast.success('Article SEO optimisé généré avec succès !');
+        toast.success('✅ Article SEO optimisé généré avec succès !');
         setShowForm(false);
         setFormData({ topic: '', keywords: '', collectionIds: [], analyzeCompetitors: true });
         loadBlogPosts();
       } else {
-        toast.error(data.error || 'Erreur lors de la génération');
+        throw new Error(data.error || 'Erreur lors de la génération');
       }
-    } catch (error) {
-      toast.error('Erreur lors de la génération de l\'article');
-      console.error('Generation error:', error);
+    } catch (error: any) {
+      console.error('❌ Erreur génération:', error);
+      toast.error(error.message || 'Erreur lors de la génération de l\'article');
     } finally {
-      setGenerating(false);
+      // DÉVERROUILLER après 3 secondes minimum (sécurité)
+      setTimeout(() => {
+        setIsGenerationLocked(false);
+        setGenerating(false);
+      }, 3000);
     }
   };
 
@@ -732,7 +753,7 @@ export default function ShopBlogPage() {
                     <div className="flex items-center gap-4 pt-4">
                       <Button
                         type="submit"
-                        disabled={generating || !formData.topic}
+                        disabled={generating || isGenerationLocked || !formData.topic}
                         className="flex-1"
                       >
                         {generating ? (

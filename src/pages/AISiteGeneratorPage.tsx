@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import GeneratorWizard from '@/components/ai-generator/GeneratorWizard';
-import { useGeneratorSubscription } from '@/hooks/useAIGenerator';
+// import { useGeneratorSubscription } from '@/hooks/useAIGenerator'; // Temporairement désactivé
 import LoadingState from '@/components/ui/loading-state';
 import { Link } from 'react-router-dom';
 
 export default function AISiteGeneratorPage() {
-  const { data: subscription, isLoading } = useGeneratorSubscription();
+  // const { data: subscription, isLoading } = useGeneratorSubscription(); // Temporairement désactivé
+  const subscription = null; // Pas de subscription pour le moment
+  const isLoading = false;
   const [skipSubscription, setSkipSubscription] = useState(false);
 
   if (isLoading) {

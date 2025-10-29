@@ -38,6 +38,29 @@ serve(async (req) => {
       mode = 'create'
     } = await req.json();
 
+    // PROTECTION ANTI-DOUBLON : Vérifier si un article identique a été créé récemment
+    if (mode === 'create') {
+      const { data: recentPost } = await supabaseClient
+        .from('blog_posts')
+        .select('id, title, created_at')
+        .eq('shop_id', shopId)
+        .eq('title', topic)
+        .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Dernière minute
+        .maybeSingle();
+      
+      if (recentPost) {
+        console.warn(`⚠️ Article "${topic}" déjà généré il y a moins d'1 minute (ID: ${recentPost.id})`);
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            post: recentPost,
+            message: 'Article déjà existant (génération dupliquée détectée et évitée)'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Get shop data
     const { data: shop, error: shopError } = await supabaseClient
       .from('shops')

@@ -191,21 +191,22 @@ export function useExportCatalog() {
   });
 }
 
-export function useGeneratorSubscription() {
-  return useQuery({
-    queryKey: ['generator-subscription'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+// ❌ DÉSACTIVÉ TEMPORAIREMENT - Table ai_generator_subscriptions n'existe pas encore
+// export function useGeneratorSubscription() {
+//   return useQuery({
+//     queryKey: ['generator-subscription'],
+//     queryFn: async () => {
+//       const { data: { user } } = await supabase.auth.getUser();
+//       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('ai_generator_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+//       const { data, error } = await supabase
+//         .from('ai_generator_subscriptions')
+//         .select('*')
+//         .eq('user_id', user.id)
+//         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      return data as GeneratorSubscription | null;
-    },
-  });
-}
+//       if (error && error.code !== 'PGRST116') throw error;
+//       return data as GeneratorSubscription | null;
+//     },
+//   });
+// }
