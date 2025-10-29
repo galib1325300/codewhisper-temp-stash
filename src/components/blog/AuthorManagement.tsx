@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe, Sparkles, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BlogAuthor {
@@ -33,6 +33,7 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAuthor, setEditingAuthor] = useState<BlogAuthor | null>(null);
+  const [generatingPersonas, setGeneratingPersonas] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -147,6 +148,29 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
     }
   };
 
+  const handleGeneratePersonas = async () => {
+    setGeneratingPersonas(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-eeat-personas', {
+        body: { shopId }
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast.success(`✨ ${data.count} auteur${data.count > 1 ? 's' : ''} généré${data.count > 1 ? 's' : ''} avec succès`);
+      await loadAuthors();
+    } catch (error: any) {
+      console.error('Error generating personas:', error);
+      toast.error(error.message || 'Erreur lors de la génération des auteurs');
+    } finally {
+      setGeneratingPersonas(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingAuthor(null);
     setFormData({
@@ -176,16 +200,35 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvel auteur
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleGeneratePersonas}
+            disabled={generatingPersonas}
+          >
+            {generatingPersonas ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Génération...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Générer automatiquement
+              </>
+            )}
+          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvel auteur
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -305,6 +348,7 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
           </DialogContent>
         </Dialog>
       </div>
+    </div>
 
       {authors.length === 0 ? (
         <Card>

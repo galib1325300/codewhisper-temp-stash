@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.analyze-site-clusters]
 verify_jwt = false
+
+[functions.generate-eeat-personas]
+verify_jwt = false
