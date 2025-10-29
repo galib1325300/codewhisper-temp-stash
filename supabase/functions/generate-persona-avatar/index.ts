@@ -13,36 +13,46 @@ serve(async (req) => {
   }
 
   try {
-    const { personaId } = await req.json();
+    const { personaId, personaData, returnBase64 } = await req.json();
     
-    if (!personaId) {
-      return new Response(JSON.stringify({ error: 'personaId requis' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Récupérer les informations du persona
-    const { data: persona, error: personaError } = await supabase
-      .from('blog_authors')
-      .select('*')
-      .eq('id', personaId)
-      .single();
+    let persona: any;
 
-    if (personaError || !persona) {
-      console.error('Erreur récupération persona:', personaError);
-      return new Response(JSON.stringify({ error: 'Persona non trouvé' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Mode formulaire : génération sans sauvegarde
+    if (personaData && returnBase64) {
+      persona = personaData;
+      console.log(`Génération d'avatar temporaire pour ${persona.name}`);
+    } else {
+      // Mode normal : génération pour un persona existant
+      if (!personaId) {
+        return new Response(JSON.stringify({ error: 'personaId ou personaData requis' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Récupérer les informations du persona
+      const { data: fetchedPersona, error: personaError } = await supabase
+        .from('blog_authors')
+        .select('*')
+        .eq('id', personaId)
+        .single();
+
+      if (personaError || !fetchedPersona) {
+        console.error('Erreur récupération persona:', personaError);
+        return new Response(JSON.stringify({ error: 'Persona non trouvé' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      persona = fetchedPersona;
+      console.log(`Génération d'avatar pour ${persona.name}`);
     }
-
-    console.log(`Génération d'avatar pour ${persona.name}`);
 
     // Déterminer le genre basé sur le prénom
     const firstName = persona.name.split(' ')[0].toLowerCase();
@@ -50,12 +60,15 @@ serve(async (req) => {
       'marie', 'sophie', 'claire', 'julie', 'emma', 'camille', 'lucie', 'laura', 'sarah', 'léa',
       'nathalie', 'isabelle', 'catherine', 'patricia', 'christine', 'véronique', 'sylvie',
       'florence', 'valérie', 'audrey', 'marion', 'elise', 'charlotte', 'alice', 'léna',
-      'manon', 'anaïs', 'marine', 'pauline', 'cécile', 'hélène', 'amélie', 'émilie'
+      'manon', 'anaïs', 'marine', 'pauline', 'cécile', 'hélène', 'amélie', 'émilie',
+      'chloé', 'inès', 'zoé', 'jade', 'lisa', 'clara', 'lola', 'juliette', 'lou'
     ];
     const maleNames = [
       'marc', 'jean', 'pierre', 'paul', 'jacques', 'michel', 'philippe', 'alain', 'bernard',
       'jérôme', 'nicolas', 'julien', 'thomas', 'alexandre', 'maxime', 'antoine', 'françois',
-      'laurent', 'david', 'stéphane', 'olivier', 'vincent', 'sébastien', 'frédéric'
+      'laurent', 'david', 'stéphane', 'olivier', 'vincent', 'sébastien', 'frédéric',
+      'théo', 'hugo', 'louis', 'arthur', 'gabriel', 'raphaël', 'tom', 'lucas', 'nathan',
+      'mathis', 'enzo', 'léo', 'noah'
     ];
     
     const isFemale = femaleNames.some(name => firstName.includes(name) || name.includes(firstName));
@@ -117,8 +130,23 @@ serve(async (req) => {
       throw new Error('Aucune image générée par l\'IA');
     }
 
-    console.log('✅ Image générée, upload vers Supabase Storage...');
+    console.log('✅ Image générée');
 
+    // Si mode temporaire, retourner le base64 directement
+    if (returnBase64) {
+      console.log('Mode temporaire : retour du base64');
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          avatar_url: imageData
+        }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Mode normal : upload vers Supabase Storage
+    console.log('Mode normal : upload vers Supabase Storage...');
+    
     // Convertir base64 en blob
     const base64Data = imageData.split(',')[1];
     const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));

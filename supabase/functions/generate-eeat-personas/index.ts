@@ -60,7 +60,18 @@ serve(async (req) => {
     const categories = (collections || []).map(c => c.name).join(', ') || 'Non défini';
     const productExamples = (products || []).slice(0, 5).map(p => p.name).join(', ') || 'Non défini';
 
+    // Récupérer les auteurs existants pour éviter les doublons de prénoms
+    const { data: existingAuthors } = await supabase
+      .from('blog_authors')
+      .select('name')
+      .eq('shop_id', shopId);
+
+    const existingNames = (existingAuthors || []).map(a => a.name).join(', ');
+
     console.log(`Génération de personas pour ${shop.name} (${shop.url})`);
+    if (existingNames) {
+      console.log(`Prénoms existants à éviter : ${existingNames}`);
+    }
 
     // Appel à Lovable AI
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -79,7 +90,10 @@ RÈGLES STRICTES :
 4. 3-5 domaines d'expertise pertinents
 5. Certifications crédibles (pas d'inventions fantaisistes)
 6. Chaque auteur doit avoir un angle/spécialité différent
-7. Pas de noms de célébrités ou personnalités connues`;
+7. Pas de noms de célébrités ou personnalités connues
+8. JAMAIS utiliser les prénoms déjà existants dans la boutique
+9. Utiliser des prénoms français VARIÉS et moins courants (éviter Marc, Sophie, Jean, Pierre)
+10. Privilégier des prénoms modernes et diversifiés`;
 
     const userPrompt = `CONTEXTE DE LA BOUTIQUE :
 - Nom : ${shop.name}
@@ -88,11 +102,21 @@ RÈGLES STRICTES :
 - Principales catégories : ${categories}
 - Exemples de produits : ${productExamples}
 
+${existingNames ? `⚠️ CONTRAINTE CRITIQUE :
+Les prénoms suivants sont DÉJÀ utilisés dans cette boutique : ${existingNames}
+Tu DOIS utiliser des prénoms DIFFÉRENTS et VARIÉS.
+
+Exemples de prénoms à privilégier :
+- Hommes : Théo, Hugo, Louis, Arthur, Gabriel, Raphaël, Tom, Lucas, Nathan, Alexandre, Maxime, Antoine, Julien, Thomas, Mathis, Enzo, Léo, Noah
+- Femmes : Chloé, Léa, Inès, Manon, Zoé, Jade, Lisa, Sarah, Clara, Camille, Emma, Lola, Alice, Juliette, Pauline, Lucie, Charlotte, Lou
+
+INTERDICTION ABSOLUE d'utiliser les prénoms déjà présents ci-dessus.` : ''}
+
 TÂCHE :
 Génère 2-3 profils d'auteurs experts pour cette boutique.
 
 Format attendu :
-- name: Prénom Nom (français, réaliste)
+- name: Prénom Nom (français, réaliste, DIFFÉRENT des existants)
 - title: Titre professionnel spécifique
 - bio: Bio professionnelle convaincante (100-150 mots)
 - expertise_areas: Array de 3-5 domaines

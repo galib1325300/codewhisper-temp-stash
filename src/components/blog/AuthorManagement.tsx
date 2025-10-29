@@ -35,6 +35,8 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
   const [editingAuthor, setEditingAuthor] = useState<BlogAuthor | null>(null);
   const [generatingPersonas, setGeneratingPersonas] = useState(false);
   const [generatingAvatar, setGeneratingAvatar] = useState<string | null>(null);
+  const [generatingFormAvatar, setGeneratingFormAvatar] = useState(false);
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -195,8 +197,45 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
     }
   };
 
+  const handleGenerateFormAvatar = async () => {
+    if (!formData.name || !formData.title) {
+      toast.error('Veuillez d\'abord saisir le nom et le titre');
+      return;
+    }
+
+    setGeneratingFormAvatar(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-persona-avatar', {
+        body: { 
+          personaData: {
+            name: formData.name,
+            title: formData.title,
+            bio: formData.bio || 'Expert du domaine'
+          },
+          returnBase64: true
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.avatar_url) {
+        setPreviewAvatar(data.avatar_url);
+        setFormData({ ...formData, avatar_url: data.avatar_url });
+        toast.success('Avatar généré !');
+      } else {
+        toast.error(data?.error || 'Erreur lors de la génération');
+      }
+    } catch (error: any) {
+      console.error('Error generating avatar:', error);
+      toast.error(error.message || 'Erreur lors de la génération de l\'avatar');
+    } finally {
+      setGeneratingFormAvatar(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingAuthor(null);
+    setPreviewAvatar(null);
     setFormData({
       name: '',
       title: '',
@@ -315,13 +354,40 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">URL de l'avatar</label>
-                <Input
-                  type="url"
-                  value={formData.avatar_url}
-                  onChange={(e) => setFormData({...formData, avatar_url: e.target.value})}
-                  placeholder="https://exemple.com/avatar.jpg"
-                />
+                <label className="text-sm font-medium">Avatar</label>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Input
+                      type="url"
+                      value={formData.avatar_url}
+                      onChange={(e) => setFormData({...formData, avatar_url: e.target.value})}
+                      placeholder="https://exemple.com/avatar.jpg"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGenerateFormAvatar}
+                    disabled={generatingFormAvatar || !formData.name || !formData.title}
+                  >
+                    {generatingFormAvatar ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4 mr-2" />
+                        Générer
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {previewAvatar && (
+                  <div className="mt-2">
+                    <img src={previewAvatar} alt="Aperçu" className="w-20 h-20 rounded-full object-cover" />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
