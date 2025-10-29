@@ -215,6 +215,10 @@ export type Database = {
           social_links: Json | null
           title: string
           updated_at: string
+          voice_id: string | null
+          voice_provider: string | null
+          voice_sample_url: string | null
+          voice_settings: Json | null
         }
         Insert: {
           avatar_url?: string | null
@@ -228,6 +232,10 @@ export type Database = {
           social_links?: Json | null
           title: string
           updated_at?: string
+          voice_id?: string | null
+          voice_provider?: string | null
+          voice_sample_url?: string | null
+          voice_settings?: Json | null
         }
         Update: {
           avatar_url?: string | null
@@ -241,6 +249,10 @@ export type Database = {
           social_links?: Json | null
           title?: string
           updated_at?: string
+          voice_id?: string | null
+          voice_provider?: string | null
+          voice_sample_url?: string | null
+          voice_settings?: Json | null
         }
         Relationships: [
           {

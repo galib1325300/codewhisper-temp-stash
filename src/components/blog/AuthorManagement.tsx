@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe, Sparkles, RefreshCw, Camera } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Award, Linkedin, Twitter, Globe, Sparkles, RefreshCw, Camera, Volume2, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BlogAuthor {
@@ -17,6 +17,14 @@ interface BlogAuthor {
   expertise_areas: string[];
   credentials?: string;
   avatar_url?: string;
+  voice_id?: string;
+  voice_provider?: string;
+  voice_sample_url?: string;
+  voice_settings?: {
+    stability?: number;
+    similarity_boost?: number;
+    model?: string;
+  };
   social_links?: {
     linkedin?: string;
     twitter?: string;
@@ -37,6 +45,9 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
   const [generatingAvatar, setGeneratingAvatar] = useState<string | null>(null);
   const [generatingFormAvatar, setGeneratingFormAvatar] = useState(false);
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
+  const [generatingVoice, setGeneratingVoice] = useState<string | null>(null);
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -231,6 +242,69 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
     } finally {
       setGeneratingFormAvatar(false);
     }
+  };
+
+  const handleGenerateVoice = async (authorId: string) => {
+    setGeneratingVoice(authorId);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-persona-voice', {
+        body: { personaId: authorId }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Voix générée avec succès !');
+        loadAuthors();
+      } else {
+        toast.error(data.error || 'Erreur lors de la génération de la voix');
+      }
+    } catch (error: any) {
+      console.error('Error generating voice:', error);
+      if (error.message.includes('Rate limit')) {
+        toast.error('Limite de taux dépassée. Veuillez réessayer dans quelques instants.');
+      } else if (error.message.includes('credits')) {
+        toast.error('Crédits insuffisants. Veuillez ajouter des crédits à votre compte ElevenLabs.');
+      } else {
+        toast.error('Erreur lors de la génération de la voix');
+      }
+    } finally {
+      setGeneratingVoice(null);
+    }
+  };
+
+  const handlePlayVoice = (author: BlogAuthor) => {
+    if (!author.voice_sample_url) {
+      toast.error('Aucune voix disponible pour cet auteur');
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    }
+
+    if (playingVoice === author.id) {
+      setPlayingVoice(null);
+      setAudioElement(null);
+      return;
+    }
+
+    const audio = new Audio(author.voice_sample_url);
+    audio.addEventListener('ended', () => {
+      setPlayingVoice(null);
+      setAudioElement(null);
+    });
+    audio.addEventListener('error', () => {
+      toast.error('Erreur lors de la lecture de la voix');
+      setPlayingVoice(null);
+      setAudioElement(null);
+    });
+
+    audio.play();
+    setPlayingVoice(author.id);
+    setAudioElement(audio);
   };
 
   const resetForm = () => {
@@ -555,6 +629,49 @@ export default function AuthorManagement({ shopId }: AuthorManagementProps) {
                     )}
                   </div>
                 )}
+
+                <div className="flex gap-2 pt-2">
+                  {author.voice_sample_url ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePlayVoice(author)}
+                      disabled={generatingVoice === author.id}
+                      className="flex-1"
+                    >
+                      {playingVoice === author.id ? (
+                        <>
+                          <Volume2 className="h-4 w-4 mr-2 animate-pulse" />
+                          En lecture...
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="h-4 w-4 mr-2" />
+                          Écouter la voix
+                        </>
+                      )}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleGenerateVoice(author.id)}
+                    disabled={generatingVoice === author.id}
+                    className="flex-1"
+                  >
+                    {generatingVoice === author.id ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-4 w-4 mr-2" />
+                        {author.voice_sample_url ? 'Régénérer' : 'Générer une voix'}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
