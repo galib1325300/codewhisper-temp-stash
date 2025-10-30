@@ -60,13 +60,28 @@ serve(async (req) => {
       .eq('shop_id', shopId)
       .limit(20);
 
-    // Get some featured products
-    const { data: products, error: productsError } = await supabase
+    // Get featured products, fallback to recent products if none featured
+    let { data: products, error: productsError } = await supabase
       .from('products')
       .select('id, name, slug, short_description, categories')
       .eq('shop_id', shopId)
       .eq('featured', true)
       .limit(15);
+
+    // Fallback: if no featured products, get 10 most recent
+    if (!products || products.length === 0) {
+      const { data: recentProducts } = await supabase
+        .from('products')
+        .select('id, name, slug, short_description, categories')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      products = recentProducts || [];
+      if (products.length > 0) {
+        console.log(`Using ${products.length} recent products (no featured products found)`);
+      }
+    }
 
     console.log('Found resources:', {
       posts: otherPosts?.length || 0,
@@ -77,6 +92,9 @@ serve(async (req) => {
     // Prepare context for AI
     const baseUrl = shop.url.replace(/\/$/, '');
     const collectionsSlug = shop.collections_slug || 'collections';
+    
+    // Dynamic products slug: support for different CMS (Shopify, WooCommerce, etc.)
+    const productsSlug = shop.products_slug || (shop.type === 'WooCommerce' ? 'product' : 'products');
     
     const postsContext = otherPosts && otherPosts.length > 0
       ? otherPosts.map(p => ({
@@ -98,7 +116,7 @@ serve(async (req) => {
     const productsContext = products && products.length > 0
       ? products.map(p => ({
           title: p.name,
-          url: `${baseUrl}/products/${p.slug}`,
+          url: `${baseUrl}/${productsSlug}/${p.slug}`,
           description: p.short_description
         }))
       : [];
@@ -222,6 +240,43 @@ Format JSON:
     
     console.log(`Valid URLs available: ${allValidUrls.length}`);
 
+    // STEP 1: CLEAN EXISTING INVALID LINKS from the content (anti-404)
+    console.log('🧹 Cleaning pre-existing invalid links from content...');
+    let cleanedContent = content;
+    let linksRemovedFromContent = 0;
+    
+    // Remove links that don't belong to the shop domain or are empty/external
+    cleanedContent = cleanedContent.replace(
+      /<a\s+([^>]*?)href=["']([^"']*?)["']([^>]*?)>(.*?)<\/a>/gi,
+      (match, beforeHref, href, afterHref, anchorText) => {
+        // Keep if href starts with shop URL (internal link)
+        if (href && href.startsWith(baseUrl)) {
+          return match;
+        }
+        // Keep if href is a relative URL starting with / (internal)
+        if (href && href.startsWith('/') && !href.startsWith('//')) {
+          return match;
+        }
+        // Keep if href starts with #  (anchor)
+        if (href && href.startsWith('#')) {
+          return match;
+        }
+        // Keep if it's in our whitelist of valid URLs
+        if (href && allValidUrls.includes(href)) {
+          return match;
+        }
+        // Otherwise, remove the link but keep the text
+        linksRemovedFromContent++;
+        console.log(`🔥 Removed invalid link: ${href}`);
+        return anchorText;
+      }
+    );
+    
+    if (linksRemovedFromContent > 0) {
+      console.log(`✓ Cleaned ${linksRemovedFromContent} invalid pre-existing links`);
+      content = cleanedContent; // Update content for further processing
+    }
+
     // VALIDATION HEAD REQUEST: Vérifier que les URLs existent réellement (pas de 404)
     async function validateUrl(url: string): Promise<boolean> {
       try {
@@ -331,6 +386,13 @@ Format JSON:
     );
 
     console.log('Final cleanup: removed all links from H1/H2/H3 tags');
+
+    // Final summary
+    console.log(`📊 Internal linking summary:
+      - Pre-existing invalid links removed: ${linksRemovedFromContent}
+      - New internal links added: ${linksAdded}
+      - Total links processed: ${linksRemovedFromContent + linksAdded}
+    `);
 
     // Update the blog post with internal links
     const { error: updateError } = await supabase

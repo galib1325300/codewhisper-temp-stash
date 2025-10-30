@@ -10,6 +10,7 @@ export interface Shop {
   wpUsername: string;
   wpPassword: string;
   collectionsSlug: string;
+  productsSlug: string;
   openaiApiKey?: string;
   analyticsEnabled: boolean;
   jetpackAccessToken?: string;

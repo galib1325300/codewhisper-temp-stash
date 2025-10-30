@@ -829,6 +829,7 @@ export type Database = {
           language: string | null
           name: string
           openai_api_key: string | null
+          products_slug: string | null
           shopify_access_token: string | null
           status: string | null
           type: string
@@ -849,6 +850,7 @@ export type Database = {
           language?: string | null
           name: string
           openai_api_key?: string | null
+          products_slug?: string | null
           shopify_access_token?: string | null
           status?: string | null
           type: string
@@ -869,6 +871,7 @@ export type Database = {
           language?: string | null
           name?: string
           openai_api_key?: string | null
+          products_slug?: string | null
           shopify_access_token?: string | null
           status?: string | null
           type?: string

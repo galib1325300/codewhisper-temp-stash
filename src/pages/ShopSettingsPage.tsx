@@ -27,6 +27,7 @@ export default function ShopSettingsPage() {
     url: '',
     language: 'Français',
     collectionsSlug: 'collections',
+    productsSlug: 'products',
     consumerKey: '',
     consumerSecret: '',
     wpUsername: '',
@@ -51,6 +52,7 @@ export default function ShopSettingsPage() {
             url: shopData.url,
             language: shopData.language,
             collectionsSlug: shopData.collectionsSlug,
+            productsSlug: shopData.productsSlug || (shopData.type === 'WooCommerce' ? 'product' : 'products'),
             consumerKey: shopData.consumerKey,
             consumerSecret: shopData.consumerSecret,
             wpUsername: shopData.wpUsername,
@@ -266,6 +268,48 @@ export default function ShopSettingsPage() {
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="collectionsSlug" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                      <Info className="w-4 h-4 mr-1 text-indigo-500" />
+                      Slug Collections
+                    </label>
+                    <input
+                      type="text"
+                      id="collectionsSlug"
+                      name="collectionsSlug"
+                      value={formData.collectionsSlug}
+                      onChange={handleInputChange}
+                      placeholder={formData.type === 'WooCommerce' ? 'product-category' : 'collections'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formData.type === 'WooCommerce' 
+                        ? 'Par défaut: "product-category" ou "categorie-produit" selon vos permaliens'
+                        : 'Par défaut: "collections" (Shopify standard)'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="productsSlug" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                      <Info className="w-4 h-4 mr-1 text-indigo-500" />
+                      Slug Produits
+                    </label>
+                    <input
+                      type="text"
+                      id="productsSlug"
+                      name="productsSlug"
+                      value={formData.productsSlug}
+                      onChange={handleInputChange}
+                      placeholder={formData.type === 'WooCommerce' ? 'product' : 'products'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formData.type === 'WooCommerce' 
+                        ? 'Par défaut: "product" ou "produit" selon vos permaliens'
+                        : 'Par défaut: "products" (Shopify standard)'}
+                    </p>
                   </div>
 
                   <div>

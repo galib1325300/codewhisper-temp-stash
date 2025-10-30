@@ -204,12 +204,12 @@ serve(async (req) => {
 ${topCompetitors}
 
 📊 RECOMMANDATIONS BASÉES SUR L'ANALYSE :
-- Longueur cible : ${serpAnalysis.recommended_structure.target_word_count} mots minimum
+- Longueur cible : ${serpAnalysis.recommended_structure.target_word_count} mots minimum (OBLIGATOIRE - ne pas descendre en dessous)
 - Structure H2 recommandée : ${serpAnalysis.recommended_structure.h2_sections.join(', ')}
 - Mots-clés à inclure : ${serpAnalysis.recommended_structure.must_include_keywords.join(', ')}
 - Éléments à ajouter : ${serpAnalysis.recommended_structure.content_types_to_add.join(', ')}
 
-🎯 OBJECTIF : SURPASSER les concurrents en créant un contenu plus complet, mieux structuré, et plus utile.
+🎯 OBJECTIF CRITIQUE : SURPASSER les concurrents en créant un contenu plus complet (${serpAnalysis.recommended_structure.target_word_count}+ mots), mieux structuré, et plus utile.
 `;
     }
 
@@ -263,7 +263,7 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 - Structure hiérarchique claire : H1 > H2 > H3
 - Paragraphes courts (3-4 lignes max)
 - Listes à puces pour améliorer lisibilité
-- Minimum 1200 mots (idéal pour SEO)
+- Minimum ${serpAnalysis ? serpAnalysis.recommended_structure.target_word_count : '1200'} mots (OBLIGATOIRE - surpasser les concurrents)
 
 🔑 OPTIMISATION MOTS-CLÉS (CRITIQUE) :
 ⚠️ RÈGLES ABSOLUES SEO :
@@ -538,6 +538,40 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       titleLength: blogPost.seo_title.length,
       descLength: blogPost.meta_description.length
     });
+
+    // === SANITIZE EXTERNAL/INVALID LINKS (Anti-404 Critical) ===
+    console.log(`${logPrefix} Sanitizing unauthorized links from AI content...`);
+    const baseUrl = shop.url.replace(/\/$/, '');
+    let sanitizedContent = blogPost.content;
+    
+    // Remove ALL <a> tags that don't belong to the shop domain
+    sanitizedContent = sanitizedContent.replace(
+      /<a\s+([^>]*?)href=["']([^"']*?)["']([^>]*?)>(.*?)<\/a>/gi,
+      (match, beforeHref, href, afterHref, anchorText) => {
+        // Keep if href starts with shop URL (internal link)
+        if (href && href.startsWith(baseUrl)) {
+          return match;
+        }
+        // Keep if href is a relative URL starting with / (internal)
+        if (href && href.startsWith('/') && !href.startsWith('//')) {
+          return match;
+        }
+        // Keep if href starts with #  (anchor)
+        if (href && href.startsWith('#')) {
+          return match;
+        }
+        // Otherwise, remove the link but keep the text
+        console.log(`🔥 Removed unauthorized link: ${href}`);
+        return anchorText;
+      }
+    );
+    
+    const linksRemoved = (blogPost.content.match(/<a /gi) || []).length - (sanitizedContent.match(/<a /gi) || []).length;
+    if (linksRemoved > 0) {
+      console.log(`${logPrefix} ✓ Removed ${linksRemoved} unauthorized AI-generated links`);
+    }
+    
+    blogPost.content = sanitizedContent;
 
     console.log(`${logPrefix} Saving blog post to database...`);
 

@@ -20,6 +20,7 @@ export default function NewShopPage() {
     wpUsername: '',
     wpPassword: '',
     collectionsSlug: 'collections',
+    productsSlug: 'products',
     status: 'publish' as const,
     analyticsEnabled: false,
     jetpackAccessToken: '',
