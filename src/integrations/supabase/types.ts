@@ -274,6 +274,7 @@ export type Database = {
           external_id: string | null
           featured_image: string | null
           focus_keyword: string | null
+          generation_status: string | null
           id: string
           is_pillar: boolean | null
           meta_description: string | null
@@ -295,6 +296,7 @@ export type Database = {
           external_id?: string | null
           featured_image?: string | null
           focus_keyword?: string | null
+          generation_status?: string | null
           id?: string
           is_pillar?: boolean | null
           meta_description?: string | null
@@ -316,6 +318,7 @@ export type Database = {
           external_id?: string | null
           featured_image?: string | null
           focus_keyword?: string | null
+          generation_status?: string | null
           id?: string
           is_pillar?: boolean | null
           meta_description?: string | null

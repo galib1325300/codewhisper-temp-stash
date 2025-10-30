@@ -134,7 +134,7 @@ serve(async (req) => {
     }
 
     // Use AI to suggest relevant internal links
-    const prompt = `Tu es un expert SEO en maillage interne. Analyse ce contenu d'article de blog et suggère 3-5 liens internes pertinents et naturels.
+    const prompt = `Tu es un expert SEO en maillage interne. Analyse ce contenu d'article de blog et suggère 5-7 liens internes pertinents et naturels.
 
 CONTENU DE L'ARTICLE (extrait):
 ${content.replace(/<[^>]*>/g, '').substring(0, 800)}...
@@ -160,7 +160,7 @@ ${productsContext.slice(0, 10).map((p, i) => `${i+1}. Titre: "${p.title}"
 RÈGLES STRICTES:
 1. ⚠️ **CRITIQUE** : Tu DOIS utiliser UNIQUEMENT les URLs listées ci-dessus
 2. ⚠️ **INTERDIT** : Ne JAMAIS inventer ou construire d'autres URLs
-3. Suggère 3-5 liens maximum
+3. Suggère 5-7 liens maximum (au moins 5, pas plus de 7)
 4. L'anchor text doit exister dans le contenu de l'article
 5. Ne JAMAIS mettre de liens dans les titres (H1-H6)
 6. Privilégie la variété : mélange articles/collections/produits
@@ -338,7 +338,7 @@ Format JSON:
       // Sort by relevance score
       const sortedLinks = validatedLinks
         .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
-        .slice(0, 5); // Max 5 links
+        .slice(0, 7); // Max 7 links
 
       console.log(`Processing ${sortedLinks.length} high-relevance links...`);
 
