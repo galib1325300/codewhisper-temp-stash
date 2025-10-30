@@ -274,12 +274,16 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
    - Format OBLIGATOIRE: "${keywords[0] || topic} : Guide 2025" (max 60 chars)
    - Le meta title est différent du H1 mais doit contenir le même mot-clé au début
    
-3. Capitalisation naturelle (ex: "Nettoyage Extérieur" pas "NETTOYAGE EXTERIEUR")
-4. Mot-clé principal présent dans : meta title, H1, premier paragraphe, meta description, conclusion
-- Densité mot-clé principal : 1-2% du texte
-- Mots-clés secondaires (LSI) naturellement intégrés
-- Synonymes et variations sémantiques
-- Éviter keyword stuffing
+3. DENSITÉ DU MOT-CLÉ PRINCIPAL (OBLIGATOIRE) :
+   - Utiliser "${keywords[0] || topic}" EXACTEMENT (pas seulement des variantes)
+   - MINIMUM 15-20 occurrences dans l'article complet
+   - Cible : 1.5% de densité (ex: 15 fois dans 1000 mots)
+   - Présent dans : H1, premier paragraphe, 2-3 H2/H3, conclusion
+   - IMPORTANT : Ne pas remplacer toutes les occurrences par des synonymes
+   
+4. Capitalisation naturelle (ex: "Nettoyage Extérieur" pas "NETTOYAGE EXTERIEUR")
+5. Mots-clés secondaires (LSI) naturellement intégrés
+6. Éviter keyword stuffing mais GARANTIR la densité cible
 
 🔗 LIENS & STRUCTURE :
 - Liens internes vers collections mentionnées (si applicable)
@@ -723,6 +727,24 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
           internalLinksAdded = linksData.linksAdded;
           savedPost.content = linksData.content;
           console.log(`✓ Added ${internalLinksAdded} internal links successfully`);
+          
+          // Phase 3: Validate keyword density
+          const plainTextForDensity = savedPost.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          const wordCountForDensity = plainTextForDensity.split(/\s+/).length;
+          const keywordForDensity = blogPost.focus_keyword || keywords[0] || '';
+          if (keywordForDensity) {
+            const keywordOccurrences = (plainTextForDensity.toLowerCase().match(new RegExp(keywordForDensity.toLowerCase(), 'g')) || []).length;
+            const keywordDensity = (keywordOccurrences / wordCountForDensity) * 100;
+            console.log(`${logPrefix} 📊 Keyword density: ${keywordDensity.toFixed(2)}% (${keywordOccurrences} occurrences / ${wordCountForDensity} words)`);
+            
+            if (keywordDensity < 1.0) {
+              console.warn(`${logPrefix} ⚠️ Keyword density LOW: ${keywordDensity.toFixed(2)}% (target: 1.2-1.8%)`);
+            } else if (keywordDensity > 2.5) {
+              console.warn(`${logPrefix} ⚠️ Keyword density HIGH: ${keywordDensity.toFixed(2)}%`);
+            } else {
+              console.log(`${logPrefix} ✅ Keyword density optimal: ${keywordDensity.toFixed(2)}%`);
+            }
+          }
         }
       } else {
         console.error('Internal linking failed:', await linksResponse.text());

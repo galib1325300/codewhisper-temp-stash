@@ -137,15 +137,20 @@ function analyzeContent(content: string, plainText: string, wordCount: number) {
     recommendations.push('Un article de qualité devrait contenir au moins 1000 mots');
   }
 
-  // H1 presence and uniqueness (5 points)
-  const h1Matches = content.match(/<h1[^>]*>/gi);
+  // H1 presence and uniqueness (5 points) - FIXED: Analyze content HTML directly
+  const h1Matches = content.match(/<h1[^>]*>[\s\S]*?<\/h1>/gi);
   if (h1Matches && h1Matches.length === 1) {
     score += 5;
+    // Check if H1 contains a link (bad practice)
+    if (/<h1[^>]*>.*?<a\s+[^>]*>.*?<\/a>.*?<\/h1>/is.test(h1Matches[0])) {
+      issues.push('⚠️ Lien détecté dans le titre H1 (mauvaise pratique SEO)');
+      recommendations.push('Retirez les liens du titre H1 pour améliorer l\'autorité de la page');
+    }
   } else if (!h1Matches || h1Matches.length === 0) {
-    issues.push('Aucun titre H1 trouvé');
-    recommendations.push('Ajoutez un titre H1 unique pour votre article');
+    issues.push('Aucun titre H1 trouvé dans le contenu');
+    recommendations.push('Ajoutez un titre H1 unique au début de votre article');
   } else {
-    issues.push(`${h1Matches.length} titres H1 trouvés`);
+    issues.push(`${h1Matches.length} titres H1 trouvés (un seul requis)`);
     recommendations.push('Utilisez un seul titre H1 par article');
   }
 

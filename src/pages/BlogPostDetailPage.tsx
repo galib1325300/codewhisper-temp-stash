@@ -278,6 +278,58 @@ export default function BlogPostDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-6">
+                {/* Clean Links Button */}
+                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">🧹</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                        Nettoyer les liens invalides
+                      </h3>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                        Supprime automatiquement les liens 404, externes non autorisés, et réorganise les liens internes.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={async () => {
+                          if (!postId) return;
+                          try {
+                            toast.info('🧹 Nettoyage en cours...');
+                            const { data, error } = await supabase.functions.invoke('clean-blog-post-links', {
+                              body: { postId }
+                            });
+                            
+                            if (error) throw error;
+                            
+                            toast.success(`✅ Nettoyage terminé: ${data.removed} liens supprimés, ${data.kept} liens conservés`);
+                            
+                            // Reload post
+                            const { data: updatedPost } = await supabase
+                              .from('blog_posts')
+                              .select('*')
+                              .eq('id', postId)
+                              .single();
+                            
+                            if (updatedPost) {
+                              setPost(updatedPost);
+                              setFormData({
+                                ...formData,
+                                content: updatedPost.content
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Clean links error:', error);
+                            toast.error('Erreur lors du nettoyage des liens');
+                          }
+                        }}
+                      >
+                        Nettoyer les liens
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Enhanced Author Card with Schema.org */}
                 {post.blog_authors && (
                   <article itemScope itemType="https://schema.org/BlogPosting">

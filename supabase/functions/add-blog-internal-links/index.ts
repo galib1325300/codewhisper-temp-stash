@@ -160,10 +160,10 @@ ${productsContext.slice(0, 10).map((p, i) => `${i+1}. Titre: "${p.title}"
 RÈGLES STRICTES:
 1. ⚠️ **CRITIQUE** : Tu DOIS utiliser UNIQUEMENT les URLs listées ci-dessus
 2. ⚠️ **INTERDIT** : Ne JAMAIS inventer ou construire d'autres URLs
-3. Suggère 5-7 liens maximum (au moins 5, pas plus de 7)
+3. Suggère 7-9 liens maximum (au moins 7, pas plus de 9) - Phase 5 SEO
 4. L'anchor text doit exister dans le contenu de l'article
 5. Ne JAMAIS mettre de liens dans les titres (H1-H6)
-6. Privilégie la variété : mélange articles/collections/produits
+6. Privilégie la variété : mélange articles/collections/produits (favorise autres articles blog)
 7. Score de pertinence minimum : 7/10
 
 VALIDATION OBLIGATOIRE:
@@ -335,10 +335,10 @@ Format JSON:
       
       console.log(`Validated ${validatedLinks.length}/${linkSuggestions.links.length} links`);
       
-      // Sort by relevance score
+      // Sort by relevance score (Phase 5: Increased to 9 links)
       const sortedLinks = validatedLinks
         .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
-        .slice(0, 7); // Max 7 links
+        .slice(0, 9); // Max 9 links (Phase 5 SEO)
 
       console.log(`Processing ${sortedLinks.length} high-relevance links...`);
 
