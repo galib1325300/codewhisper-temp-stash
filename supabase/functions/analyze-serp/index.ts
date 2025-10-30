@@ -26,6 +26,7 @@ interface SerpAnalysis {
     target_word_count: number;
     must_include_keywords: string[];
     content_types_to_add: string[];
+    recommended_internal_links?: number; // Phase 2: Dynamic internal links
   };
   competitive_insights: string;
 }
@@ -148,13 +149,18 @@ serve(async (req) => {
           // Check for tables
           const hasTable = page$('table').length > 0;
 
+          // PHASE 2: Count internal links (domain-specific)
+          const domain = new URL(result.url).hostname;
+          const internalLinks = page$(`a[href^="/"], a[href*="${domain}"]`).length;
+
           analyzedResults.push({
             ...result,
             h1,
             h2_structure: h2Structure.slice(0, 8), // Top 8 H2s
             word_count: wordCount,
             has_faq: hasFaq,
-            has_table: hasTable
+            has_table: hasTable,
+            internal_links: internalLinks
           });
         }
       } catch (scrapeError) {
@@ -204,6 +210,19 @@ serve(async (req) => {
     if (analyzedResults.some(r => r.has_table)) contentTypes.push('comparison_table');
     contentTypes.push('product_recommendations');
 
+    // PHASE 2: Calculate recommended internal links (average of top 3 + 20%)
+    const internalLinksData = analyzedResults
+      .filter(r => r.internal_links !== undefined)
+      .map(r => r.internal_links || 0);
+    
+    const avgInternalLinks = internalLinksData.length > 0
+      ? internalLinksData.reduce((sum, count) => sum + count, 0) / internalLinksData.length
+      : 7; // Fallback to 7 if no data
+    
+    const recommendedInternalLinks = Math.max(7, Math.ceil(avgInternalLinks * 1.2)); // Min 7, +20% boost
+
+    console.log(`📊 Internal links analysis: avg=${avgInternalLinks.toFixed(1)}, recommended=${recommendedInternalLinks}`);
+
     const analysis: SerpAnalysis = {
       top_results: analyzedResults,
       recommended_structure: {
@@ -216,14 +235,15 @@ serve(async (req) => {
         ],
         target_word_count: targetWordCount > 1500 ? targetWordCount : 1500,
         must_include_keywords: mustIncludeKeywords,
-        content_types_to_add: contentTypes
+        content_types_to_add: contentTypes,
+        recommended_internal_links: recommendedInternalLinks // PHASE 2
       },
       competitive_insights: `Analysé ${analyzedResults.length} concurrents. Mot-clé présent dans ${
         analyzedResults.filter(r => 
           r.title.toLowerCase().includes(keyword.toLowerCase()) ||
           r.snippet.toLowerCase().includes(keyword.toLowerCase())
         ).length
-      }/${analyzedResults.length} résultats top 5.`
+      }/${analyzedResults.length} résultats top 5. Liens internes moyens: ${avgInternalLinks.toFixed(1)}`
     };
 
     console.log('SERP analysis completed:', {

@@ -153,3 +153,7 @@ verify_jwt = false
 [functions.clean-blog-post-links]
 verify_jwt = false
 
+[functions.publish-wordpress-post]
+verify_jwt = false
+
+

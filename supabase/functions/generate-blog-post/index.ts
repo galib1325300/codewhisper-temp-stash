@@ -543,6 +543,23 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       descLength: blogPost.meta_description.length
     });
 
+    // === PHASE 5: DETAILED GENERATION STRATEGY LOGS ===
+    console.log(`${logPrefix} 📊 Generation strategy applied:`);
+    console.log(`  - SERP Analysis: ${serpAnalysis ? 'YES ✅' : 'NO (fallback)'}`);
+    if (serpAnalysis) {
+      console.log(`  - Target word count (SERP): ${serpAnalysis.recommended_structure.target_word_count}`);
+      console.log(`  - H2 sections (SERP): ${serpAnalysis.recommended_structure.h2_sections.length} sections`);
+      console.log(`  - Content types (SERP): ${serpAnalysis.recommended_structure.content_types_to_add.join(', ')}`);
+      console.log(`  - Internal links target (SERP): ${serpAnalysis.recommended_structure.recommended_internal_links || 'N/A'}`);
+    } else {
+      console.log(`  - Target word count (fallback): 1500 minimum`);
+      console.log(`  - H2 sections (fallback): 5 generic sections`);
+      console.log(`  - Internal links target (fallback): 7-9`);
+    }
+    console.log(`  - Mode: ${mode}`);
+    console.log(`  - Author: ${selectedAuthorId ? 'Assigned' : 'None'}`);
+    console.log(`  - Keywords: ${keywords.join(', ') || 'None'}`);
+
     // === SANITIZE EXTERNAL/INVALID LINKS (Anti-404 Critical) ===
     console.log(`${logPrefix} Sanitizing unauthorized links from AI content...`);
     const baseUrl = shop.url.replace(/\/$/, '');
@@ -716,7 +733,8 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
             postId: savedPost.id,
             shopId: shopId,
             content: savedPost.content,
-            topic: topic
+            topic: topic,
+            serpAnalysis: serpAnalysis // Phase 3: Pass SERP analysis for dynamic link targeting
           })
         }
       );

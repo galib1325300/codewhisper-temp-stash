@@ -133,56 +133,76 @@ export default function BlogPostDetailPage() {
 
     setSyncing(true);
     try {
-      // Update status to publish
-      const { error: updateError } = await supabase
-        .from('blog_posts')
-        .update({ 
-          status: 'publish',
-          published_at: new Date().toISOString()
-        })
-        .eq('id', postId);
-
-      if (updateError) throw updateError;
-
-      // If WooCommerce shop, sync to WordPress and update wordpress_slug
+      // PHASE 1: Publish to WordPress using the new edge function
       if (shop.type === 'WooCommerce') {
         toast.info('📤 Publication en cours sur WordPress... Cela peut prendre quelques secondes.');
         
         try {
-          const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-wordpress-posts', {
-            body: { shopId: shop.id, postId: postId }
+          const { data: publishData, error: publishError } = await supabase.functions.invoke('publish-wordpress-post', {
+            body: { postId: postId, shopId: shop.id }
           });
           
-          if (syncError) throw syncError;
-          
-          // Update wordpress_slug if returned from sync
-          if (syncData?.wordpress_slug) {
-            await supabase
-              .from('blog_posts')
-              .update({ wordpress_slug: syncData.wordpress_slug })
-              .eq('id', postId);
+          if (publishError) {
+            console.error('WordPress publish error:', publishError);
+            throw new Error(publishError.message || 'Erreur de publication WordPress');
           }
           
-          toast.success('✅ Article publié sur WordPress !');
-        } catch (syncError) {
-          console.error('WordPress sync error:', syncError);
-          toast.warning('⚠️ L\'article est sauvegardé mais la synchro WordPress a échoué. Réessayez plus tard.');
+          if (publishData?.success) {
+            toast.success(`✅ Article publié sur WordPress ! URL: ${publishData.url}`);
+            
+            // Reload post with updated data
+            const { data: updatedPost } = await supabase
+              .from('blog_posts')
+              .select('*')
+              .eq('id', postId)
+              .single();
+            
+            if (updatedPost) {
+              setPost(updatedPost);
+              setFormData({
+                title: updatedPost.title || '',
+                content: updatedPost.content || '',
+                excerpt: updatedPost.excerpt || '',
+                slug: updatedPost.slug || '',
+                meta_title: updatedPost.meta_title || '',
+                meta_description: updatedPost.meta_description || '',
+                focus_keyword: updatedPost.focus_keyword || '',
+                featured_image: updatedPost.featured_image || ''
+              });
+            }
+          } else {
+            throw new Error(publishData?.error || 'Erreur inconnue');
+          }
+        } catch (syncError: any) {
+          console.error('WordPress publish error:', syncError);
+          toast.error(`❌ Échec publication WordPress: ${syncError.message || 'Erreur inconnue'}`);
         }
       } else {
-        toast.success('Article publié');
-      }
+        // For non-WooCommerce shops, just update status
+        const { error: updateError } = await supabase
+          .from('blog_posts')
+          .update({ 
+            status: 'publish',
+            published_at: new Date().toISOString()
+          })
+          .eq('id', postId);
 
-      // Reload post
-      const { data: updatedPost } = await supabase
-        .from('blog_posts')
-        .select('*')
-        .eq('id', postId)
-        .single();
-      
-      if (updatedPost) setPost(updatedPost);
-    } catch (error) {
+        if (updateError) throw updateError;
+        
+        toast.success('Article publié');
+        
+        // Reload post
+        const { data: updatedPost } = await supabase
+          .from('blog_posts')
+          .select('*')
+          .eq('id', postId)
+          .single();
+        
+        if (updatedPost) setPost(updatedPost);
+      }
+    } catch (error: any) {
       console.error('Error publishing post:', error);
-      toast.error('Erreur lors de la publication');
+      toast.error(`Erreur lors de la publication: ${error.message || 'Erreur inconnue'}`);
     } finally {
       setSyncing(false);
     }
@@ -535,19 +555,22 @@ export default function BlogPostDetailPage() {
                     variant="primary"
                     className="w-full mt-2"
                     onClick={() => {
-                      // Use wordpress_slug if available, fallback to local slug
-                      const slug = post.wordpress_slug || formData.slug;
-                      const articleUrl = `${shop.url}/${slug}/`;
-                      window.open(articleUrl, '_blank');
+                      // PHASE 4: Only open if article is published on WordPress
+                      if (post.external_id && post.wordpress_slug) {
+                        const articleUrl = `${shop.url}/${post.wordpress_slug}/`;
+                        window.open(articleUrl, '_blank');
+                      } else {
+                        toast.warning('📤 Publiez d\'abord l\'article sur WordPress pour le voir en ligne');
+                      }
                     }}
-                    disabled={post.status !== 'publish'}
+                    disabled={!post.external_id || !post.wordpress_slug}
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Voir sur le site
                   </Button>
-                  {post.status !== 'publish' && (
+                  {(!post.external_id || !post.wordpress_slug) && (
                     <p className="text-xs text-muted-foreground mt-1 text-center">
-                      Publiez l'article pour le voir sur votre site
+                      Publiez l'article sur WordPress pour le voir en ligne
                     </p>
                   )}
                   

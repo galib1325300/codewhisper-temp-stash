@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { postId, shopId, content, topic } = await req.json();
+    const { postId, shopId, content, topic, serpAnalysis } = await req.json();
 
     if (!postId || !shopId || !content) {
       return new Response(JSON.stringify({ error: 'postId, shopId et content sont requis' }), {
@@ -133,8 +133,12 @@ serve(async (req) => {
       });
     }
 
+    // PHASE 3: Use SERP recommendation if available, otherwise fallback to 7-9
+    const targetLinks = serpAnalysis?.recommended_structure?.recommended_internal_links || 7;
+    console.log(`🎯 Target internal links: ${targetLinks} ${serpAnalysis ? '(SERP recommendation)' : '(fallback)'}`);
+
     // Use AI to suggest relevant internal links
-    const prompt = `Tu es un expert SEO en maillage interne. Analyse ce contenu d'article de blog et suggère 5-7 liens internes pertinents et naturels.
+    const prompt = `Tu es un expert SEO en maillage interne. Analyse ce contenu d'article de blog et suggère EXACTEMENT ${targetLinks} liens internes pertinents et naturels.
 
 CONTENU DE L'ARTICLE (extrait):
 ${content.replace(/<[^>]*>/g, '').substring(0, 800)}...
@@ -160,7 +164,7 @@ ${productsContext.slice(0, 10).map((p, i) => `${i+1}. Titre: "${p.title}"
 RÈGLES STRICTES:
 1. ⚠️ **CRITIQUE** : Tu DOIS utiliser UNIQUEMENT les URLs listées ci-dessus
 2. ⚠️ **INTERDIT** : Ne JAMAIS inventer ou construire d'autres URLs
-3. Suggère 7-9 liens maximum (au moins 7, pas plus de 9) - Phase 5 SEO
+3. Suggère EXACTEMENT le nombre de liens demandé (minimum 7)
 4. L'anchor text doit exister dans le contenu de l'article
 5. Ne JAMAIS mettre de liens dans les titres (H1-H6)
 6. Privilégie la variété : mélange articles/collections/produits (favorise autres articles blog)
@@ -335,10 +339,10 @@ Format JSON:
       
       console.log(`Validated ${validatedLinks.length}/${linkSuggestions.links.length} links`);
       
-      // Sort by relevance score (Phase 5: Increased to 9 links)
+      // Sort by relevance score and use target from SERP or fallback
       const sortedLinks = validatedLinks
         .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
-        .slice(0, 9); // Max 9 links (Phase 5 SEO)
+        .slice(0, Math.max(targetLinks, 9)); // Use SERP recommendation or max 9
 
       console.log(`Processing ${sortedLinks.length} high-relevance links...`);
 
