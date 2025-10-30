@@ -637,6 +637,9 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     let generatedImages = [];
     try {
       console.log(`${logPrefix} Calling generate-article-images function...`);
+      const imagesController = new AbortController();
+      const imagesTimeout = setTimeout(() => imagesController.abort(), 60000); // 60s timeout
+      
       const imagesResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-article-images`,
         {
@@ -650,9 +653,11 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
             topic,
             h2Sections,
             niche: shop.name
-          })
+          }),
+          signal: imagesController.signal
         }
       );
+      clearTimeout(imagesTimeout);
 
       if (imagesResponse.ok) {
         const imagesData = await imagesResponse.json();
@@ -721,6 +726,9 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     let internalLinksAdded = 0;
     try {
       console.log(`${logPrefix} Adding internal links to blog post...`);
+      const linksController = new AbortController();
+      const linksTimeout = setTimeout(() => linksController.abort(), 45000); // 45s timeout
+      
       const linksResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-internal-links`,
         {
@@ -735,9 +743,11 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
             content: savedPost.content,
             topic: topic,
             serpAnalysis: serpAnalysis // Phase 3: Pass SERP analysis for dynamic link targeting
-          })
+          }),
+          signal: linksController.signal
         }
       );
+      clearTimeout(linksTimeout);
 
       if (linksResponse.ok) {
         const linksData = await linksResponse.json();
@@ -775,6 +785,9 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     if (selectedAuthorId) {
       try {
         console.log('Adding author signature...');
+        const signatureController = new AbortController();
+        const signatureTimeout = setTimeout(() => signatureController.abort(), 30000); // 30s timeout
+        
         const signatureResponse = await fetch(
           `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-author-signature`,
           {
@@ -788,9 +801,11 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
               authorId: selectedAuthorId,
               shopId: shopId,
               postTitle: blogPost.title
-            })
+            }),
+            signal: signatureController.signal
           }
         );
+        clearTimeout(signatureTimeout);
 
         if (signatureResponse.ok) {
           const signatureData = await signatureResponse.json();
@@ -809,6 +824,9 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
     // Add FAQ section
     try {
       console.log(`${logPrefix} Generating FAQ section...`);
+      const faqController = new AbortController();
+      const faqTimeout = setTimeout(() => faqController.abort(), 45000); // 45s timeout
+      
       const faqResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-faq`,
         {
@@ -823,9 +841,11 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
             content: savedPost.content,
             topic: blogPost.title,
             focusKeyword: blogPost.focus_keyword
-          })
+          }),
+          signal: faqController.signal
         }
       );
+      clearTimeout(faqTimeout);
 
       if (faqResponse.ok) {
         const faqData = await faqResponse.json();
