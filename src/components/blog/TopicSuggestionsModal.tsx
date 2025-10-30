@@ -289,7 +289,9 @@ export default function TopicSuggestionsModal({
         {/* Footer */}
         <div className="border-t border-border p-4 bg-muted/30">
           <p className="text-xs text-muted-foreground text-center">
-            🤖 Suggestions générées par IA • Optimisées pour mots-clés longue traîne • Analyse SERP intégrée
+            🤖 Suggestions générées par IA • 
+            🔍 Analyse Google top 5 résultats • 
+            📊 Optimisées pour mots-clés longue traîne
           </p>
         </div>
       </div>

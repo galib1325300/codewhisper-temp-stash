@@ -40,42 +40,74 @@ serve(async (req) => {
 
     console.log('Analyzing SERP for keyword:', keyword);
 
-    // Search Google for the keyword
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(keyword)}&hl=fr&gl=fr`;
-    const searchResponse = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
+    // Get Google API credentials from environment
+    const apiKey = Deno.env.get('GOOGLE_SEARCH_API_KEY');
+    const engineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
+
+    if (!apiKey || !engineId) {
+      throw new Error('Google Search API credentials not configured');
+    }
+
+    // Call Google Programmable Search API
+    const apiUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${encodeURIComponent(keyword)}&gl=fr&hl=fr&num=5`;
+    
+    console.log('Calling Google Programmable Search API...');
+    const searchResponse = await fetch(apiUrl);
 
     if (!searchResponse.ok) {
+      const errorData = await searchResponse.text();
+      console.error('Google API Error:', errorData);
+      
+      if (searchResponse.status === 429) {
+        throw new Error('Quota Google dépassé - limite de 1000 recherches/jour');
+      } else if (searchResponse.status === 400) {
+        throw new Error('Erreur configuration API Google (clé API invalide)');
+      } else if (searchResponse.status === 403) {
+        throw new Error('Accès refusé - vérifier les restrictions API Google');
+      }
+      
       throw new Error('Failed to fetch Google search results');
     }
 
-    const html = await searchResponse.text();
-    const $ = cheerio.load(html);
+    // Parse JSON response from Google API
+    const data = await searchResponse.json();
+    
+    // Check if we have results
+    if (!data.items || data.items.length === 0) {
+      console.log('No results found from Google API');
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          analysis: {
+            top_results: [],
+            recommended_structure: {
+              h2_sections: [
+                `Qu'est-ce qu'un ${keyword} ?`,
+                `Les meilleurs ${keyword} en 2025`,
+                `Comment choisir son ${keyword}`,
+                `Guide d'utilisation`,
+                `FAQ : Questions fréquentes`
+              ],
+              target_word_count: 1500,
+              must_include_keywords: [keyword.toLowerCase()],
+              content_types_to_add: ['faq_section', 'product_recommendations']
+            },
+            competitive_insights: 'Aucun résultat trouvé sur Google pour ce mot-clé.'
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
-    // Extract top 5 organic results
-    const results: SerpResult[] = [];
-    let rank = 1;
-
-    // Parse Google search results
-    $('.g').slice(0, 5).each((_, element) => {
-      const $elem = $(element);
-      const linkElem = $elem.find('a').first();
-      const url = linkElem.attr('href') || '';
-      const title = $elem.find('h3').first().text() || '';
-      const snippet = $elem.find('.VwiC3b').text() || $elem.find('.lEBKkf').text() || '';
-
-      if (url && title && url.startsWith('http')) {
-        results.push({
-          rank: rank++,
-          url,
-          title,
-          snippet
-        });
-      }
-    });
+    // Extract top 5 organic results from Google API response
+    const results: SerpResult[] = data.items.slice(0, 5).map((item: any, index: number) => ({
+      rank: index + 1,
+      url: item.link,
+      title: item.title,
+      snippet: item.snippet || ''
+    }));
 
     console.log(`Found ${results.length} results for analysis`);
 
