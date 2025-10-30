@@ -266,11 +266,16 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 - Minimum 1200 mots (idéal pour SEO)
 
 🔑 OPTIMISATION MOTS-CLÉS (CRITIQUE) :
-⚠️ RÈGLE ABSOLUE : Le mot-clé principal "${keywords[0] || topic}" DOIT apparaître EXACTEMENT dans le titre H1
-   - Exemple pour "${keywords[0] || topic}": "${keywords[0] || topic} : Guide complet 2025"
-   - Le mot-clé DOIT être dans les 10 premiers mots du H1
-   - Capitalisation naturelle (ex: "Nettoyage Extérieur" pas "nettoyage extérieur")
-- Mot-clé principal présent dans : titre, H1, premier paragraphe, meta description, conclusion
+⚠️ RÈGLES ABSOLUES SEO :
+1. TITRE H1 : Le mot-clé "${keywords[0] || topic}" DOIT apparaître dans les 10 premiers mots
+   - Exemple: "${keywords[0] || topic} : Guide complet 2025"
+   
+2. META TITLE : DOIT commencer par le mot-clé exact "${keywords[0] || topic}"
+   - Format OBLIGATOIRE: "${keywords[0] || topic} : Guide 2025" (max 60 chars)
+   - Le meta title est différent du H1 mais doit contenir le même mot-clé au début
+   
+3. Capitalisation naturelle (ex: "Nettoyage Extérieur" pas "NETTOYAGE EXTERIEUR")
+4. Mot-clé principal présent dans : meta title, H1, premier paragraphe, meta description, conclusion
 - Densité mot-clé principal : 1-2% du texte
 - Mots-clés secondaires (LSI) naturellement intégrés
 - Synonymes et variations sémantiques
@@ -512,8 +517,19 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       return clean;
     };
     
-    // Meta title: max 60 caractères
-    blogPost.seo_title = cleanAndTruncate(blogPost.seo_title || blogPost.title, 60);
+    // Meta title: FORCER le mot-clé exact au début (règle SEO critique)
+    const mainKeyword = keywords[0] || topic;
+    const keywordPrefix = mainKeyword.substring(0, 45); // Laisser 15 chars pour suffix
+    
+    // Si le meta title ne commence pas déjà par le mot-clé, le forcer
+    if (!blogPost.seo_title || !blogPost.seo_title.toLowerCase().startsWith(mainKeyword.toLowerCase().substring(0, 20))) {
+      blogPost.seo_title = `${keywordPrefix} : Guide 2025`;
+    }
+    
+    blogPost.seo_title = cleanAndTruncate(blogPost.seo_title, 60);
+    
+    // Garantir que le focus_keyword correspond exactement au mot-clé principal
+    blogPost.focus_keyword = mainKeyword;
     
     // Meta description: max 160 caractères
     blogPost.meta_description = cleanAndTruncate(blogPost.meta_description, 160);
