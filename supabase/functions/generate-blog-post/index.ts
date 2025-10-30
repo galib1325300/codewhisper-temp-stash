@@ -265,7 +265,11 @@ CRITÈRES SEO OBLIGATOIRES (100% optimisé) :
 - Listes à puces pour améliorer lisibilité
 - Minimum 1200 mots (idéal pour SEO)
 
-🔑 OPTIMISATION MOTS-CLÉS :
+🔑 OPTIMISATION MOTS-CLÉS (CRITIQUE) :
+⚠️ RÈGLE ABSOLUE : Le mot-clé principal "${keywords[0] || topic}" DOIT apparaître EXACTEMENT dans le titre H1
+   - Exemple pour "${keywords[0] || topic}": "${keywords[0] || topic} : Guide complet 2025"
+   - Le mot-clé DOIT être dans les 10 premiers mots du H1
+   - Capitalisation naturelle (ex: "Nettoyage Extérieur" pas "nettoyage extérieur")
 - Mot-clé principal présent dans : titre, H1, premier paragraphe, meta description, conclusion
 - Densité mot-clé principal : 1-2% du texte
 - Mots-clés secondaires (LSI) naturellement intégrés

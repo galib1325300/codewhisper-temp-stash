@@ -222,18 +222,60 @@ Format JSON:
     
     console.log(`Valid URLs available: ${allValidUrls.length}`);
 
+    // VALIDATION HEAD REQUEST: Vérifier que les URLs existent réellement (pas de 404)
+    async function validateUrl(url: string): Promise<boolean> {
+      try {
+        const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+        const isValid = response.ok; // status 200-299
+        if (!isValid) {
+          console.warn(`⚠️ URL retourne ${response.status}: ${url}`);
+        }
+        return isValid;
+      } catch (error) {
+        console.warn(`⚠️ URL inaccessible: ${url}`, error);
+        return false;
+      }
+    }
+
+    // Valider toutes les URLs en parallèle
+    console.log('🔍 Validation des URLs avant insertion...');
+    const urlValidations = await Promise.all(
+      allValidUrls.map(async (url) => ({
+        url,
+        isValid: await validateUrl(url)
+      }))
+    );
+
+    const validatedUrls = urlValidations
+      .filter(v => v.isValid)
+      .map(v => v.url);
+
+    const rejectedUrls = urlValidations
+      .filter(v => !v.isValid)
+      .map(v => v.url);
+
+    console.log(`✅ URLs valides: ${validatedUrls.length}/${allValidUrls.length}`);
+    if (rejectedUrls.length > 0) {
+      console.warn(`❌ URLs rejetées (404 ou erreur):`, rejectedUrls);
+    }
+
     // Insert links into content
     let updatedContent = content;
     let linksAdded = 0;
 
     if (linkSuggestions.links && Array.isArray(linkSuggestions.links)) {
-      // Valider et filtrer les liens
+      // Valider et filtrer les liens (vérifier à la fois dans la liste ET que l'URL est accessible)
       const validatedLinks = linkSuggestions.links.filter((link: any) => {
-        const isValid = allValidUrls.includes(link.url);
-        if (!isValid) {
-          console.warn(`⚠️ Lien invalide rejeté: ${link.url} (non trouvé dans les ressources)`);
+        const isInList = allValidUrls.includes(link.url);
+        const isAccessible = validatedUrls.includes(link.url);
+        
+        if (!isInList) {
+          console.warn(`⚠️ Lien rejeté (non dans ressources): ${link.url}`);
+        } else if (!isAccessible) {
+          console.warn(`⚠️ Lien rejeté (404 ou inaccessible): ${link.url}`);
         }
-        return isValid && link.relevance_score >= 7;
+        
+        return isInList && isAccessible && link.relevance_score >= 7;
       });
       
       console.log(`Validated ${validatedLinks.length}/${linkSuggestions.links.length} links`);
