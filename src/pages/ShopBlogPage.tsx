@@ -406,11 +406,12 @@ export default function ShopBlogPage() {
           window.dispatchEvent(new Event('blogGenerationStarted'));
           
           toast.success('✅ Génération lancée en arrière-plan !', {
-            description: 'Vous pouvez continuer à travailler'
+            description: 'Vous pouvez continuer à travailler',
+            action: {
+              label: 'Voir l\'article',
+              onClick: () => navigate(`/admin/shops/${shop.id}/blog/${postId}`)
+            }
           });
-          
-          // Navigate to the post detail page
-          navigate(`/admin/shops/${shop.id}/blog/${postId}`);
         }
         
         setShowForm(false);

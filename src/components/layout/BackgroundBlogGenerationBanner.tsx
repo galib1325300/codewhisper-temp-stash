@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const LS_KEY = 'activeBlogGeneration';
+const MAX_GENERATION_TIME = 12 * 60 * 1000; // 12 minutes
+const MAX_ERROR_COUNT = 5;
 
 interface ActiveBlogGenerationMeta {
   postId: string;
@@ -21,6 +23,8 @@ export default function BackgroundBlogGenerationBanner() {
   const [activeGeneration, setActiveGeneration] = useState<ActiveBlogGenerationMeta | null>(null);
   const [hidden, setHidden] = useState(false);
   const [status, setStatus] = useState<'generating' | 'draft' | 'error'>('generating');
+  const errorCountRef = useRef(0);
+  const channelRef = useRef<any>(null);
 
   // Load active generation from localStorage
   useEffect(() => {
@@ -44,55 +48,140 @@ export default function BackgroundBlogGenerationBanner() {
     return () => window.removeEventListener('blogGenerationStarted', handleReload);
   }, []);
 
-  // Show banner again if user navigates away from detail page
-  useEffect(() => {
-    if (activeGeneration && location.pathname !== `/admin/shops/${activeGeneration.shopId}/blog/${activeGeneration.postId}`) {
-      setHidden(false);
-    }
-  }, [location.pathname, activeGeneration]);
-
-  // Poll for generation status
+  // Show/hide banner based on route
   useEffect(() => {
     if (!activeGeneration) return;
-
-    let interval: NodeJS.Timeout;
     
-    const checkStatus = async () => {
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .select('generation_status, content')
-        .eq('id', activeGeneration.postId)
-        .single();
+    const isOnDetailPage = location.pathname === `/admin/shops/${activeGeneration.shopId}/blog/${activeGeneration.postId}`;
+    setHidden(isOnDetailPage);
+  }, [location.pathname, activeGeneration]);
 
-      if (error || !data) {
-        console.error('Error checking blog generation status:', error);
-        return;
+  // Listen for completion events from detail page
+  useEffect(() => {
+    const handleCompletion = () => {
+      localStorage.removeItem(LS_KEY);
+      setActiveGeneration(null);
+    };
+    
+    window.addEventListener('blogGenerationCompleted', handleCompletion);
+    return () => window.removeEventListener('blogGenerationCompleted', handleCompletion);
+  }, []);
+
+  // Setup realtime subscription and polling
+  useEffect(() => {
+    if (!activeGeneration) {
+      // Cleanup channel if no active generation
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
+      return;
+    }
 
-      setStatus(data.generation_status as any);
-
-      // Check if completed
-      if (data.generation_status === 'draft' || data.generation_status === 'published') {
+    let pollInterval: NodeJS.Timeout;
+    let ttlTimeout: NodeJS.Timeout;
+    
+    const cleanup = () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (ttlTimeout) clearTimeout(ttlTimeout);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      localStorage.removeItem(LS_KEY);
+      setActiveGeneration(null);
+    };
+    
+    const handleCompletion = (newStatus: string) => {
+      setStatus(newStatus as any);
+      
+      if (newStatus === 'draft' || newStatus === 'published') {
         toast.success('✅ Article généré avec succès !');
-        localStorage.removeItem(LS_KEY);
-        setActiveGeneration(null);
-      } else if (data.generation_status === 'error') {
+        cleanup();
+      } else if (newStatus === 'error') {
         toast.error('❌ Erreur lors de la génération de l\'article');
-        localStorage.removeItem(LS_KEY);
-        setActiveGeneration(null);
+        cleanup();
       }
     };
+    
+    const checkStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('blog_posts')
+          .select('generation_status')
+          .eq('id', activeGeneration.postId)
+          .single();
+
+        if (error) {
+          errorCountRef.current++;
+          console.error('Error checking blog generation status:', error);
+          
+          if (errorCountRef.current >= MAX_ERROR_COUNT) {
+            toast.error('Impossible de suivre l\'avancement. Vérifiez l\'article manuellement.', {
+              action: {
+                label: 'Voir l\'article',
+                onClick: () => navigate(`/admin/shops/${activeGeneration.shopId}/blog/${activeGeneration.postId}`)
+              }
+            });
+            cleanup();
+          }
+          return;
+        }
+
+        if (data) {
+          errorCountRef.current = 0; // Reset on success
+          handleCompletion(data.generation_status);
+        }
+      } catch (err) {
+        console.error('Status check failed:', err);
+      }
+    };
+
+    // Setup realtime subscription
+    const channel = supabase
+      .channel(`blog_post_${activeGeneration.postId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'blog_posts',
+          filter: `id=eq.${activeGeneration.postId}`
+        },
+        (payload: any) => {
+          console.log('Realtime update received:', payload);
+          if (payload.new?.generation_status) {
+            handleCompletion(payload.new.generation_status);
+          }
+        }
+      )
+      .subscribe();
+    
+    channelRef.current = channel;
 
     // Initial check
     checkStatus();
 
-    // Poll every 3 seconds
-    interval = setInterval(checkStatus, 3000);
+    // Poll every 3 seconds as fallback
+    pollInterval = setInterval(checkStatus, 3000);
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeGeneration]);
+    // TTL: Auto-cleanup after 12 minutes
+    ttlTimeout = setTimeout(() => {
+      const elapsed = Date.now() - activeGeneration.startedAt;
+      if (elapsed > MAX_GENERATION_TIME) {
+        toast.info('Génération non confirmée après 12 min. Vérifiez l\'article manuellement.', {
+          duration: 6000,
+          action: {
+            label: 'Voir l\'article',
+            onClick: () => navigate(`/admin/shops/${activeGeneration.shopId}/blog/${activeGeneration.postId}`)
+          }
+        });
+        cleanup();
+      }
+    }, MAX_GENERATION_TIME);
+
+    return cleanup;
+  }, [activeGeneration, navigate]);
 
   if (!activeGeneration || hidden) return null;
 

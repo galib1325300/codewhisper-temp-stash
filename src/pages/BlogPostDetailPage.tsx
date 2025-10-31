@@ -90,6 +90,94 @@ export default function BlogPostDetailPage() {
     loadData();
   }, [shopId, postId]);
 
+  // Realtime subscription for generation status updates
+  useEffect(() => {
+    if (!postId) return;
+
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    const updatePostData = async () => {
+      try {
+        const { data: updatedPost, error } = await supabase
+          .from('blog_posts')
+          .select(`
+            *,
+            blog_authors (*)
+          `)
+          .eq('id', postId)
+          .single();
+
+        if (error) throw error;
+
+        if (updatedPost) {
+          setPost(updatedPost);
+          setFormData({
+            title: updatedPost.title || '',
+            content: updatedPost.content || '',
+            excerpt: updatedPost.excerpt || '',
+            slug: updatedPost.slug || '',
+            meta_title: updatedPost.meta_title || '',
+            meta_description: updatedPost.meta_description || '',
+            focus_keyword: updatedPost.focus_keyword || '',
+            featured_image: updatedPost.featured_image || ''
+          });
+
+          // Extract images from updated content
+          const imgRegex = /<img[^>]+src="([^">]+)"[^>]*alt="([^">]*)"[^>]*>/gi;
+          const images = [];
+          let imgMatch;
+          while ((imgMatch = imgRegex.exec(updatedPost.content || '')) !== null) {
+            images.push({
+              url: imgMatch[1],
+              alt: imgMatch[2] || ''
+            });
+          }
+          setExtractedImages(images);
+
+          // If generation just completed, dispatch event
+          if (post?.generation_status === 'generating' && 
+              (updatedPost.generation_status === 'draft' || updatedPost.generation_status === 'published')) {
+            window.dispatchEvent(new Event('blogGenerationCompleted'));
+            toast.success('✅ Article terminé et prêt à être publié !');
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error updating post data:', err);
+      }
+    };
+
+    // Setup realtime subscription
+    const channel = supabase
+      .channel(`blog_post_detail_${postId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'blog_posts',
+          filter: `id=eq.${postId}`
+        },
+        () => {
+          updatePostData();
+        }
+      )
+      .subscribe();
+
+    // Setup polling while generating
+    if (post?.generation_status === 'generating') {
+      pollInterval = setInterval(updatePostData, 4000);
+    }
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [postId, post?.generation_status]);
+
   const handleSave = async () => {
     if (!postId) return;
 
