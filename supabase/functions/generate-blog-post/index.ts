@@ -466,7 +466,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
       const aiData2 = await aiResponse2.json();
       const contentHtml = aiData2?.choices?.[0]?.message?.content?.trim();
-      if (!contentHtml) throw new Error('Réponse vide de l’IA (fallback)');
+      if (!contentHtml) throw new Error('Réponse vide de l'IA (fallback)');
 
       // Build minimal metadata
       const h1Match = contentHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
@@ -596,7 +596,23 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     console.log(`${logPrefix} Saving blog post to database...`);
 
-    // Save blog post to database
+    // === GARANTIR H1 AU DÉBUT DU CONTENU ===
+    console.log('Ensuring H1 at beginning of content...');
+    let finalContent = blogPost.content;
+    
+    // Check if content starts with H1
+    const startsWithH1 = /^\s*<h1[^>]*>/i.test(finalContent);
+    
+    if (!startsWithH1) {
+      // Insert H1 at the beginning
+      const h1Tag = `<h1>${blogPost.title}</h1>\n\n`;
+      finalContent = h1Tag + finalContent;
+      console.log('✓ H1 inserted at beginning');
+    }
+    
+    blogPost.content = finalContent;
+
+    // Save blog post to database with generation_status='generating'
     const { data: savedPost, error: saveError } = await supabaseClient
       .from('blog_posts')
       .insert({
@@ -610,6 +626,7 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
         focus_keyword: blogPost.focus_keyword || keywords[0] || null,
         author_id: selectedAuthorId,
         status: 'draft',
+        generation_status: 'generating'
       })
       .select()
       .single();
@@ -621,276 +638,322 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     console.log('Blog post saved successfully:', savedPost.id);
 
-    // Extract H2 sections from generated content for image generation
-    const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
-    const h2Sections: string[] = [];
-    let match;
-    while ((match = h2Regex.exec(blogPost.content)) !== null) {
-      // Remove HTML tags from H2 content
-      const cleanH2 = match[1].replace(/<[^>]*>/g, '').trim();
-      h2Sections.push(cleanH2);
-    }
+    // Return immediately to client
+    const immediateResponse = new Response(
+      JSON.stringify({ 
+        success: true, 
+        post: savedPost,
+        message: 'Article en cours de génération en arrière-plan'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
-    console.log(`${logPrefix} Extracted ${h2Sections.length} H2 sections for image generation`);
+    // Continue processing in background
+    // @ts-ignore - EdgeRuntime is available in Deno Deploy
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        console.log(`${logPrefix} 🔄 Background processing started for post ${savedPost.id}`);
 
-    // Generate images for the article
-    let generatedImages = [];
-    try {
-      console.log(`${logPrefix} Calling generate-article-images function...`);
-      const imagesController = new AbortController();
-      const imagesTimeout = setTimeout(() => imagesController.abort(), 60000); // 60s timeout
-      
-      const imagesResponse = await fetch(
-        `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-article-images`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-          },
-          body: JSON.stringify({
-            postId: savedPost.id,
-            topic,
-            h2Sections,
-            niche: shop.name
-          }),
-          signal: imagesController.signal
+        // Extract H2 sections from generated content for image generation
+        const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
+        const h2Sections: string[] = [];
+        let match;
+        while ((match = h2Regex.exec(blogPost.content)) !== null) {
+          // Remove HTML tags from H2 content
+          const cleanH2 = match[1].replace(/<[^>]*>/g, '').trim();
+          h2Sections.push(cleanH2);
         }
-      );
-      clearTimeout(imagesTimeout);
 
-      if (imagesResponse.ok) {
-        const imagesData = await imagesResponse.json();
-        if (imagesData.success) {
-          generatedImages = imagesData.images;
-          console.log(`${logPrefix} Successfully generated ${generatedImages.length} images`);
+        console.log(`${logPrefix} Extracted ${h2Sections.length} H2 sections for image generation`);
 
-          // Insert images into content
-          let updatedContent = blogPost.content;
+        // Generate images for the article
+        let generatedImages = [];
+        try {
+          console.log(`${logPrefix} Calling generate-article-images function...`);
+          const imagesController = new AbortController();
+          const imagesTimeout = setTimeout(() => imagesController.abort(), 60000); // 60s timeout
           
-          // Add hero image right after the first paragraph
-          if (generatedImages.length > 0 && generatedImages[0].section === 'hero') {
-            const heroImage = generatedImages[0];
-            const firstParagraphEnd = updatedContent.indexOf('</p>');
-            if (firstParagraphEnd !== -1) {
-              const heroImageHtml = `\n\n<figure style="margin: 2rem 0;">
+          const imagesResponse = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-article-images`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+              },
+              body: JSON.stringify({
+                postId: savedPost.id,
+                topic,
+                h2Sections,
+                niche: shop.name
+              }),
+              signal: imagesController.signal
+            }
+          );
+          clearTimeout(imagesTimeout);
+
+          if (imagesResponse.ok) {
+            const imagesData = await imagesResponse.json();
+            if (imagesData.success) {
+              generatedImages = imagesData.images;
+              console.log(`${logPrefix} Successfully generated ${generatedImages.length} images`);
+
+              // Insert images into content
+              let updatedContent = blogPost.content;
+              
+              // Add hero image right after the first paragraph
+              if (generatedImages.length > 0 && generatedImages[0].section === 'hero') {
+                const heroImage = generatedImages[0];
+                const firstParagraphEnd = updatedContent.indexOf('</p>');
+                if (firstParagraphEnd !== -1) {
+                  const heroImageHtml = `\n\n<figure style="margin: 2rem 0;">
   <img src="${heroImage.url}" alt="${heroImage.alt}" style="width: 100%; height: auto; border-radius: 8px;" loading="eager" />
   <figcaption style="margin-top: 0.5rem; font-size: 0.875rem; color: #666; text-align: center;">${heroImage.alt}</figcaption>
 </figure>\n\n`;
-              updatedContent = updatedContent.slice(0, firstParagraphEnd + 4) + heroImageHtml + updatedContent.slice(firstParagraphEnd + 4);
-            }
-          }
+                  updatedContent = updatedContent.slice(0, firstParagraphEnd + 4) + heroImageHtml + updatedContent.slice(firstParagraphEnd + 4);
+                }
+              }
 
-          // Insert section images after their corresponding H2
-          for (let i = 1; i < generatedImages.length; i++) {
-            const image = generatedImages[i];
-            const correspondingH2Index = i - 1;
-            
-            if (correspondingH2Index < h2Sections.length) {
-              const h2Text = h2Sections[correspondingH2Index];
-              const h2Regex = new RegExp(`(<h2[^>]*>${h2Text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</h2>)`, 'i');
-              const imageHtml = `$1\n\n<figure style="margin: 2rem 0;">
+              // Insert section images after their corresponding H2
+              for (let i = 1; i < generatedImages.length; i++) {
+                const image = generatedImages[i];
+                const correspondingH2Index = i - 1;
+                
+                if (correspondingH2Index < h2Sections.length) {
+                  const h2Text = h2Sections[correspondingH2Index];
+                  const h2Regex = new RegExp(`(<h2[^>]*>${h2Text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</h2>)`, 'i');
+                  const imageHtml = `$1\n\n<figure style="margin: 2rem 0;">
   <img src="${image.url}" alt="${image.alt}" style="width: 100%; height: auto; border-radius: 8px;" loading="lazy" />
   <figcaption style="margin-top: 0.5rem; font-size: 0.875rem; color: #666; text-align: center;">${image.alt}</figcaption>
 </figure>\n\n`;
-              updatedContent = updatedContent.replace(h2Regex, imageHtml);
+                  updatedContent = updatedContent.replace(h2Regex, imageHtml);
+                }
+              }
+
+              // Update the blog post with images
+              const { error: updateError } = await supabaseClient
+                .from('blog_posts')
+                .update({
+                  content: updatedContent,
+                  featured_image: generatedImages.length > 0 ? generatedImages[0].url : null
+                })
+                .eq('id', savedPost.id);
+
+              if (updateError) {
+                console.error('Error updating post with images:', updateError);
+              } else {
+                console.log('Post updated with images successfully');
+                blogPost.content = updatedContent;
+                savedPost.content = updatedContent;
+                savedPost.featured_image = generatedImages.length > 0 ? generatedImages[0].url : null;
+              }
             }
-          }
-
-          // Update the blog post with images
-          const { error: updateError } = await supabaseClient
-            .from('blog_posts')
-            .update({
-              content: updatedContent,
-              featured_image: generatedImages.length > 0 ? generatedImages[0].url : null
-            })
-            .eq('id', savedPost.id);
-
-          if (updateError) {
-            console.error('Error updating post with images:', updateError);
           } else {
-            console.log('Post updated with images successfully');
-            blogPost.content = updatedContent;
-            savedPost.content = updatedContent;
-            savedPost.featured_image = generatedImages.length > 0 ? generatedImages[0].url : null;
+            console.error('Image generation failed:', await imagesResponse.text());
+          }
+        } catch (imageError) {
+          console.error('Error generating images (non-critical):', imageError);
+        }
+
+        // Add internal links to the content
+        let internalLinksAdded = 0;
+        try {
+          console.log(`${logPrefix} Adding internal links to blog post...`);
+          const linksController = new AbortController();
+          const linksTimeout = setTimeout(() => linksController.abort(), 45000); // 45s timeout
+          
+          const linksResponse = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-internal-links`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+              },
+              body: JSON.stringify({
+                postId: savedPost.id,
+                shopId: shopId,
+                content: savedPost.content,
+                topic: topic,
+                serpAnalysis: serpAnalysis
+              }),
+              signal: linksController.signal
+            }
+          );
+          clearTimeout(linksTimeout);
+
+          if (linksResponse.ok) {
+            const linksData = await linksResponse.json();
+            if (linksData.success && linksData.linksAdded > 0) {
+              internalLinksAdded = linksData.linksAdded;
+              savedPost.content = linksData.content;
+              console.log(`✓ Added ${internalLinksAdded} internal links successfully`);
+              
+              // Phase 3: Validate keyword density
+              const plainTextForDensity = savedPost.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+              const wordCountForDensity = plainTextForDensity.split(/\s+/).length;
+              const keywordForDensity = blogPost.focus_keyword || keywords[0] || '';
+              if (keywordForDensity) {
+                const keywordOccurrences = (plainTextForDensity.toLowerCase().match(new RegExp(keywordForDensity.toLowerCase(), 'g')) || []).length;
+                const keywordDensity = (keywordOccurrences / wordCountForDensity) * 100;
+                console.log(`${logPrefix} 📊 Keyword density: ${keywordDensity.toFixed(2)}% (${keywordOccurrences} occurrences / ${wordCountForDensity} words)`);
+                
+                if (keywordDensity < 1.0) {
+                  console.warn(`${logPrefix} ⚠️ Keyword density LOW: ${keywordDensity.toFixed(2)}% (target: 1.2-1.8%)`);
+                } else if (keywordDensity > 2.5) {
+                  console.warn(`${logPrefix} ⚠️ Keyword density HIGH: ${keywordDensity.toFixed(2)}%`);
+                } else {
+                  console.log(`${logPrefix} ✅ Keyword density optimal: ${keywordDensity.toFixed(2)}%`);
+                }
+              }
+            }
+          } else {
+            console.error('Internal linking failed:', await linksResponse.text());
+          }
+        } catch (linksError) {
+          console.error('Error adding internal links (non-critical):', linksError);
+        }
+
+        // Add author signature if author is assigned
+        if (selectedAuthorId) {
+          try {
+            console.log('Adding author signature...');
+            const signatureController = new AbortController();
+            const signatureTimeout = setTimeout(() => signatureController.abort(), 30000); // 30s timeout
+            
+            const signatureResponse = await fetch(
+              `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-author-signature`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                },
+                body: JSON.stringify({
+                  content: savedPost.content,
+                  authorId: selectedAuthorId,
+                  shopId: shopId,
+                  postTitle: blogPost.title
+                }),
+                signal: signatureController.signal
+              }
+            );
+            clearTimeout(signatureTimeout);
+
+            if (signatureResponse.ok) {
+              const signatureData = await signatureResponse.json();
+              if (signatureData.success) {
+                savedPost.content = signatureData.content;
+                console.log(`${logPrefix} ✓ Author signature added successfully`);
+              }
+            } else {
+              console.error('Signature addition failed (non-critical):', await signatureResponse.text());
+            }
+          } catch (signatureError) {
+            console.error('Error adding signature (non-critical):', signatureError);
           }
         }
-      } else {
-        console.error('Image generation failed:', await imagesResponse.text());
-      }
-    } catch (imageError) {
-      console.error('Error generating images (non-critical):', imageError);
-    }
 
-    // Add internal links to the content
-    let internalLinksAdded = 0;
-    try {
-      console.log(`${logPrefix} Adding internal links to blog post...`);
-      const linksController = new AbortController();
-      const linksTimeout = setTimeout(() => linksController.abort(), 45000); // 45s timeout
-      
-      const linksResponse = await fetch(
-        `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-internal-links`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-          },
-          body: JSON.stringify({
-            postId: savedPost.id,
-            shopId: shopId,
-            content: savedPost.content,
-            topic: topic,
-            serpAnalysis: serpAnalysis // Phase 3: Pass SERP analysis for dynamic link targeting
-          }),
-          signal: linksController.signal
-        }
-      );
-      clearTimeout(linksTimeout);
-
-      if (linksResponse.ok) {
-        const linksData = await linksResponse.json();
-        if (linksData.success && linksData.linksAdded > 0) {
-          internalLinksAdded = linksData.linksAdded;
-          savedPost.content = linksData.content;
-          console.log(`✓ Added ${internalLinksAdded} internal links successfully`);
+        // Add FAQ section
+        try {
+          console.log(`${logPrefix} Generating FAQ section...`);
+          const faqController = new AbortController();
+          const faqTimeout = setTimeout(() => faqController.abort(), 45000); // 45s timeout
           
-          // Phase 3: Validate keyword density
-          const plainTextForDensity = savedPost.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          const wordCountForDensity = plainTextForDensity.split(/\s+/).length;
-          const keywordForDensity = blogPost.focus_keyword || keywords[0] || '';
-          if (keywordForDensity) {
-            const keywordOccurrences = (plainTextForDensity.toLowerCase().match(new RegExp(keywordForDensity.toLowerCase(), 'g')) || []).length;
-            const keywordDensity = (keywordOccurrences / wordCountForDensity) * 100;
-            console.log(`${logPrefix} 📊 Keyword density: ${keywordDensity.toFixed(2)}% (${keywordOccurrences} occurrences / ${wordCountForDensity} words)`);
-            
-            if (keywordDensity < 1.0) {
-              console.warn(`${logPrefix} ⚠️ Keyword density LOW: ${keywordDensity.toFixed(2)}% (target: 1.2-1.8%)`);
-            } else if (keywordDensity > 2.5) {
-              console.warn(`${logPrefix} ⚠️ Keyword density HIGH: ${keywordDensity.toFixed(2)}%`);
-            } else {
-              console.log(`${logPrefix} ✅ Keyword density optimal: ${keywordDensity.toFixed(2)}%`);
+          const faqResponse = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-faq`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+              },
+              body: JSON.stringify({
+                postId: savedPost.id,
+                shopId: shopId,
+                content: savedPost.content,
+                topic: blogPost.title,
+                focusKeyword: blogPost.focus_keyword
+              }),
+              signal: faqController.signal
+            }
+          );
+          clearTimeout(faqTimeout);
+
+          if (faqResponse.ok) {
+            const faqData = await faqResponse.json();
+            if (faqData.success && faqData.faqCount > 0) {
+              savedPost.content = faqData.content;
+              console.log(`✓ Added ${faqData.faqCount} FAQ items successfully`);
+            }
+          } else {
+            console.error('FAQ generation failed (non-critical):', await faqResponse.text());
+          }
+        } catch (faqError) {
+          console.error('Error generating FAQ (non-critical):', faqError);
+        }
+
+        // Clean invalid links (404s, etc.)
+        try {
+          console.log(`${logPrefix} Cleaning invalid links...`);
+          const cleanLinksResponse = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/clean-blog-post-links`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+              },
+              body: JSON.stringify({
+                postId: savedPost.id
+              })
+            }
+          );
+
+          if (cleanLinksResponse.ok) {
+            const cleanData = await cleanLinksResponse.json();
+            if (cleanData.success) {
+              console.log(`✓ Cleaned ${cleanData.removed} invalid links`);
             }
           }
+        } catch (cleanError) {
+          console.error('Error cleaning links (non-critical):', cleanError);
         }
-      } else {
-        console.error('Internal linking failed:', await linksResponse.text());
-      }
-    } catch (linksError) {
-      console.error('Error adding internal links (non-critical):', linksError);
-    }
 
-    // Add author signature if author is assigned
-    if (selectedAuthorId) {
-      try {
-        console.log('Adding author signature...');
-        const signatureController = new AbortController();
-        const signatureTimeout = setTimeout(() => signatureController.abort(), 30000); // 30s timeout
-        
-        const signatureResponse = await fetch(
-          `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-author-signature`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-            },
-            body: JSON.stringify({
-              content: savedPost.content,
-              authorId: selectedAuthorId,
-              shopId: shopId,
-              postTitle: blogPost.title
-            }),
-            signal: signatureController.signal
-          }
-        );
-        clearTimeout(signatureTimeout);
+        // Update generation_status to 'draft'
+        const { error: statusUpdateError } = await supabaseClient
+          .from('blog_posts')
+          .update({ generation_status: 'draft' })
+          .eq('id', savedPost.id);
 
-        if (signatureResponse.ok) {
-          const signatureData = await signatureResponse.json();
-          if (signatureData.success) {
-            savedPost.content = signatureData.content;
-            console.log(`${logPrefix} ✓ Author signature added successfully`);
-          }
+        if (statusUpdateError) {
+          console.error('Error updating generation status:', statusUpdateError);
         } else {
-          console.error('Signature addition failed (non-critical):', await signatureResponse.text());
+          console.log(`${logPrefix} ✅ Background processing completed successfully`);
         }
-      } catch (signatureError) {
-        console.error('Error adding signature (non-critical):', signatureError);
+      } catch (backgroundError) {
+        console.error(`${logPrefix} ❌ Background processing error:`, backgroundError);
+        
+        // Update status to error
+        await supabaseClient
+          .from('blog_posts')
+          .update({ generation_status: 'error' })
+          .eq('id', savedPost.id);
       }
-    }
+    })());
 
-    // Add FAQ section
-    try {
-      console.log(`${logPrefix} Generating FAQ section...`);
-      const faqController = new AbortController();
-      const faqTimeout = setTimeout(() => faqController.abort(), 45000); // 45s timeout
-      
-      const faqResponse = await fetch(
-        `${Deno.env.get('SUPABASE_URL')}/functions/v1/add-blog-faq`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-          },
-          body: JSON.stringify({
-            postId: savedPost.id,
-            shopId: shopId,
-            content: savedPost.content,
-            topic: blogPost.title,
-            focusKeyword: blogPost.focus_keyword
-          }),
-          signal: faqController.signal
-        }
-      );
-      clearTimeout(faqTimeout);
+    return immediateResponse;
 
-      if (faqResponse.ok) {
-        const faqData = await faqResponse.json();
-        if (faqData.success && faqData.faqCount > 0) {
-          savedPost.content = faqData.content;
-          console.log(`✓ Added ${faqData.faqCount} FAQ items successfully`);
-        }
-      } else {
-        console.error('FAQ generation failed (non-critical):', await faqResponse.text());
-      }
-    } catch (faqError) {
-      console.error('Error generating FAQ (non-critical):', faqError);
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        post: {
-          ...savedPost,
-          ...blogPost,
-          images: generatedImages,
-          internal_links_added: internalLinksAdded,
-          serp_analysis: serpAnalysis ? {
-            competitors_analyzed: serpAnalysis.top_results.length,
-            target_word_count: serpAnalysis.recommended_structure.target_word_count,
-            insights: serpAnalysis.competitive_insights
-          } : null
-        }
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-
-  } catch (error) {
-    const logPrefix = (error as any).requestId ? `[${(error as any).requestId}]` : '';
-    console.error(`${logPrefix} ❌ Error generating blog post:`, error);
+  } catch (error: any) {
+    console.error('Error in generate-blog-post function:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: (error as Error).message || 'Erreur lors de la génération' 
+        error: error.message || 'Une erreur est survenue lors de la génération'
       }),
-      {
+      { 
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { BlogSEOScore } from '@/components/blog/BlogSEOScore';
 import { SEOOptimizationHistory } from '@/components/blog/SEOOptimizationHistory';
 import AuthorCard from '@/components/blog/AuthorCard';
+import { BlogPostGenerationStatus } from '@/components/blog/BlogPostGenerationStatus';
 
 export default function BlogPostDetailPage() {
   const { id: shopId, postId } = useParams();
@@ -298,6 +299,11 @@ export default function BlogPostDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-6">
+                {/* Generation Status */}
+                {post.generation_status === 'generating' && (
+                  <BlogPostGenerationStatus post={post} />
+                )}
+                
                 {/* Clean Links Button */}
                 <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                   <div className="flex items-start gap-3">

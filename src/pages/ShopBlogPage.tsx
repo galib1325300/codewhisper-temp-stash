@@ -310,9 +310,15 @@ export default function ShopBlogPage() {
   const generateArticle = async (serpAnalysis: any | null) => {
     if (!shop) return;
     
+    // Close modal immediately and show toast
+    setLoadingSerpAnalysis(false);
+    setShowSerpPreview(false);
+    
     // VERROUILLER la génération
     setIsGenerationLocked(true);
     setGenerating(true);
+    
+    const generationToastId = toast.loading('Article en cours de génération… vous pouvez continuer à travailler');
     
     // Générer un ID de corrélation unique pour tracer la requête
     const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -379,10 +385,32 @@ export default function ShopBlogPage() {
       if (error) throw error;
 
       if (data.success) {
+        console.log('📊 Article généré:', data);
+        
         if (data.message?.includes('dupliquée détectée')) {
           toast.info('ℹ️ Article déjà généré récemment', { id: toastId });
         } else {
-          toast.success('✅ Article généré avec succès !', { id: toastId });
+          toast.dismiss(toastId);
+          
+          // Store in localStorage for background banner
+          const postId = data.post.id;
+          const generationMeta = {
+            postId,
+            shopId: shop.id,
+            title: formData.topic,
+            startedAt: Date.now()
+          };
+          localStorage.setItem('activeBlogGeneration', JSON.stringify(generationMeta));
+          
+          // Trigger custom event to notify banner
+          window.dispatchEvent(new Event('blogGenerationStarted'));
+          
+          toast.success('✅ Génération lancée en arrière-plan !', {
+            description: 'Vous pouvez continuer à travailler'
+          });
+          
+          // Navigate to the post detail page
+          navigate(`/admin/shops/${shop.id}/blog/${postId}`);
         }
         
         setShowForm(false);

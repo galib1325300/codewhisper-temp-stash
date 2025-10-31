@@ -33,6 +33,7 @@ import SEOOptimizationPage from './pages/SEOOptimizationPage';
 import MultiStoreOverview from './pages/MultiStoreOverview';
 import ProtectedRoute from './components/ProtectedRoute';
 import BackgroundJobBanner from './components/layout/BackgroundJobBanner';
+import BackgroundBlogGenerationBanner from './components/layout/BackgroundBlogGenerationBanner';
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
       <AuthProvider>
         <Router>
           <BackgroundJobBanner />
+          <BackgroundBlogGenerationBanner />
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
