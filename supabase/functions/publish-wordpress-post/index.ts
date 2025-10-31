@@ -55,7 +55,7 @@ serve(async (req) => {
     }
 
     // Vérifier les credentials WordPress
-    if (!shop.wordpress_username || !shop.wordpress_password) {
+    if (!shop.wp_username || !shop.wp_password) {
       return new Response(JSON.stringify({ 
         error: 'Identifiants WordPress non configurés dans les paramètres de la boutique' 
       }), {
@@ -65,7 +65,7 @@ serve(async (req) => {
     }
 
     const wordpressUrl = shop.url.replace(/\/$/, '');
-    const authHeader = 'Basic ' + btoa(`${shop.wordpress_username}:${shop.wordpress_password}`);
+    const authHeader = 'Basic ' + btoa(`${shop.wp_username}:${shop.wp_password}`);
 
     console.log(`Publishing to WordPress: ${wordpressUrl}`);
 
