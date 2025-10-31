@@ -138,7 +138,7 @@ serve(async (req) => {
     // Get Lovable AI API key (automatically provisioned)
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY non configurée');
+      throw new Error('LOVABLE_API_KEY non configuree');
     }
 
     // Analyze competitors if requested
@@ -392,12 +392,12 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       const errorText = await aiResponse.text();
       console.error('Lovable AI error:', aiResponse.status, errorText);
       if (aiResponse.status === 402) {
-        throw new Error('Crédits Lovable AI épuisés. Veuillez recharger vos crédits dans Settings → Workspace → Usage.');
+        throw new Error('Credits Lovable AI epuises. Veuillez recharger vos credits dans Settings → Workspace → Usage.');
       }
       if (aiResponse.status === 429) {
-        throw new Error('Limite de requêtes atteinte. Veuillez réessayer dans quelques instants.');
+        throw new Error('Limite de requetes atteinte. Veuillez reessayer dans quelques instants.');
       }
-      throw new Error(`Erreur de l'API Lovable AI (${aiResponse.status}). Veuillez réessayer.`);
+      throw new Error(`Erreur de l\'API Lovable AI (${aiResponse.status}). Veuillez reessayer.`);
     }
 
     const aiData = await aiResponse.json();
@@ -459,14 +459,14 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       if (!aiResponse2.ok) {
         const t2 = await aiResponse2.text();
         console.error('Lovable AI (fallback) error:', aiResponse2.status, t2);
-        if (aiResponse2.status === 402) throw new Error('Crédits Lovable AI épuisés. Veuillez recharger vos crédits dans Settings → Workspace → Usage.');
-        if (aiResponse2.status === 429) throw new Error('Limite de requêtes atteinte. Veuillez réessayer dans quelques instants.');
-        throw new Error(`Erreur de l'API Lovable AI (${aiResponse2.status}). Veuillez réessayer.`);
+        if (aiResponse2.status === 402) throw new Error('Credits Lovable AI epuises. Veuillez recharger vos credits dans Settings → Workspace → Usage.');
+        if (aiResponse2.status === 429) throw new Error('Limite de requetes atteinte. Veuillez reessayer dans quelques instants.');
+        throw new Error(`Erreur de l\'API Lovable AI (${aiResponse2.status}). Veuillez reessayer.`);
       }
 
       const aiData2 = await aiResponse2.json();
       const contentHtml = aiData2?.choices?.[0]?.message?.content?.trim();
-      if (!contentHtml) throw new Error('Réponse vide de l'IA (fallback)');
+      if (!contentHtml) throw new Error('Reponse vide de l\'IA (fallback)');
 
       // Build minimal metadata
       const h1Match = contentHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
