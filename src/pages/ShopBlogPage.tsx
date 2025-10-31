@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import TopicSuggestionsModal from '../components/blog/TopicSuggestionsModal';
+import SerpAnalysisPreviewModal from '../components/blog/SerpAnalysisPreviewModal';
 import AuthorManagement from '../components/blog/AuthorManagement';
 import TopicClustersManagement from '../components/blog/TopicClustersManagement';
 import { BlogProactiveSuggestions } from '../components/blog/BlogProactiveSuggestions';
@@ -53,6 +54,11 @@ export default function ShopBlogPage() {
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
   const [isGenerationLocked, setIsGenerationLocked] = useState(false);
+  
+  // SERP Analysis states
+  const [showSerpPreview, setShowSerpPreview] = useState(false);
+  const [serpAnalysisData, setSerpAnalysisData] = useState<any>(null);
+  const [loadingSerpAnalysis, setLoadingSerpAnalysis] = useState(false);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -249,6 +255,61 @@ export default function ShopBlogPage() {
       return;
     }
     
+    const keywords = formData.keywords.split(',').map(k => k.trim()).filter(k => k);
+    
+    // SI analyzeCompetitors est coché → Analyser SERP d'abord
+    if (formData.analyzeCompetitors) {
+      console.log('🔍 Analyse SERP lancée pour:', formData.topic);
+      setLoadingSerpAnalysis(true);
+      
+      const analysisToastId = toast.loading('🔍 Analyse des concurrents Google en cours...');
+      
+      try {
+        const { data: serpData, error: serpError } = await supabase.functions.invoke('analyze-serp', {
+          body: {
+            keyword: formData.topic,
+            shopUrl: shop.url
+          }
+        });
+        
+        if (serpError) throw serpError;
+        
+        if (serpData?.success && serpData?.analysis) {
+          console.log('📊 Analyse SERP reçue:', serpData.analysis);
+          setSerpAnalysisData(serpData.analysis);
+          setShowSerpPreview(true);
+          toast.success('✅ Analyse terminée ! Consultez les résultats.', { id: analysisToastId });
+        } else {
+          throw new Error(serpData?.error || 'Erreur lors de l\'analyse SERP');
+        }
+      } catch (serpError: any) {
+        console.error('❌ Erreur analyse SERP:', serpError);
+        toast.dismiss(analysisToastId);
+        
+        // Fallback : Proposer de continuer sans analyse SERP
+        const shouldContinue = confirm(
+          `L'analyse Google a échoué (${serpError.message || 'erreur réseau'}).\n\n` +
+          `Voulez-vous générer l'article sans analyse concurrentielle ?`
+        );
+        
+        if (shouldContinue) {
+          // Continuer sans analyse SERP
+          await generateArticle(null);
+        } else {
+          toast.error('Génération annulée');
+        }
+      } finally {
+        setLoadingSerpAnalysis(false);
+      }
+    } else {
+      // Pas d'analyse SERP → Générer directement
+      await generateArticle(null);
+    }
+  };
+  
+  const generateArticle = async (serpAnalysis: any | null) => {
+    if (!shop) return;
+    
     // VERROUILLER la génération
     setIsGenerationLocked(true);
     setGenerating(true);
@@ -261,8 +322,13 @@ export default function ShopBlogPage() {
     console.log(`🚀 [${requestId}] Génération article avec:`, {
       topic: formData.topic,
       keywords,
-      authorId: selectedAuthorId || 'auto'
+      authorId: selectedAuthorId || 'auto',
+      serpAnalysis: serpAnalysis ? 'oui' : 'non'
     });
+    
+    if (serpAnalysis) {
+      console.log('✅ Génération confirmée avec stratégie SERP');
+    }
     
     const toastId = toast.loading('🔄 Génération de l\'article en cours...');
     
@@ -274,7 +340,8 @@ export default function ShopBlogPage() {
           topic: formData.topic,
           keywords,
           collectionIds: formData.collectionIds,
-          analyzeCompetitors: formData.analyzeCompetitors,
+          analyzeCompetitors: !!serpAnalysis,
+          serpAnalysis,
           authorId: selectedAuthorId || null,
           requestId
         }
@@ -320,6 +387,8 @@ export default function ShopBlogPage() {
         
         setShowForm(false);
         setFormData({ topic: '', keywords: '', collectionIds: [], analyzeCompetitors: true });
+        setShowSerpPreview(false);
+        setSerpAnalysisData(null);
         
         // Recharger immédiatement
         await loadBlogPosts();
@@ -1024,6 +1093,17 @@ export default function ShopBlogPage() {
               mainCategories={nicheData.mainCategories}
               analyzedProducts={nicheData.analyzedProducts}
               analyzedCollections={nicheData.analyzedCollections}
+            />
+            
+            <SerpAnalysisPreviewModal
+              isOpen={showSerpPreview}
+              onClose={() => {
+                setShowSerpPreview(false);
+                setSerpAnalysisData(null);
+              }}
+              onConfirm={generateArticle}
+              serpAnalysis={serpAnalysisData}
+              topic={formData.topic}
             />
     </div>
   );
