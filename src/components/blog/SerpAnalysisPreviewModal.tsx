@@ -49,7 +49,16 @@ export default function SerpAnalysisPreviewModal({
 }: SerpAnalysisPreviewModalProps) {
   if (!serpAnalysis) return null;
 
-  const { top_results, recommended_structure, competitive_insights } = serpAnalysis;
+  const top_results = serpAnalysis.top_results || [];
+  const recommended_structure = serpAnalysis.recommended_structure || {} as RecommendedStructure;
+  const competitive_insights = serpAnalysis.competitive_insights || '';
+  
+  // Safe defaults for recommended_structure
+  const h2Sections = recommended_structure?.h2_sections || [];
+  const targetWordCount = recommended_structure?.target_word_count || 1500;
+  const recommendedLinks = recommended_structure?.recommended_internal_links || 5;
+  const contentTypes = recommended_structure?.content_types_to_add || [];
+  const keywords = recommended_structure?.keywords_to_include || [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,6 +76,7 @@ export default function SerpAnalysisPreviewModal({
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-6">
             {/* Section 1: Top Résultats Google */}
+            {top_results.length > 0 && (
             <div>
               <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                 <ExternalLink className="h-4 w-4 text-primary" />
@@ -124,7 +134,7 @@ export default function SerpAnalysisPreviewModal({
                             </Badge>
                           )}
                         </div>
-                        {result.h2_structure && result.h2_structure.length > 0 && (
+                          {result.h2_structure && result.h2_structure.length > 0 && (
                           <div className="mt-2 pt-2 border-t">
                             <p className="text-xs font-medium text-muted-foreground mb-1">
                               Structure H2 :
@@ -149,15 +159,17 @@ export default function SerpAnalysisPreviewModal({
                 ))}
               </Accordion>
             </div>
+            )}
 
             {/* Section 2: Structure Recommandée */}
+            {h2Sections.length > 0 && (
             <Card className="p-4 border-primary/20 bg-primary/5">
               <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
                 Structure H2 Recommandée
               </h3>
               <ul className="space-y-2">
-                {recommended_structure.h2_sections.map((h2, i) => (
+                {h2Sections.map((h2, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
                     <span className="text-primary font-mono shrink-0">{i + 1}.</span>
                     <span className="text-foreground">{h2}</span>
@@ -165,6 +177,7 @@ export default function SerpAnalysisPreviewModal({
                 ))}
               </ul>
             </Card>
+            )}
 
             {/* Section 3: Objectifs SEO */}
             <div>
@@ -175,7 +188,7 @@ export default function SerpAnalysisPreviewModal({
               <div className="grid grid-cols-2 gap-3">
                 <Card className="p-4 text-center">
                   <div className="text-2xl font-bold text-primary mb-1">
-                    {recommended_structure.target_word_count}
+                    {targetWordCount}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Mots cibles
@@ -183,7 +196,7 @@ export default function SerpAnalysisPreviewModal({
                 </Card>
                 <Card className="p-4 text-center">
                   <div className="text-2xl font-bold text-primary mb-1">
-                    {recommended_structure.recommended_internal_links}
+                    {recommendedLinks}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Liens internes
@@ -191,13 +204,13 @@ export default function SerpAnalysisPreviewModal({
                 </Card>
               </div>
 
-              {recommended_structure.content_types_to_add.length > 0 && (
+              {contentTypes.length > 0 && (
                 <div className="mt-4">
                   <p className="text-sm font-medium text-foreground mb-2">
                     Types de contenu à ajouter :
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {recommended_structure.content_types_to_add.map((type, i) => (
+                    {contentTypes.map((type, i) => (
                       <Badge key={i} variant="secondary">
                         {type}
                       </Badge>
@@ -206,20 +219,20 @@ export default function SerpAnalysisPreviewModal({
                 </div>
               )}
 
-              {recommended_structure.keywords_to_include.length > 0 && (
+              {keywords.length > 0 && (
                 <div className="mt-4">
                   <p className="text-sm font-medium text-foreground mb-2">
                     Mots-clés à intégrer :
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {recommended_structure.keywords_to_include.slice(0, 8).map((kw, i) => (
+                    {keywords.slice(0, 8).map((kw, i) => (
                       <Badge key={i} variant="outline" className="text-xs">
                         {kw}
                       </Badge>
                     ))}
-                    {recommended_structure.keywords_to_include.length > 8 && (
+                    {keywords.length > 8 && (
                       <Badge variant="outline" className="text-xs">
-                        +{recommended_structure.keywords_to_include.length - 8} autres
+                        +{keywords.length - 8} autres
                       </Badge>
                     )}
                   </div>
