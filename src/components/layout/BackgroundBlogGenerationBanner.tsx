@@ -149,9 +149,24 @@ export default function BackgroundBlogGenerationBanner() {
           filter: `id=eq.${activeGeneration.postId}`
         },
         (payload: any) => {
-          console.log('Realtime update received:', payload);
+          console.log('🔔 Realtime blog post update:', payload.new);
           if (payload.new?.generation_status) {
-            handleCompletion(payload.new.generation_status);
+            const newStatus = payload.new.generation_status;
+            
+            // Add 500ms delay to ensure all updates are propagated before clearing banner
+            if (newStatus === 'draft' || newStatus === 'published') {
+              console.log('✅ Blog generation completed via realtime');
+              setTimeout(() => {
+                handleCompletion(newStatus);
+              }, 500);
+            } else if (newStatus === 'error') {
+              console.log('❌ Blog generation failed via realtime');
+              setTimeout(() => {
+                handleCompletion(newStatus);
+              }, 500);
+            } else {
+              handleCompletion(newStatus);
+            }
           }
         }
       )

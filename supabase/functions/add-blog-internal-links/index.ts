@@ -246,11 +246,11 @@ Format JSON:
 
     // STEP 1: CLEAN EXISTING INVALID LINKS from the content (anti-404)
     console.log('🧹 Cleaning pre-existing invalid links from content...');
-    let cleanedContent = content;
+    let workingContent = content; // Use new variable instead of reassigning const
     let linksRemovedFromContent = 0;
     
     // Remove links that don't belong to the shop domain or are empty/external
-    cleanedContent = cleanedContent.replace(
+    workingContent = workingContent.replace(
       /<a\s+([^>]*?)href=["']([^"']*?)["']([^>]*?)>(.*?)<\/a>/gi,
       (match, beforeHref, href, afterHref, anchorText) => {
         // Keep if href starts with shop URL (internal link)
@@ -278,7 +278,6 @@ Format JSON:
     
     if (linksRemovedFromContent > 0) {
       console.log(`✓ Cleaned ${linksRemovedFromContent} invalid pre-existing links`);
-      content = cleanedContent; // Update content for further processing
     }
 
     // VALIDATION HEAD REQUEST: Vérifier que les URLs existent réellement (pas de 404)
@@ -318,9 +317,14 @@ Format JSON:
       console.warn(`❌ URLs rejetées (404 ou erreur):`, rejectedUrls);
     }
 
-    // Insert links into content
-    let updatedContent = content;
+    // Insert links into content - use workingContent from cleaning phase
+    let updatedContent = workingContent;
     let linksAdded = 0;
+    
+    // Split content by H2 sections for better distribution
+    const h2SplitRegex = /(<h2[^>]*>.*?<\/h2>)/gi;
+    const contentSections = updatedContent.split(h2SplitRegex);
+    console.log(`📑 Content split into ${contentSections.length} sections for link distribution`);
 
     if (linkSuggestions.links && Array.isArray(linkSuggestions.links)) {
       // Valider et filtrer les liens (vérifier à la fois dans la liste ET que l'URL est accessible)
@@ -344,39 +348,64 @@ Format JSON:
         .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
         .slice(0, Math.max(targetLinks, 9)); // Use SERP recommendation or max 9
 
-      console.log(`Processing ${sortedLinks.length} high-relevance links...`);
+      console.log(`Processing ${sortedLinks.length} high-relevance links with improved distribution...`);
 
-      for (const link of sortedLinks) {
-        const { anchor_text, url, type } = link;
+      // Distribute links across sections (max 2-3 links per section)
+      const linksPerSection = Math.max(2, Math.floor(sortedLinks.length / Math.max(1, contentSections.length - 1)));
+      console.log(`🎯 Target: max ${linksPerSection} links per section`);
+      
+      let linkIndex = 0;
+      
+      for (let sectionIdx = 0; sectionIdx < contentSections.length && linkIndex < sortedLinks.length; sectionIdx++) {
+        let sectionContent = contentSections[sectionIdx];
+        let sectionLinksAdded = 0;
         
-        // Create the link HTML with appropriate attributes
-        const linkHtml = `<a href="${url}" title="${anchor_text}" class="internal-link">${anchor_text}</a>`;
+        // Skip H2 headers themselves
+        if (/<h2/i.test(sectionContent)) {
+          continue;
+        }
         
-        // Try to find and replace the anchor text in the content
-        // Use word boundaries to avoid partial matches
-        const regex = new RegExp(`\\b${anchor_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-        
-        // CRITICAL: Ne PAS insérer dans les headings (H1-H6), figcaption, ou tableaux
-        // On extrait les paragraphes <p> et listes <li> pour éviter les headings
-        const safeTagsRegex = /<(p|li)[^>]*>.*?<\/\1>/gis;
-        const safeSections = updatedContent.match(safeTagsRegex) || [];
-        
-        let replacementDone = false;
-        for (const section of safeSections) {
-          if (regex.test(section) && !section.includes(`>${anchor_text}</a>`)) {
-            const replacedSection = section.replace(regex, linkHtml);
-            updatedContent = updatedContent.replace(section, replacedSection);
-            linksAdded++;
-            replacementDone = true;
-            console.log(`✓ Added ${type} link: "${anchor_text}" → ${url}`);
-            break;
+        // Add up to linksPerSection links in this section
+        while (sectionLinksAdded < linksPerSection && linkIndex < sortedLinks.length) {
+          const link = sortedLinks[linkIndex];
+          const { anchor_text, url, type } = link;
+          
+          // Create the link HTML with appropriate attributes
+          const linkHtml = `<a href="${url}" title="${anchor_text}" class="internal-link">${anchor_text}</a>`;
+          
+          // Try to find and replace the anchor text in this section only
+          const regex = new RegExp(`\\b${anchor_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          
+          // Only insert in safe tags (p, li) within this section
+          const safeTagsRegex = /<(p|li)[^>]*>.*?<\/\1>/gis;
+          const safeSections = sectionContent.match(safeTagsRegex) || [];
+          
+          let replacementDone = false;
+          for (const safeTag of safeSections) {
+            if (regex.test(safeTag) && !safeTag.includes(`>${anchor_text}</a>`)) {
+              const replacedTag = safeTag.replace(regex, linkHtml);
+              sectionContent = sectionContent.replace(safeTag, replacedTag);
+              linksAdded++;
+              sectionLinksAdded++;
+              replacementDone = true;
+              console.log(`✓ Section ${sectionIdx}: Added ${type} link "${anchor_text}" → ${url}`);
+              break;
+            }
           }
+          
+          if (!replacementDone) {
+            console.log(`⚠ Section ${sectionIdx}: Skipped link "${anchor_text}" (not found or already linked)`);
+          }
+          
+          linkIndex++;
         }
         
-        if (!replacementDone) {
-          console.log(`⚠ Skipped link "${anchor_text}": not found in safe tags (p, li) or already linked`);
-        }
+        // Update section in main content
+        contentSections[sectionIdx] = sectionContent;
       }
+      
+      // Reassemble content from sections
+      updatedContent = contentSections.join('');
     }
 
     // NETTOYAGE FINAL: Retirer tous les liens des titres H1/H2/H3
