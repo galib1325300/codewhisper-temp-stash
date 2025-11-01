@@ -162,8 +162,8 @@ export default function BackgroundBlogGenerationBanner() {
     // Initial check
     checkStatus();
 
-    // Poll every 3 seconds as fallback
-    pollInterval = setInterval(checkStatus, 3000);
+    // Poll every 2 seconds as fallback (improved responsiveness)
+    pollInterval = setInterval(checkStatus, 2000);
 
     // TTL: Auto-cleanup after 12 minutes
     ttlTimeout = setTimeout(() => {

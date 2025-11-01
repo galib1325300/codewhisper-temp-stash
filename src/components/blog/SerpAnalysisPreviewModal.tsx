@@ -62,7 +62,7 @@ export default function SerpAnalysisPreviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <TrendingUp className="h-5 w-5 text-primary" />
@@ -73,7 +73,7 @@ export default function SerpAnalysisPreviewModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6">
             {/* Section 1: Top Résultats Google */}
             {top_results.length > 0 && (

@@ -167,9 +167,9 @@ export default function BlogPostDetailPage() {
       )
       .subscribe();
 
-    // Setup polling while generating
+    // Setup polling while generating (improved to 3s)
     if (post?.generation_status === 'generating') {
-      pollInterval = setInterval(updatePostData, 4000);
+      pollInterval = setInterval(updatePostData, 3000);
     }
 
     return () => {

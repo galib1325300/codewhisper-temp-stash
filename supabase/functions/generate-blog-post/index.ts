@@ -348,7 +348,8 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
 
     console.log(`${logPrefix} Calling Lovable AI for blog post generation...`);
 
-    // Call Lovable AI
+    // Call Lovable AI with increased max_tokens
+    console.log(`${logPrefix} 🤖 Calling Lovable AI with google/gemini-2.5-flash...`);
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -357,6 +358,8 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
+        max_tokens: 8000,
+        temperature: 0.7,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -920,25 +923,36 @@ IMPORTANT : Le contenu doit être 100% prêt à publier, optimisé pour Google, 
           console.error('Error cleaning links (non-critical):', cleanError);
         }
 
-        // Update generation_status to 'draft'
+        // FINAL STATUS UPDATE - Very important for realtime events
+        console.log(`${logPrefix} 🏁 All background tasks completed, updating status to 'draft'...`);
         const { error: statusUpdateError } = await supabaseClient
           .from('blog_posts')
-          .update({ generation_status: 'draft' })
+          .update({ 
+            generation_status: 'draft',
+            updated_at: new Date().toISOString()
+          })
           .eq('id', savedPost.id);
 
         if (statusUpdateError) {
-          console.error('Error updating generation status:', statusUpdateError);
+          console.error(`${logPrefix} ❌ Error updating generation status:`, statusUpdateError);
         } else {
-          console.log(`${logPrefix} ✅ Background processing completed successfully`);
+          console.log(`${logPrefix} ✅ Status updated to 'draft' - Background processing completed successfully`);
         }
       } catch (backgroundError) {
         console.error(`${logPrefix} ❌ Background processing error:`, backgroundError);
         
-        // Update status to error
-        await supabaseClient
+        // Update status to error with explicit realtime trigger
+        const { error: errorUpdateError } = await supabaseClient
           .from('blog_posts')
-          .update({ generation_status: 'error' })
+          .update({ 
+            generation_status: 'error',
+            updated_at: new Date().toISOString()
+          })
           .eq('id', savedPost.id);
+        
+        if (errorUpdateError) {
+          console.error(`${logPrefix} ❌ Error updating error status:`, errorUpdateError);
+        }
       }
     })());
 
